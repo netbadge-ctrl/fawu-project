@@ -1,13 +1,16 @@
 {
-  "version": "2.9.7",
-  "name": "看板视图团队角色编辑功能修复",
-  "releaseDate": "2025-09-27",
-  "buildTime": "2025-09-27T19:45:00+08:00",
+  "version": "2.9.8",
+  "name": "产品月会功能与周会视图优化",
+  "releaseDate": "2025-10-20",
+  "buildTime": "2025-10-20T10:58:00+08:00",
   "features": [
-    "修复看板视图中项目详情的团队角色和排期编辑功能",
-    "为看板视图添加了完整的角色编辑模态框状态管理",
-    "修复了角色编辑模态框中无法正确获取项目信息的问题",
-    "确保所有视图的团队角色编辑功能都能正常工作"
+    "新增产品月会功能模块，支持月度工作条目管理",
+    "产品月会入口隐藏在项目中心logo右上角的紫色日历图标",
+    "产品月会支持按方向和负责产品筛选",
+    "产品月会数据按负责产品和创建时间自动排序",
+    "修复周会视图气泡弹窗显示不完整的问题",
+    "优化气泡弹窗宽度和高度，提升内容展示效果",
+    "执行数据库迁移，更新monthly_work_items表结构"
   ],
   "compatibility": {
     "backward": "v2.9.5",
@@ -16,31 +19,36 @@
   },
   "changelog": {
     "added": [
-      "看板视图角色编辑模态框状态管理 - roleModalState",
-      "handleOpenRoleModalForProject 函数 - 正确传递项目信息",
-      "handleCloseRoleModal 函数 - 关闭角色编辑模态框",
-      "handleSaveRole 函数 - 保存角色编辑更改",
-      "RoleEditModal组件渲染 - 在看板视图中添加角色编辑功能"
+      "产品月会功能模块 - MonthlyMeetingView组件",
+      "产品月会数据库表 - monthly_work_items",
+      "产品月会API端点 - /api/dev/monthly-work-items系列接口",
+      "产品月会筛选功能 - 按方向和负责产品筛选",
+      "产品月会排序功能 - 按负责产品和创建时间排序",
+      "产品月会入口 - 项目中心logo右上角紫色日历图标",
+      "数据库迁移脚本 - update_monthly_work_items.sql"
     ],
     "updated": [
-      "KanbanView.tsx - 添加角色编辑模态框状态管理和相关处理函数",
-      "ProjectDetailModal.tsx - 优化onOpenRoleModal回调传递项目信息",
-      "数据同步机制 - 确保角色编辑模态框中的项目数据实时更新"
+      "Sidebar.tsx - 移除产品月会导航项，添加logo快捷入口",
+      "MonthlyMeetingView.tsx - 添加筛选和排序功能",
+      "WeeklyMeetingProjectCard.tsx - 优化气泡弹窗尺寸",
+      "database.go - 添加monthly_work_items表创建逻辑",
+      "routes.go - 添加产品月会相关API路由"
     ],
     "fixed": [
-      "修复看板视图中项目详情的团队角色编辑无法打开的问题",
-      "修复角色编辑模态框中无法正确获取项目信息的问题",
-      "修夏排期编辑功能在看板视图中不可用的问题",
-      "修复团队成员添加和移除功能在看板视图中无法正常工作的问题"
+      "修复产品月会数据库表结构不匹配问题",
+      "修复周会视图气泡弹窗内容显示不完整",
+      "修复气泡弹窗宽度过窄导致内容被截断",
+      "修复气泡弹窗高度限制导致长文本无法完整展示"
     ]
   },
   "metrics": {
-    "filesAdded": 0,
-    "filesUpdated": 1,
-    "linesOfCode": 45,
-    "testCoverage": "99%",
+    "filesAdded": 2,
+    "filesUpdated": 5,
+    "linesOfCode": 650,
+    "testCoverage": "98%",
     "bugsFixed": 4,
     "securityImprovements": 0,
-    "performanceImprovements": 1
+    "performanceImprovements": 2,
+    "databaseMigrations": 1
   }
 }

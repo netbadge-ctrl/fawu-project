@@ -200,6 +200,51 @@ export const api = {
     return makeRequest('/sync-employees', {
       method: 'POST',
     });
+  },
+
+  // 月会相关API
+  // 获取所有月度工作条目
+  async fetchMonthlyWorkItems() {
+    const endpoint = isDevelopment ? '/dev/monthly-work-items' : '/monthly-work-items';
+    return makeRequest(endpoint);
+  },
+
+  // 获取指定年月的工作条目
+  async fetchMonthlyWorkItemsByMonth(year: number, month: number) {
+    const endpoint = isDevelopment 
+      ? `/dev/monthly-work-items/${year}/${month}` 
+      : `/monthly-work-items/${year}/${month}`;
+    return makeRequest(endpoint);
+  },
+
+  // 创建月度工作条目
+  async createMonthlyWorkItem(item: any) {
+    const endpoint = isDevelopment ? '/dev/monthly-work-items' : '/monthly-work-items';
+    return makeRequest(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(item),
+    });
+  },
+
+  // 更新月度工作条目
+  async updateMonthlyWorkItem(itemId: string, updates: any) {
+    const endpoint = isDevelopment 
+      ? `/dev/monthly-work-items/${itemId}`
+      : `/monthly-work-items/${itemId}`;
+    return makeRequest(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  // 删除月度工作条目
+  async deleteMonthlyWorkItem(itemId: string) {
+    const endpoint = isDevelopment 
+      ? `/dev/monthly-work-items/${itemId}`
+      : `/monthly-work-items/${itemId}`;
+    return makeRequest(endpoint, {
+      method: 'DELETE',
+    });
   }
 };
 

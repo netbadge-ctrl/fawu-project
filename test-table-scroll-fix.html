@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>表格滚动抖动修复验证</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f3f4f6;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .test-info {
+            background: #e0f2fe;
+            border: 1px solid #0284c7;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .fix-summary {
+            background: #f0fdf4;
+            border: 1px solid #16a34a;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .fix-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .fix-item h4 {
+            margin: 0 0 8px 0;
+            color: #1f2937;
+        }
+        .fix-item p {
+            margin: 0;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        .code-block {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        .before-after {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 16px 0;
+        }
+        .before, .after {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+        }
+        .before h5, .after h5 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+        }
+        .before h5 {
+            color: #dc2626;
+        }
+        .after h5 {
+            color: #16a34a;
+        }
+        .highlight {
+            background: #fef3c7;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>表格滚动抖动修复验证报告</h1>
+        
+        <div class="test-info">
+            <h3>🎯 问题描述</h3>
+            <p>项目总览的表格滚动在极特殊的时候会出现频繁快速上下抖动的情况，影响用户体验。</p>
+            <p><strong>触发条件</strong>：大量数据（>50项目）+ 快速滚动 + 虚拟滚动计算误差</p>
+        </div>
+
+        <div class="fix-summary">
+            <h3>✅ 修复方案总结</h3>
+            <p>通过优化虚拟滚动算法、调整滚动事件处理机制、改进CSS样式等多重手段，彻底解决表格滚动抖动问题。</p>
+        </div>
+
+        <h3>🔧 具体修复内容</h3>
+
+        <div class="fix-item">
+            <h4>1. 虚拟滚动稳定性优化</h4>
+            <p>添加滚动范围稳定性检查，只有当范围变化足够大时才更新，避免微小抖动。</p>
+            <div class="before-after">
+                <div class="before">
+                    <h5>修复前 ❌</h5>
+                    <div class="code-block">setVisibleRange({ start: startIndex, end: endIndex });</div>
+                    <p>每次滚动都立即更新范围</p>
+                </div>
+                <div class="after">
+                    <h5>修复后 ✅</h5>
+                    <div class="code-block">// 只有当范围变化超过3行时才更新
+const rangeDiff = Math.abs(startIndex - lastStableRange.start) + 
+                  Math.abs(endIndex - lastStableRange.end);
+if (rangeDiff >= 3) {
+  setVisibleRange(newRange);
+  setLastStableRange(newRange);
+}</div>
+                    <p>添加变化阈值，减少不必要的更新</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="fix-item">
+            <h4>2. 缓冲区大小优化</h4>
+            <p>减少虚拟滚动缓冲区大小，避免过度渲染导致的性能问题。</p>
+            <div class="before-after">
+                <div class="before">
+                    <h5>修复前 ❌</h5>
+                    <div class="code-block">const BUFFER_SIZE = 10; // 缓冲区大小</div>
+                    <p>缓冲区过大，渲染元素过多</p>
+                </div>
+                <div class="after">
+                    <h5>修复后 ✅</h5>
+                    <div class="code-block">const BUFFER_SIZE = 5; // 减少缓冲区大小以避免过度渲染</div>
+                    <p>优化缓冲区大小，平衡性能和用户体验</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="fix-item">
+            <h4>3. 滚动事件处理优化</h4>
+            <p>调整滚动事件的防抖时间，匹配60fps的更新频率。</p>
+            <div class="before-after">
+                <div class="before">
+                    <h5>修复前 ❌</h5>
+                    <div class="code-block">setTimeout(() => {
+  setIsScrolling(false);
+}, 100);</div>
+                    <p>防抖时间过长，影响响应性</p>
+                </div>
+                <div class="after">
+                    <h5>修复后 ✅</h5>
+                    <div class="code-block">const SCROLL_DEBOUNCE_MS = 16; // 约60fps的更新频率
+setTimeout(() => {
+  setIsScrolling(false);
+}, SCROLL_DEBOUNCE_MS);</div>
+                    <p>优化防抖时间，提高响应性</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="fix-item">
+            <h4>4. 索引范围安全检查</h4>
+            <p>添加索引边界检查，确保不会访问超出数组范围的元素。</p>
+            <div class="code-block">// 确保索引范围在有效范围内
+const safeStart = Math.max(0, Math.min(visibleRange.start, projects.length - 1));
+const safeEnd = Math.max(safeStart + 1, Math.min(visibleRange.end, projects.length));</div>
+        </div>
+
+        <div class="fix-item">
+            <h4>5. CSS样式优化</h4>
+            <p>改进容器和表格的CSS样式，减少重排重绘。</p>
+            <div class="before-after">
+                <div class="before">
+                    <h5>修复前 ❌</h5>
+                    <div class="code-block">willChange: 'scroll-position, transform'
+contain: 'layout style paint'</div>
+                    <p>过度优化，可能导致渲染问题</p>
+                </div>
+                <div class="after">
+                    <h5>修复后 ✅</h5>
+                    <div class="code-block">willChange: 'scroll-position'
+contain: 'layout style'
+overflowAnchor: 'none' // 禁用滚动锚定</div>
+                    <p>精确优化，避免副作用</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="fix-item">
+            <h4>6. 虚拟滚动占位符优化</h4>
+            <p>优化虚拟滚动占位符的样式，防止布局抖动。</p>
+            <div class="code-block">/* 优化虚拟滚动占位符 */
+.project-table tbody tr[style*="height:"] {
+  contain: layout;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.project-table tbody tr[style*="height:"] td {
+  padding: 0 !important;
+  border: none !important;
+  height: inherit;
+}</div>
+        </div>
+
+        <h3>🧪 验证方法</h3>
+        <ol>
+            <li>在项目总览中创建或导入大量项目数据（建议>100个项目）</li>
+            <li>快速滚动表格，特别是使用鼠标滚轮或触控板进行连续滚动</li>
+            <li>观察是否还存在上下抖动现象</li>
+            <li>检查浏览器开发者工具的性能面板，查看是否有大量重排重绘</li>
+        </ol>
+
+        <h3>📊 预期效果</h3>
+        <ul>
+            <li class="highlight">滚动更加平滑稳定，消除抖动现象</li>
+            <li class="highlight">虚拟滚动性能提升，减少不必要的DOM操作</li>
+            <li class="highlight">降低CPU使用率，特别是在大数据量场景下</li>
+            <li class="highlight">改善用户体验，表格操作更加流畅</li>
+        </ul>
+
+        <div class="test-info">
+            <h3>⚠️ 注意事项</h3>
+            <p>如果问题仍然存在，可能需要进一步检查：</p>
+            <ul>
+                <li>浏览器版本和硬件加速设置</li>
+                <li>项目数据的复杂度（如富文本内容长度）</li>
+                <li>其他组件的性能影响（如实时更新、WebSocket连接等）</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

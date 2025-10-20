@@ -414,9 +414,9 @@ const EditableUpdateDisplay: React.FC<{
             />
             
             {showTooltip && (
-                <div className="fixed z-[10000] w-[420px] p-4 bg-white dark:bg-[#1a1a1a] border-2 border-gray-300 dark:border-[#4a4a4a] rounded-lg shadow-xl backdrop-blur-sm max-h-96 overflow-y-auto pointer-events-none" style={{
-                    left: Math.min(mousePosition.x + 10, window.innerWidth - 440),
-                    top: Math.max(10, Math.min(mousePosition.y - 50, window.innerHeight - 384)),
+                <div className="fixed z-[10000] w-[560px] p-5 bg-white dark:bg-[#1a1a1a] border-2 border-gray-300 dark:border-[#4a4a4a] rounded-lg shadow-xl backdrop-blur-sm pointer-events-none max-h-[500px] overflow-y-auto" style={{
+                    left: Math.min(mousePosition.x + 10, window.innerWidth - 580),
+                    top: Math.max(10, Math.min(mousePosition.y - 50, window.innerHeight - 520)),
                 }}>
                     <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200 mb-3">{title}</h4>
                     <div
@@ -514,9 +514,9 @@ const BusinessProblemDisplay: React.FC<{businessProblem: string, projectId: stri
             </div>
             
             {showTooltip && content !== '无' && (
-                <div className="fixed z-[10000] w-[420px] p-4 bg-white dark:bg-[#1a1a1a] border-2 border-gray-300 dark:border-[#4a4a4a] rounded-lg shadow-xl backdrop-blur-sm max-h-96 overflow-y-auto pointer-events-none" style={{
-                    left: Math.min(mousePosition.x + 10, window.innerWidth - 440),
-                    top: Math.max(10, Math.min(mousePosition.y - 50, window.innerHeight - 384)),
+                <div className="fixed z-[10000] w-[560px] p-5 bg-white dark:bg-[#1a1a1a] border-2 border-gray-300 dark:border-[#4a4a4a] rounded-lg shadow-xl backdrop-blur-sm max-h-[500px] overflow-y-auto pointer-events-none" style={{
+                    left: Math.min(mousePosition.x + 10, window.innerWidth - 580),
+                    top: Math.max(10, Math.min(mousePosition.y - 50, window.innerHeight - 520)),
                 }}>
                     <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200 mb-3">解决的业务问题</h4>
                     <p className="text-sm text-gray-800 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{content}</p>

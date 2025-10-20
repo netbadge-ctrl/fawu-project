@@ -111,3 +111,22 @@ export interface Project {
 }
 
 export type ProjectRoleKey = keyof Pick<Project, 'productManagers' | 'backendDevelopers' | 'frontendDevelopers' | 'qaTesters'>;
+
+// 产品月会接口
+export interface MonthlyWorkItem {
+  id: string;
+  year: number;
+  month: number;
+  workContent: string;                    // 工作内容
+  businessProblem?: string;               // 解决的业务问题
+  direction?: '业务平台' | '基础平台';        // 方向
+  productOwner?: string;                  // 负责产品
+  expectedCompletionWeek?: '第一周' | '第二周' | '第三周' | '第四周';  // 预计需求完成时间
+  currentProgress?: string;               // 当前产品进展
+  isCompleted: boolean;                   // 是否完成
+  progressNotes?: string;                 // 进展说明
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}

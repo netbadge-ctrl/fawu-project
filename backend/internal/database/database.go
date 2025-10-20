@@ -176,6 +176,47 @@ func runMigrations(db *sql.DB) error {
 		if _, err := db.Exec(addCreatedAtColumn); err != nil {
 			return fmt.Errorf("failed to add created_at column: %w", err)
 		}
+
+		// 创建产品月会工作条目表
+		createMonthlyWorkItemsTable := `
+		CREATE TABLE IF NOT EXISTS monthly_work_items (
+			id VARCHAR(50) PRIMARY KEY,
+			year INTEGER NOT NULL,
+			month INTEGER NOT NULL,
+			
+			-- 工作内容字段
+			work_content TEXT NOT NULL,
+			business_problem TEXT,
+			direction VARCHAR(50),
+			product_owner VARCHAR(255),
+			
+			-- 预计需求完成时间（枚举：第一周、第二周、第三周、第四周）
+			expected_completion_week VARCHAR(20),
+			
+			-- 当前产品进展和完成状态
+			current_progress TEXT,
+			is_completed BOOLEAN DEFAULT FALSE,
+			progress_notes TEXT,
+			
+			-- 元数据
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			created_by VARCHAR(50),
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_by VARCHAR(50)
+		);`
+
+		if _, err := db.Exec(createMonthlyWorkItemsTable); err != nil {
+			return fmt.Errorf("failed to create monthly_work_items table: %w", err)
+		}
+
+		// 创建索引
+		createWorkItemIndexes := `
+		CREATE INDEX IF NOT EXISTS idx_monthly_work_items_year_month ON monthly_work_items(year, month);
+		CREATE INDEX IF NOT EXISTS idx_monthly_work_items_created_at ON monthly_work_items(created_at);`
+
+		if _, err := db.Exec(createWorkItemIndexes); err != nil {
+			return fmt.Errorf("failed to create indexes for monthly_work_items: %w", err)
+		}
 	}
 	// SQLite 不需要特殊的迁移，因为表创建时已经包含了所有字段
 

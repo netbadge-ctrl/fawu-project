@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IconG, IconList, IconBarChart, IconLayoutGrid, IconUser, IconLogOut, IconSun, IconMoon, IconClipboard, IconChevronLeft, IconChevronRight } from './Icons';
+import { IconG, IconList, IconBarChart, IconLayoutGrid, IconUser, IconLogOut, IconSun, IconMoon, IconClipboard, IconChevronLeft, IconChevronRight, IconCalendar } from './Icons';
 import { ViewType } from '../App';
 import { User } from '../types';
 import { useTheme } from '../context/theme-context';
@@ -51,7 +51,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, currentUser }) 
     <aside className={`${collapsed ? 'w-20' : 'w-52'} transition-all duration-300 bg-gray-100 dark:bg-[#1F1F1F] border-r border-gray-200 dark:border-[#363636] flex flex-col p-4 flex-shrink-0`}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <IconG className="w-8 h-8"/>
+          <div className="relative">
+            <IconG className="w-8 h-8"/>
+            <button
+              onClick={() => setView('monthly')}
+              className="absolute -top-1 -right-1 p-1 rounded-full bg-[#6C63FF] text-white hover:bg-[#5a52d5] transition-colors shadow-lg"
+              aria-label="产品月会"
+              title="产品月会"
+            >
+              <IconCalendar className="w-3 h-3" />
+            </button>
+          </div>
           {!collapsed && <span className="text-xl font-bold text-gray-900 dark:text-white">项目中心</span>}
         </div>
         <button 

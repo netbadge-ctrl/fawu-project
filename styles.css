@@ -60,6 +60,35 @@ table tbody tr td[style*="position: sticky"] {
   border-bottom: 1px solid rgb(54 54 54) !important;
 }
 
+/* 优化表格滚动性能，防止抖动 */
+.project-table {
+  /* 禁用滚动锚定，避免意外的位置调整 */
+  overflow-anchor: none;
+}
+
+.project-table [data-table-container="true"] {
+  /* 优化滚动性能 */
+  scroll-behavior: auto;
+  overflow-anchor: none;
+  /* 稳定的GPU加速 */
+  transform: translateZ(0);
+  will-change: scroll-position;
+}
+
+/* 优化虚拟滚动占位符 */
+.project-table tbody tr[style*="height:"] {
+  /* 确保占位符不会引起布局抖动 */
+  contain: layout;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.project-table tbody tr[style*="height:"] td {
+  padding: 0 !important;
+  border: none !important;
+  height: inherit;
+}
+
 /* 防止状态和优先级列折行 */
 .status-cell, .priority-cell {
   white-space: nowrap !important;

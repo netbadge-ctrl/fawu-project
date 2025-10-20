@@ -796,10 +796,14 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, 
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   const rafRef = useRef<number>();
 
-  // 虚拟滚动相关状态
+  // 虚拟滚动相关状态 - 优化版本
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: Math.min(50, projects.length) });
   const ROW_HEIGHT = 80; // 估算的行高
-  const BUFFER_SIZE = 10; // 缓冲区大小
+  const BUFFER_SIZE = 5; // 减少缓冲区大小以避免过度渲染
+  const SCROLL_DEBOUNCE_MS = 16; // 约60fps的更新频率
+  
+  // 添加滚动范围稳定性检查
+  const [lastStableRange, setLastStableRange] = useState({ start: 0, end: Math.min(50, projects.length) });
 
   const handleScroll = useCallback(() => {
     // 取消之前的 RAF
@@ -814,14 +818,20 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, 
         const scrollTop = container.scrollTop;
         const containerHeight = container.clientHeight;
         
-        // 计算可见范围
+        // 计算可见范围 - 添加稳定性检查
         const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_SIZE);
         const endIndex = Math.min(
           projects.length,
           Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER_SIZE
         );
         
-        setVisibleRange({ start: startIndex, end: endIndex });
+        // 只有当范围变化足够大时才更新，避免微小抖动
+        const rangeDiff = Math.abs(startIndex - lastStableRange.start) + Math.abs(endIndex - lastStableRange.end);
+        if (rangeDiff >= 3) { // 只有当变化超过3行时才更新
+          const newRange = { start: startIndex, end: endIndex };
+          setVisibleRange(newRange);
+          setLastStableRange(newRange);
+        }
       }
       
       if (!isScrolling) {
@@ -834,9 +844,9 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, 
       
       scrollTimeoutRef.current = setTimeout(() => {
         setIsScrolling(false);
-      }, 100);
+      }, SCROLL_DEBOUNCE_MS);
     });
-  }, [isScrolling, projects.length]);
+  }, [isScrolling, projects.length, lastStableRange]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -854,17 +864,27 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, 
     }
   }, [handleScroll]);
 
-  // 计算虚拟滚动的可见项目
+  // 计算虚拟滚动的可见项目 - 优化版本
   const visibleProjects = useMemo(() => {
     if (projects.length <= 50) {
       return projects; // 少量数据时不使用虚拟滚动
     }
-    return projects.slice(visibleRange.start, visibleRange.end);
+    // 确保索引范围在有效范围内
+    const safeStart = Math.max(0, Math.min(visibleRange.start, projects.length - 1));
+    const safeEnd = Math.max(safeStart + 1, Math.min(visibleRange.end, projects.length));
+    return projects.slice(safeStart, safeEnd);
   }, [projects, visibleRange]);
 
-  // 计算虚拟滚动的偏移量
-  const virtualScrollOffset = projects.length > 50 ? visibleRange.start * ROW_HEIGHT : 0;
-  const totalHeight = projects.length > 50 ? projects.length * ROW_HEIGHT : 'auto';
+  // 计算虚拟滚动的偏移量 - 优化版本
+  const virtualScrollOffset = useMemo(() => {
+    if (projects.length <= 50) return 0;
+    return Math.max(0, visibleRange.start * ROW_HEIGHT);
+  }, [projects.length, visibleRange.start]);
+  
+  const totalHeight = useMemo(() => {
+    if (projects.length <= 50) return 'auto';
+    return Math.max(projects.length * ROW_HEIGHT, 400); // 最小高度400px
+  }, [projects.length]);
 
   const columnStyles = useMemo(() => {
     const leftOffsets: number[] = [0];
@@ -972,8 +992,9 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, 
           transform: 'translate3d(0, 0, 0)', // 强制硬件加速
           backfaceVisibility: 'hidden', // 优化渲染
           perspective: '1000px', // 启用 3D 渲染上下文
-          willChange: 'scroll-position, transform', // 提前告知浏览器优化
-          contain: 'layout style paint' // 限制重排重绘范围
+          willChange: 'scroll-position', // 只优化滚动位置，移除transform优化
+          contain: 'layout style paint', // 限制重排重绘范围
+          overflowAnchor: 'none' // 禁用滚动锚定，避免意外的位置调整
         }}
       >
         <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
@@ -1056,10 +1077,9 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, 
           </thead>
           <tbody 
             style={{ 
-              willChange: 'transform',
-              transform: 'translate3d(0, 0, 0)', // 硬件加速
+              willChange: 'auto', // 不过度优化
               backfaceVisibility: 'hidden',
-              contain: 'layout style paint', // 限制重排重绘
+              contain: 'layout style', // 移除paint以减少限制
               height: totalHeight,
               position: 'relative'
             }}
