@@ -165,18 +165,69 @@ func (h *Handler) UpdateMonthlyWorkItem(c *gin.Context) {
 		return
 	}
 
+	// 字段名映射：驼峰 -> 下划线
+	fieldMap := map[string]string{
+		"workContent":             "work_content",
+		"businessProblem":         "business_problem",
+		"direction":               "direction",
+		"productOwner":            "product_owner",
+		"expectedCompletionWeek":  "expected_completion_week",
+		"currentProgress":         "current_progress",
+		"isCompleted":             "is_completed",
+		"progressNotes":           "progress_notes",
+		"updatedBy":               "updated_by",
+	}
+
+	// 过滤掉不允许更新的字段
+	ignoreFields := map[string]bool{
+		"id":         true,
+		"year":       true,
+		"month":      true,
+		"createdAt":  true,
+		"createdBy":  true,
+		"created_at": true,
+		"created_by": true,
+		"updatedAt":  true,
+		"updated_at": true,
+		"updated_by": true,
+	}
+
 	// 构建动态更新SQL
 	query := "UPDATE monthly_work_items SET "
 	args := []interface{}{}
 	argPos := 1
+	processedFields := make(map[string]bool) // 追踪已处理的数据库字段，避免重复
 
 	for key, value := range updates {
+		// 跳过不允许更新的字段
+		if ignoreFields[key] {
+			continue
+		}
+
+		// 转换字段名
+		dbField := key
+		if mappedField, ok := fieldMap[key]; ok {
+			dbField = mappedField
+		}
+
+		// 跳过已处理的数据库字段
+		if processedFields[dbField] {
+			continue
+		}
+		processedFields[dbField] = true
+
 		if argPos > 1 {
 			query += ", "
 		}
-		query += fmt.Sprintf("%s = $%d", key, argPos)
+		query += fmt.Sprintf("%s = $%d", dbField, argPos)
 		args = append(args, value)
 		argPos++
+	}
+
+	// 如果没有任何字段需要更新
+	if argPos == 1 {
+		c.JSON(http.StatusOK, gin.H{"message": "No fields to update"})
+		return
 	}
 
 	query += fmt.Sprintf(", updated_at = CURRENT_TIMESTAMP WHERE id = $%d", argPos)
@@ -184,6 +235,9 @@ func (h *Handler) UpdateMonthlyWorkItem(c *gin.Context) {
 
 	result, err := h.db.Exec(query, args...)
 	if err != nil {
+		fmt.Printf("[ERROR] SQL execution failed: %v\n", err)
+		fmt.Printf("[ERROR] Query: %s\n", query)
+		fmt.Printf("[ERROR] Args: %+v\n", args)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update work item: " + err.Error()})
 		return
 	}

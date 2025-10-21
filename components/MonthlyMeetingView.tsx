@@ -2,6 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { MonthlyWorkItem, User } from '../types';
 import { api } from '../api.ts';
 import { IconChevronLeft, IconChevronRight, IconPlus, IconTrash, IconCheck, IconX } from './Icons';
+import { MultiSelectDropdown } from './MultiSelectDropdown';
+
+// 产品管理部ID
+const PRODUCT_DEPT_ID = '28508729';
 
 interface MonthlyMeetingViewProps {
   currentUser: User;
@@ -12,18 +16,33 @@ export const MonthlyMeetingView: React.FC<MonthlyMeetingViewProps> = ({ currentU
   const [workItems, setWorkItems] = useState<MonthlyWorkItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   
   // 筛选状态
   const [selectedDirection, setSelectedDirection] = useState<string>('');
-  const [selectedProductOwner, setSelectedProductOwner] = useState<string>('');
+  const [selectedProductOwners, setSelectedProductOwners] = useState<string[]>([]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
+
+  // 加载用户数据
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   // 加载当前月份的工作条目
   useEffect(() => {
     loadWorkItems();
   }, [year, month]);
+
+  const loadUsers = async () => {
+    try {
+      const users = await api.fetchUsers();
+      setAllUsers(users || []);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+    }
+  };
 
   const loadWorkItems = async () => {
     setIsLoading(true);
@@ -140,6 +159,14 @@ export const MonthlyMeetingView: React.FC<MonthlyMeetingViewProps> = ({ currentU
     return now.getFullYear() === year && now.getMonth() + 1 === month;
   }, [year, month]);
 
+  // 从员工数据中过滤出产品管理部的员工
+  const productDeptEmployees = useMemo(() => {
+    return allUsers
+      .filter(user => user.deptId === PRODUCT_DEPT_ID)
+      .map(user => user.name)
+      .sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  }, [allUsers]);
+
   // 获取所有唯一的方向和负责产品
   const uniqueDirections = useMemo(() => {
     const directions = new Set<string>();
@@ -166,9 +193,9 @@ export const MonthlyMeetingView: React.FC<MonthlyMeetingViewProps> = ({ currentU
       filtered = filtered.filter(item => item.direction === selectedDirection);
     }
 
-    // 筛选：负责产品
-    if (selectedProductOwner) {
-      filtered = filtered.filter(item => item.productOwner === selectedProductOwner);
+    // 筛选：负责产品（支持多选）
+    if (selectedProductOwners.length > 0) {
+      filtered = filtered.filter(item => selectedProductOwners.includes(item.productOwner || ''));
     }
 
     // 排序：按负责产品、创建时间
@@ -187,7 +214,7 @@ export const MonthlyMeetingView: React.FC<MonthlyMeetingViewProps> = ({ currentU
     });
 
     return filtered;
-  }, [workItems, selectedDirection, selectedProductOwner]);
+  }, [workItems, selectedDirection, selectedProductOwners]);
 
   return (
     <div className="flex-1 p-6 overflow-auto bg-gray-50 dark:bg-[#1A1A1A]">
@@ -255,23 +282,21 @@ export const MonthlyMeetingView: React.FC<MonthlyMeetingViewProps> = ({ currentU
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 负责产品：
               </label>
-              <select
-                value={selectedProductOwner}
-                onChange={(e) => setSelectedProductOwner(e.target.value)}
-                className="px-3 py-1.5 bg-white dark:bg-[#2d2d2d] border border-gray-300 dark:border-[#4a4a4a] rounded-lg text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#6C63FF]"
-              >
-                <option value="">全部</option>
-                {uniqueProductOwners.map(owner => (
-                  <option key={owner} value={owner}>{owner}</option>
-                ))}
-              </select>
+              <div className="min-w-[200px]">
+                <MultiSelectDropdown
+                  options={productDeptEmployees.map(name => ({ value: name, label: name }))}
+                  selectedValues={selectedProductOwners}
+                  onSelectionChange={setSelectedProductOwners}
+                  placeholder="全部"
+                />
+              </div>
             </div>
 
-            {(selectedDirection || selectedProductOwner) && (
+            {(selectedDirection || selectedProductOwners.length > 0) && (
               <button
                 onClick={() => {
                   setSelectedDirection('');
-                  setSelectedProductOwner('');
+                  setSelectedProductOwners([]);
                 }}
                 className="text-sm text-[#6C63FF] hover:text-[#5a52d5] transition-colors"
               >
@@ -338,6 +363,7 @@ export const MonthlyMeetingView: React.FC<MonthlyMeetingViewProps> = ({ currentU
                       onCancel={() => handleCancelEdit(item.id)}
                       onDelete={() => handleDeleteWorkItem(item.id)}
                       onUpdateField={handleUpdateField}
+                      productDeptEmployees={productDeptEmployees}
                     />
                   ))
                 )}
@@ -367,6 +393,7 @@ interface WorkItemRowProps {
   onCancel: () => void;
   onDelete: () => void;
   onUpdateField: (itemId: string, field: keyof MonthlyWorkItem, value: any) => void;
+  productDeptEmployees: string[];
 }
 
 const WorkItemRow: React.FC<WorkItemRowProps> = ({
@@ -377,6 +404,7 @@ const WorkItemRow: React.FC<WorkItemRowProps> = ({
   onCancel,
   onDelete,
   onUpdateField,
+  productDeptEmployees,
 }) => {
   const tdClass = "px-4 py-3 text-sm text-gray-700 dark:text-gray-300 align-middle";
   const inputClass = "w-full px-2 py-1.5 bg-white dark:bg-[#3a3a3a] border border-gray-300 dark:border-[#4a4a4a] rounded text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#6C63FF]";
@@ -433,13 +461,16 @@ const WorkItemRow: React.FC<WorkItemRowProps> = ({
       {/* 负责产品 */}
       <td className={tdClass}>
         {isEditing ? (
-          <input
-            type="text"
+          <select
             value={item.productOwner || ''}
             onChange={(e) => onUpdateField(item.id, 'productOwner', e.target.value)}
             className={inputClass}
-            placeholder="负责人"
-          />
+          >
+            <option value="">请选择</option>
+            {productDeptEmployees.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
         ) : (
           <span>{item.productOwner || '-'}</span>
         )}
