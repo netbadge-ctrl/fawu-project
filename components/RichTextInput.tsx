@@ -38,7 +38,10 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
         
         const finalHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
         element.style.height = `${finalHeight}px`;
+        // 当内容超过最大高度时显示滚动条
         element.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
+        // 禁止横向滚动
+        element.style.overflowX = 'hidden';
     }, [minRows, maxRows]);
 
     // 初始化内容
@@ -194,7 +197,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                     w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md
                     focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                     bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
-                    resize-none overflow-hidden text-sm
+                    resize-none text-sm
                     ${className}
                 `}
                 style={{
@@ -203,6 +206,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                     wordWrap: 'break-word',
                     wordBreak: 'break-word',
                     overflowWrap: 'anywhere',
+                    overflowX: 'hidden',
                     maxWidth: '100%',
                     whiteSpace: 'pre-wrap'
                 }}
@@ -224,6 +228,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                     overflow-wrap: anywhere;
                     white-space: pre-wrap;
                     max-width: 100%;
+                    overflow-x: hidden !important;
                 }
                 .rich-text-input [contenteditable] * {
                     word-wrap: break-word;

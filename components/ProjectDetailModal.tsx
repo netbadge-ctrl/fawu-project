@@ -397,7 +397,8 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                     html={weeklyUpdateHtml}
                                     onChange={setWeeklyUpdateHtml}
                                     placeholder="输入本周进展/问题..."
-                                    className="min-h-[150px]"
+                                    minRows={4}
+                                    maxRows={12}
                                 />
                             </div>
                         </InfoBlock>

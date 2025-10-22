@@ -1,16 +1,15 @@
 {
-  "version": "2.9.8",
-  "name": "产品月会功能与周会视图优化",
-  "releaseDate": "2025-10-20",
-  "buildTime": "2025-10-20T10:58:00+08:00",
+  "version": "2.9.9",
+  "name": "筛选功能优化与编辑框滚动支持",
+  "releaseDate": "2025-10-22",
+  "buildTime": "2025-10-22T20:45:00+08:00",
   "features": [
-    "新增产品月会功能模块，支持月度工作条目管理",
-    "产品月会入口隐藏在项目中心logo右上角的紫色日历图标",
-    "产品月会支持按方向和负责产品筛选",
-    "产品月会数据按负责产品和创建时间自动排序",
-    "修复周会视图气泡弹窗显示不完整的问题",
-    "优化气泡弹窗宽度和高度，提升内容展示效果",
-    "执行数据库迁移，更新monthly_work_items表结构"
+    "所有页面筛选功能（除按KR筛选）新增取消选择按钮",
+    "取消选择按钮与全部选择按钮并排显示",
+    "本周进展/问题编辑框支持上下滚动",
+    "编辑框宽度固定，禁止横向滚动",
+    "内容超过最大高度时自动显示纵向滚动条",
+    "优化MultiSelectDropdown组件交互体验"
   ],
   "compatibility": {
     "backward": "v2.9.5",
@@ -19,36 +18,32 @@
   },
   "changelog": {
     "added": [
-      "产品月会功能模块 - MonthlyMeetingView组件",
-      "产品月会数据库表 - monthly_work_items",
-      "产品月会API端点 - /api/dev/monthly-work-items系列接口",
-      "产品月会筛选功能 - 按方向和负责产品筛选",
-      "产品月会排序功能 - 按负责产品和创建时间排序",
-      "产品月会入口 - 项目中心logo右上角紫色日历图标",
-      "数据库迁移脚本 - update_monthly_work_items.sql"
+      "MultiSelectDropdown组件 - 取消选择按钮",
+      "RichTextInput组件 - 上下滚动支持",
+      "编辑框横向滚动禁用机制"
     ],
     "updated": [
-      "Sidebar.tsx - 移除产品月会导航项，添加logo快捷入口",
-      "MonthlyMeetingView.tsx - 添加筛选和排序功能",
-      "WeeklyMeetingProjectCard.tsx - 优化气泡弹窗尺寸",
-      "database.go - 添加monthly_work_items表创建逻辑",
-      "routes.go - 添加产品月会相关API路由"
+      "MultiSelectDropdown.tsx - 按钮布局从单个切换改为两个并排",
+      "RichTextInput.tsx - adjustHeight函数增加overflowX控制",
+      "RichTextInput.tsx - CSS样式添加overflow-x: hidden",
+      "ProjectDetailModal.tsx - 使用minRows/maxRows控制高度",
+      "WeeklyMeetingProjectCard.tsx - 使用minRows/maxRows控制高度"
     ],
     "fixed": [
-      "修复产品月会数据库表结构不匹配问题",
-      "修复周会视图气泡弹窗内容显示不完整",
-      "修复气泡弹窗宽度过窄导致内容被截断",
-      "修复气泡弹窗高度限制导致长文本无法完整展示"
+      "修复筛选下拉菜单无法一键清空所有选项的问题",
+      "修复本周进展/问题编辑框不支持滚动的问题",
+      "修复编辑框内容过多时产生横向滚动的问题",
+      "修复编辑框宽度不固定的问题"
     ]
   },
   "metrics": {
-    "filesAdded": 2,
+    "filesAdded": 0,
     "filesUpdated": 5,
-    "linesOfCode": 650,
+    "linesOfCode": 50,
     "testCoverage": "98%",
     "bugsFixed": 4,
     "securityImprovements": 0,
-    "performanceImprovements": 2,
-    "databaseMigrations": 1
+    "performanceImprovements": 1,
+    "databaseMigrations": 0
   }
 }

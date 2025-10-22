@@ -303,15 +303,24 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                 </div>
             </div>
             
-            {/* 全选/取消全选按钮 */}
+            {/* 全选/取消选择按钮 */}
             {flatFilteredOptions.length > 0 && (
                 <div className="flex-shrink-0 p-3 border-b border-gray-200 dark:border-[#4a4a4a] bg-gray-50 dark:bg-[#232323]">
-                    <button
-                        onClick={handleToggleAll}
-                        className="w-full px-4 py-2 text-sm font-medium text-white bg-[#6C63FF] rounded-lg hover:bg-[#5a52d9] focus:outline-none focus:ring-2 focus:ring-[#6C63FF] focus:ring-offset-2 transition-all duration-200 shadow-sm"
-                    >
-                        {areAllFilteredSelected ? '取消全选' : '全部选择'}
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleToggleAll}
+                            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[#6C63FF] rounded-lg hover:bg-[#5a52d9] focus:outline-none focus:ring-2 focus:ring-[#6C63FF] focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                        >
+                            全部选择
+                        </button>
+                        <button
+                            onClick={() => onSelectionChange([])}
+                            disabled={selectedValues.length === 0}
+                            className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2d2d2d] border border-gray-300 dark:border-[#4a4a4a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#3a3a3a] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            取消选择
+                        </button>
+                    </div>
                 </div>
             )}
             

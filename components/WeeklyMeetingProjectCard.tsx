@@ -368,7 +368,8 @@ const EditableUpdateDisplay: React.FC<{
                         html={editHtml}
                         onChange={setEditHtml}
                         placeholder="输入本周进展/问题..."
-                        className="min-h-[120px] max-h-[200px] overflow-y-auto"
+                        minRows={4}
+                        maxRows={10}
                     />
                     <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-blue-200 dark:border-blue-700">
                         <button
