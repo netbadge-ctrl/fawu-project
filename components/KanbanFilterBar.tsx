@@ -80,6 +80,7 @@ export const KanbanFilterBar: React.FC<KanbanFilterBarProps> = ({
                 selectedValues={selectedUsers}
                 onSelectionChange={setSelectedUsers}
                 placeholder="按成员筛选"
+                userData={allUsers}
             />
             <MultiSelectDropdown
                 options={projectOptions}

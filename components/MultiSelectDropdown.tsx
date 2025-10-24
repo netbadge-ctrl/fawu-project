@@ -121,19 +121,24 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
 
     useEffect(() => {
         if (isOpen) {
-            setSearchTerm('');
-            setDebouncedSearchTerm('');
-            // 默认选中第一个部门（如果有分组）
+            // 只在刚打开时重置搜索条件
+            if (!selectedDepartment) {
+                setSearchTerm('');
+                setDebouncedSearchTerm('');
+            }
+            // 默认选中"全部"部门（如果有分组且没有已选部门）
             if (groupedOptions && groupedOptions.length > 0 && !selectedDepartment) {
-                setSelectedDepartment(groupedOptions[0].label);
+                setSelectedDepartment('__all__');
             }
             calculatePosition();
             setTimeout(() => searchInputRef.current?.focus(), 100);
         } else {
-            // 关闭时重置选中的部门
+            // 关闭时重置选中的部门和搜索条件
             setSelectedDepartment(null);
+            setSearchTerm('');
+            setDebouncedSearchTerm('');
         }
-    }, [isOpen, calculatePosition, groupedOptions, selectedDepartment]);
+    }, [isOpen, calculatePosition, groupedOptions]);
 
     // 监听窗口变化重新计算位置
     useEffect(() => {
@@ -314,17 +319,17 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
             {/* 全选/取消选择按钮 */}
             {flatFilteredOptions.length > 0 && (
                 <div className="flex-shrink-0 p-3 border-b border-gray-200 dark:border-[#4a4a4a] bg-gray-50 dark:bg-[#232323]">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 justify-center">
                         <button
                             onClick={handleToggleAll}
-                            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[#6C63FF] rounded-lg hover:bg-[#5a52d9] focus:outline-none focus:ring-2 focus:ring-[#6C63FF] focus:ring-offset-2 transition-all duration-200 shadow-sm"
+                            className="px-4 py-2 text-sm font-medium text-white bg-[#6C63FF] rounded-lg hover:bg-[#5a52d9] focus:outline-none focus:ring-2 focus:ring-[#6C63FF] focus:ring-offset-2 transition-all duration-200 shadow-sm"
                         >
                             全部选择
                         </button>
                         <button
                             onClick={() => onSelectionChange([])}
                             disabled={selectedValues.length === 0}
-                            className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2d2d2d] border border-gray-300 dark:border-[#4a4a4a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#3a3a3a] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2d2d2d] border border-gray-300 dark:border-[#4a4a4a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#3a3a3a] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             取消选择
                         </button>
@@ -340,6 +345,34 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                         {/* 左侧部门列表 */}
                         <div className="w-1/3 border-r border-gray-200 dark:border-[#4a4a4a] overflow-y-auto">
                             <ul className="p-2">
+                                {/* 全部选项 */}
+                                <li key="__all__">
+                                    <button
+                                        onClick={() => setSelectedDepartment('__all__')}
+                                        className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+                                            selectedDepartment === '__all__'
+                                                ? 'bg-[#6C63FF] text-white shadow-sm'
+                                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium">全部</span>
+                                            {selectedValues.length > 0 && (
+                                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                                                    selectedDepartment === '__all__'
+                                                        ? 'bg-white/20 text-white'
+                                                        : 'bg-[#6C63FF]/10 text-[#6C63FF]'
+                                                }`}>
+                                                    {selectedValues.length}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="text-xs mt-1 opacity-75">
+                                            {flatFilteredOptions.length}人
+                                        </div>
+                                    </button>
+                                </li>
+                                
                                 {filteredGroupedOptions.map(group => {
                                     const groupSelectedCount = group.options.filter(opt => selectedValues.includes(opt.value)).length;
                                     return (
@@ -376,7 +409,11 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                         
                         {/* 右侧员工列表 */}
                         <div className="flex-1 overflow-y-auto p-2">
-                            {selectedDepartment && (() => {
+                            {selectedDepartment === '__all__' ? (
+                                <ul className="space-y-1">
+                                    {flatFilteredOptions.map(renderOption)}
+                                </ul>
+                            ) : selectedDepartment && (() => {
                                 const currentGroup = filteredGroupedOptions.find(g => g.label === selectedDepartment);
                                 return currentGroup ? (
                                     <ul className="space-y-1">

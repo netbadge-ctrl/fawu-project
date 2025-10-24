@@ -94,6 +94,7 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
                 selectedValues={selectedParticipantIds}
                 onSelectionChange={setSelectedParticipantIds}
                 placeholder="参与人"
+                userData={allUsers}
             />
             <MultiSelectDropdown
                 options={statusOptions}
