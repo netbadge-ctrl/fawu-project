@@ -35,9 +35,29 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
     
     const priorityOptions = Object.values(Priority).map(p => ({ value: p, label: p }));
     
-    const participantOptions = allUsers
-        .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
-        .map(u => ({ value: u.id, label: u.name }));
+    // 按部门分组参与人选项
+    const participantGroupedOptions = React.useMemo(() => {
+        const departmentMap = new Map<string, User[]>();
+        
+        // 按部门分组
+        allUsers.forEach(user => {
+            const deptName = user.deptName || '未分配部门';
+            if (!departmentMap.has(deptName)) {
+                departmentMap.set(deptName, []);
+            }
+            departmentMap.get(deptName)!.push(user);
+        });
+        
+        // 转换为 groupedOptions 格式并排序
+        return Array.from(departmentMap.entries())
+            .map(([deptName, users]) => ({
+                label: deptName,
+                options: users
+                    .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+                    .map(u => ({ value: u.id, label: u.name }))
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
+    }, [allUsers]);
     
     const statusOptions = [
         ProjectStatus.NotStarted,
@@ -70,7 +90,7 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
                 placeholder="按KR筛选"
             />
             <MultiSelectDropdown
-                options={participantOptions}
+                groupedOptions={participantGroupedOptions}
                 selectedValues={selectedParticipantIds}
                 onSelectionChange={setSelectedParticipantIds}
                 placeholder="参与人"

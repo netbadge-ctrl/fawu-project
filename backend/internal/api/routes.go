@@ -58,6 +58,8 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 			public.POST("/dev/monthly-work-items", handler.CreateDevMonthlyWorkItem)                  // 创建月度工作条目
 			public.PATCH("/dev/monthly-work-items/:itemId", handler.UpdateDevMonthlyWorkItem)         // 更新月度工作条目
 			public.DELETE("/dev/monthly-work-items/:itemId", handler.DeleteDevMonthlyWorkItem)        // 删除月度工作条目
+			// 员工同步端点（开发模式）
+			public.POST("/dev/sync-employees", handler.SyncEmployeeData) // 同步员工数据（开发模式）
 		}
 
 		// 受保护的路由（需要JWT认证）

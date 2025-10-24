@@ -158,18 +158,18 @@ func getDepartmentName(deptID int) string {
 	switch deptID {
 	case 28508728:
 		return "技术部"
-	case 28508731:
-		return "后端开发部"
 	case 28508729:
-		return "前端开发部"
+		return "产品管理部"
+	case 28508731:
+		return "业务平台研发部"
+	case 28508815:
+		return "基础平台研发部"
+	case 28508730:
+		return "前端技术部"
 	case 28507849:
 		return "测试部"
-	case 28508815:
-		return "产品部"
-	case 28508730:
-		return "运维部"
 	case 28508521:
-		return "架构部"
+		return "SRE平台组"
 	default:
 		return fmt.Sprintf("部门%d", deptID)
 	}

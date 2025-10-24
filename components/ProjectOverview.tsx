@@ -244,11 +244,30 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   // 准备筛选选项
   const statusOptions = Object.values(ProjectStatus).map(status => ({ value: status, label: status }));
   const priorityOptions = Object.values(Priority).map(priority => ({ value: priority, label: priority }));
-  const participantOptions = (allUsers || []).map(user => ({ 
-    value: user.id, 
-    label: user.name,
-    email: user.email 
-  }));
+  
+  // 按部门分组参与人选项
+  const participantGroupedOptions = useMemo(() => {
+    const departmentMap = new Map<string, any[]>();
+    
+    // 按部门分组
+    (allUsers || []).forEach(user => {
+      const deptName = user.deptName || '未分配部门';
+      if (!departmentMap.has(deptName)) {
+        departmentMap.set(deptName, []);
+      }
+      departmentMap.get(deptName)!.push(user);
+    });
+    
+    // 转换为 groupedOptions 格式并排序
+    return Array.from(departmentMap.entries())
+      .map(([deptName, users]) => ({
+        label: deptName,
+        options: users
+          .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+          .map(u => ({ value: u.id, label: u.name, email: u.email }))
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
+  }, [allUsers]);
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
@@ -282,7 +301,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                 placeholder="优先级"
               />
               <MultiSelectDropdown
-                options={participantOptions}
+                groupedOptions={participantGroupedOptions}
                 selectedValues={selectedParticipants}
                 onSelectionChange={setSelectedParticipants}
                 placeholder="参与人"

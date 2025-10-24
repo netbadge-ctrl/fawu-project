@@ -34,6 +34,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null); // 新增：当前选中的部门
     const dropdownRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -46,7 +47,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
         
         const rect = dropdownRef.current.getBoundingClientRect();
         const dropdownHeight = 400; // 下拉菜单预估高度
-        const dropdownWidth = 320; // 下拉菜单宽度
+        const dropdownWidth = groupedOptions ? 600 : 320; // 分组模式下使用更宽的宽度
         const viewportHeight = window.innerHeight;
         const viewportWidth = window.innerWidth;
         const margin = 8;
@@ -75,7 +76,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
         }
         
         setDropdownPosition({ top, left, width: dropdownWidth });
-    }, []);
+    }, [groupedOptions]);
     
     // 预缓存选项数据，避免每次搜索时重复处理
     const processedOptions = useMemo(() => {
@@ -122,10 +123,17 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
         if (isOpen) {
             setSearchTerm('');
             setDebouncedSearchTerm('');
+            // 默认选中第一个部门（如果有分组）
+            if (groupedOptions && groupedOptions.length > 0 && !selectedDepartment) {
+                setSelectedDepartment(groupedOptions[0].label);
+            }
             calculatePosition();
             setTimeout(() => searchInputRef.current?.focus(), 100);
+        } else {
+            // 关闭时重置选中的部门
+            setSelectedDepartment(null);
         }
-    }, [isOpen, calculatePosition]);
+    }, [isOpen, calculatePosition, groupedOptions, selectedDepartment]);
 
     // 监听窗口变化重新计算位置
     useEffect(() => {
@@ -324,47 +332,75 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                 </div>
             )}
             
-            {/* 选项列表区域 - 自适应高度 */}
-            <div className="flex-grow overflow-hidden flex flex-col">
-                <ul className="flex-grow overflow-y-auto p-2 space-y-1" style={{ maxHeight: 'calc(70vh - 140px)' }}>
-                    {filteredGroupedOptions ? (
-                        filteredGroupedOptions.map(group => (
-                            <li key={group.label} className="mb-3">
-                                <div className="sticky top-0 bg-white dark:bg-[#2d2d2d] px-3 py-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-[#3a3a3a] mb-2">
-                                    {group.label}
-                                </div>
-                                <ul className="space-y-1">
-                                    {group.options.map(renderOption)}
-                                </ul>
-                            </li>
-                        ))
-                    ) : (
-                        flatFilteredOptions.map(renderOption)
-                    )}
-                    
-                    {flatFilteredOptions.length === 0 && (
-                        <li className="flex flex-col items-center justify-center py-8 text-gray-500 dark:text-gray-400">
-                            <div className="w-12 h-12 bg-gray-100 dark:bg-[#3a3a3a] rounded-full flex items-center justify-center mb-3">
-                                <IconSearch className="w-6 h-6" />
-                            </div>
-                            <p className="text-sm font-medium">无匹配选项</p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">尝试调整搜索条件</p>
-                        </li>
-                    )}
-                </ul>
-                
-                {/* 滚动提示 */}
-                {flatFilteredOptions.length > 8 && (
-                    <div className="flex-shrink-0 px-3 py-2 bg-gradient-to-t from-white dark:from-[#2d2d2d] to-transparent">
-                        <div className="flex items-center justify-center text-xs text-gray-400 dark:text-gray-500">
-                            <span>滚动查看更多选项</span>
-                            <div className="ml-2 flex space-x-1">
-                                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce"></div>
-                                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                            </div>
+            {/* 选项列表区域 */}
+            <div className="flex-grow overflow-hidden flex">
+                {/* 分组模式：左右栏布局 */}
+                {filteredGroupedOptions ? (
+                    <>
+                        {/* 左侧部门列表 */}
+                        <div className="w-1/3 border-r border-gray-200 dark:border-[#4a4a4a] overflow-y-auto">
+                            <ul className="p-2">
+                                {filteredGroupedOptions.map(group => {
+                                    const groupSelectedCount = group.options.filter(opt => selectedValues.includes(opt.value)).length;
+                                    return (
+                                        <li key={group.label}>
+                                            <button
+                                                onClick={() => setSelectedDepartment(group.label)}
+                                                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+                                                    selectedDepartment === group.label
+                                                        ? 'bg-[#6C63FF] text-white shadow-sm'
+                                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-medium">{group.label}</span>
+                                                    {groupSelectedCount > 0 && (
+                                                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                                                            selectedDepartment === group.label
+                                                                ? 'bg-white/20 text-white'
+                                                                : 'bg-[#6C63FF]/10 text-[#6C63FF]'
+                                                        }`}>
+                                                            {groupSelectedCount}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs mt-1 opacity-75">
+                                                    {group.options.length}人
+                                                </div>
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
                         </div>
-                    </div>
+                        
+                        {/* 右侧员工列表 */}
+                        <div className="flex-1 overflow-y-auto p-2">
+                            {selectedDepartment && (() => {
+                                const currentGroup = filteredGroupedOptions.find(g => g.label === selectedDepartment);
+                                return currentGroup ? (
+                                    <ul className="space-y-1">
+                                        {currentGroup.options.map(renderOption)}
+                                    </ul>
+                                ) : null;
+                            })()}
+                        </div>
+                    </>
+                ) : (
+                    /* 非分组模式：原来的单列布局 */
+                    <ul className="flex-1 overflow-y-auto p-2 space-y-1">
+                        {flatFilteredOptions.map(renderOption)}
+                        
+                        {flatFilteredOptions.length === 0 && (
+                            <li className="flex flex-col items-center justify-center py-8 text-gray-500 dark:text-gray-400">
+                                <div className="w-12 h-12 bg-gray-100 dark:bg-[#3a3a3a] rounded-full flex items-center justify-center mb-3">
+                                    <IconSearch className="w-6 h-6" />
+                                </div>
+                                <p className="text-sm font-medium">无匹配选项</p>
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">尝试调整搜索条件</p>
+                            </li>
+                        )}
+                    </ul>
                 )}
             </div>
         </div>

@@ -1,47 +1,45 @@
 {
-  "version": "2.9.9",
-  "name": "筛选功能优化与编辑框滚动支持",
-  "releaseDate": "2025-10-22",
-  "buildTime": "2025-10-22T20:45:00+08:00",
+  "version": "3.0.1",
+  "name": "参与人筛选左右栏布局优化",
+  "releaseDate": "2025-10-24",
+  "buildTime": "2025-10-24T14:30:00+08:00",
   "features": [
-    "所有页面筛选功能（除按KR筛选）新增取消选择按钮",
-    "取消选择按钮与全部选择按钮并排显示",
-    "本周进展/问题编辑框支持上下滚动",
-    "编辑框宽度固定，禁止横向滚动",
-    "内容超过最大高度时自动显示纵向滚动条",
-    "优化MultiSelectDropdown组件交互体验"
+    "参与人筛选改为左右栏联级菜单布局",
+    "左侧显示部门列表，右侧显示选中部门的员工",
+    "部门列表显示人数和已选人数徽章",
+    "支持点击切换部门，默认选中第一个部门",
+    "优化下拉菜单宽度为600px，提升可视性",
+    "保持非分组模式的单列布局兼容性"
   ],
   "compatibility": {
-    "backward": "v2.9.5",
+    "backward": "v3.0.0",
     "browsers": ["Chrome 60+", "Firefox 55+", "Safari 12+", "Edge 79+"],
     "mobile": true
   },
   "changelog": {
     "added": [
-      "MultiSelectDropdown组件 - 取消选择按钮",
-      "RichTextInput组件 - 上下滚动支持",
-      "编辑框横向滚动禁用机制"
+      "左右栏联级菜单布局",
+      "部门选择状态管理",
+      "部门人数统计显示",
+      "选中部门高亮效果"
     ],
     "updated": [
-      "MultiSelectDropdown.tsx - 按钮布局从单个切换改为两个并排",
-      "RichTextInput.tsx - adjustHeight函数增加overflowX控制",
-      "RichTextInput.tsx - CSS样式添加overflow-x: hidden",
-      "ProjectDetailModal.tsx - 使用minRows/maxRows控制高度",
-      "WeeklyMeetingProjectCard.tsx - 使用minRows/maxRows控制高度"
+      "MultiSelectDropdown.tsx - 新增左右栏布局支持",
+      "下拉菜单宽度从320px增加到600px（分组模式）",
+      "部门列表占1/3宽度，员工列表占2/3宽度",
+      "优化分组选项的交互体验"
     ],
     "fixed": [
-      "修复筛选下拉菜单无法一键清空所有选项的问题",
-      "修复本周进展/问题编辑框不支持滚动的问题",
-      "修复编辑框内容过多时产生横向滚动的问题",
-      "修复编辑框宽度不固定的问题"
+      "优化参与人筛选的可读性和操作效率",
+      "提升大量员工场景下的浏览体验"
     ]
   },
   "metrics": {
     "filesAdded": 0,
-    "filesUpdated": 5,
-    "linesOfCode": 50,
+    "filesUpdated": 1,
+    "linesOfCode": 80,
     "testCoverage": "98%",
-    "bugsFixed": 4,
+    "bugsFixed": 0,
     "securityImprovements": 0,
     "performanceImprovements": 1,
     "databaseMigrations": 0

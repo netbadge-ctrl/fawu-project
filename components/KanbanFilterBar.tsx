@@ -35,7 +35,30 @@ export const KanbanFilterBar: React.FC<KanbanFilterBarProps> = ({
     setSelectedPriorities
 }) => {
     
-    const userOptions = allUsers.map(u => ({ value: u.id, label: u.name }));
+    // 按部门分组用户选项
+    const userGroupedOptions = React.useMemo(() => {
+        const departmentMap = new Map<string, User[]>();
+        
+        // 按部门分组
+        allUsers.forEach(user => {
+            const deptName = user.deptName || '未分配部门';
+            if (!departmentMap.has(deptName)) {
+                departmentMap.set(deptName, []);
+            }
+            departmentMap.get(deptName)!.push(user);
+        });
+        
+        // 转换为 groupedOptions 格式并排序
+        return Array.from(departmentMap.entries())
+            .map(([deptName, users]) => ({
+                label: deptName,
+                options: users
+                    .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+                    .map(u => ({ value: u.id, label: u.name }))
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
+    }, [allUsers]);
+    
     const projectOptions = allProjects.map(p => ({ value: p.id, label: p.name }));
     
     // 状态选项
@@ -53,7 +76,7 @@ export const KanbanFilterBar: React.FC<KanbanFilterBarProps> = ({
     return (
         <div className="bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-xl p-4 flex flex-wrap items-center gap-4 flex-shrink-0 relative z-30">
             <MultiSelectDropdown
-                options={userOptions}
+                groupedOptions={userGroupedOptions}
                 selectedValues={selectedUsers}
                 onSelectionChange={setSelectedUsers}
                 placeholder="按成员筛选"

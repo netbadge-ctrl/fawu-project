@@ -60,9 +60,30 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         ProjectStatus.ProjectInProgress,
     ].map(s => ({ value: s, label: s }));
     const priorityOptions = Object.values(Priority).map(p => ({ value: p, label: p }));
-    const userOptions = allUsers
-        .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
-        .map(u => ({ value: u.id, label: u.name }));
+    
+    // 按部门分组用户选项
+    const userGroupedOptions = useMemo(() => {
+        const departmentMap = new Map<string, User[]>();
+        
+        // 按部门分组
+        allUsers.forEach(user => {
+            const deptName = user.deptName || '未分配部门';
+            if (!departmentMap.has(deptName)) {
+                departmentMap.set(deptName, []);
+            }
+            departmentMap.get(deptName)!.push(user);
+        });
+        
+        // 转换为 groupedOptions 格式并排序
+        return Array.from(departmentMap.entries())
+            .map(([deptName, users]) => ({
+                label: deptName,
+                options: users
+                    .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+                    .map(u => ({ value: u.id, label: u.name }))
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
+    }, [allUsers]);
     
     const krGroupedOptions = useMemo(() => {
         return activeOkrs.map((okr, index) => ({
@@ -110,7 +131,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     </div>
                     <div className="relative">
                         <MultiSelectDropdown
-                            options={userOptions}
+                            groupedOptions={userGroupedOptions}
                             selectedValues={selectedPMs}
                             onSelectionChange={setSelectedPMs}
                             placeholder="产品经理"
@@ -118,7 +139,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     </div>
                     <div className="relative">
                         <MultiSelectDropdown
-                            options={userOptions}
+                            groupedOptions={userGroupedOptions}
                             selectedValues={selectedBEs}
                             onSelectionChange={setSelectedBEs}
                             placeholder="后端研发"
@@ -126,7 +147,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     </div>
                     <div className="relative">
                         <MultiSelectDropdown
-                            options={userOptions}
+                            groupedOptions={userGroupedOptions}
                             selectedValues={selectedFEs}
                             onSelectionChange={setSelectedFEs}
                             placeholder="前端研发"
@@ -134,7 +155,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     </div>
                     <div className="relative">
                         <MultiSelectDropdown
-                            options={userOptions}
+                            groupedOptions={userGroupedOptions}
                             selectedValues={selectedQAs}
                             onSelectionChange={setSelectedQAs}
                             placeholder="测试"

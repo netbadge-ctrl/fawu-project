@@ -737,7 +737,8 @@ func (h *Handler) UpdateOkrSet(c *gin.Context) {
 func (h *Handler) PerformWeeklyRollover(c *gin.Context) {
 	query := `
 		UPDATE projects 
-		SET last_week_update = weekly_update
+		SET last_week_update = weekly_update,
+		    weekly_update = ''
 		WHERE weekly_update IS NOT NULL AND weekly_update != ''
 		RETURNING id
 	`
@@ -756,7 +757,12 @@ func (h *Handler) PerformWeeklyRollover(c *gin.Context) {
 		updatedProjectIds = append(updatedProjectIds, id)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"updatedProjectIds": updatedProjectIds})
+	fmt.Printf("Weekly rollover completed - Updated %d projects, cleared weekly_update\n", len(updatedProjectIds))
+
+	c.JSON(http.StatusOK, gin.H{
+		"updatedProjectIds": updatedProjectIds,
+		"message":          fmt.Sprintf("Successfully rolled over %d projects and cleared weekly updates", len(updatedProjectIds)),
+	})
 }
 
 // RefreshUsers 清空用户数据并重新从接口同步
@@ -869,18 +875,18 @@ func (h *Handler) getDepartmentName(deptID int) string {
 	switch deptID {
 	case 28508728:
 		return "技术部"
-	case 28508731:
-		return "后端开发部"
 	case 28508729:
-		return "前端开发部"
+		return "产品管理部"
+	case 28508731:
+		return "业务平台研发部"
+	case 28508815:
+		return "基础平台研发部"
+	case 28508730:
+		return "前端技术部"
 	case 28507849:
 		return "测试部"
-	case 28508815:
-		return "产品部"
-	case 28508730:
-		return "运维部"
 	case 28508521:
-		return "架构部"
+		return "SRE平台组"
 	default:
 		return fmt.Sprintf("部门%d", deptID)
 	}
@@ -1054,8 +1060,11 @@ func (h *Handler) OIDCTokenExchange(c *gin.Context) {
 
 // SyncEmployeeData 手动触发员工数据同步
 func (h *Handler) SyncEmployeeData(c *gin.Context) {
+	fmt.Println("Starting employee data sync...")
+	
 	// 调用员工数据同步函数
 	if err := h.syncEmployeeData(); err != nil {
+		fmt.Printf("Employee sync failed: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to sync employee data",
 			"details": err.Error(),
@@ -1063,13 +1072,22 @@ func (h *Handler) SyncEmployeeData(c *gin.Context) {
 		return
 	}
 
+	// 获取同步后的用户总数
+	var totalUsers int
+	err := h.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&totalUsers)
+	if err != nil {
+		totalUsers = 0
+	}
+
+	fmt.Println("Employee data sync completed successfully")
 	c.JSON(http.StatusOK, gin.H{
-		"message":   "Employee data sync completed successfully",
-		"timestamp": time.Now().Format(time.RFC3339),
+		"message":    "Employee data sync completed successfully",
+		"totalUsers":  totalUsers,
+		"timestamp":   time.Now().Format(time.RFC3339),
 	})
 }
 
-// syncEmployeeData 员工数据同步逻辑（从scheduler包复制）
+// syncEmployeeData 员工数据同步逻辑，包含删除离职员工
 func (h *Handler) syncEmployeeData() error {
 	const maxRetries = 3
 	const retryDelay = time.Minute
@@ -1103,16 +1121,62 @@ func (h *Handler) syncEmployeeData() error {
 		return fmt.Errorf("department 28508728 not found in response")
 	}
 
-	fmt.Printf("Processing %d employees\n", len(employees))
+	fmt.Printf("Processing %d employees from API\n", len(employees))
 
+	// 1. 获取当前数据库中的所有用户ID
+	rows, err := h.db.Query("SELECT id FROM users")
+	if err != nil {
+		return fmt.Errorf("failed to query existing users: %w", err)
+	}
+	defer rows.Close()
+
+	existingUserIDs := make(map[string]bool)
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			continue
+		}
+		existingUserIDs[userID] = true
+	}
+
+	// 2. 创建API返回的员工ID集合
+	apiEmployeeIDs := make(map[string]bool)
+	for _, employee := range employees {
+		userID := strconv.Itoa(employee.EmployeeID)
+		apiEmployeeIDs[userID] = true
+	}
+
+	// 3. 更新或插入员工数据
+	var updatedCount, insertedCount int
 	for _, employee := range employees {
 		if err := h.insertEmployee(employee); err != nil {
-			fmt.Printf("Failed to insert employee %d: %v\n", employee.EmployeeID, err)
+			fmt.Printf("Failed to upsert employee %d: %v\n", employee.EmployeeID, err)
 			continue
+		}
+		userID := strconv.Itoa(employee.EmployeeID)
+		if existingUserIDs[userID] {
+			updatedCount++
+		} else {
+			insertedCount++
 		}
 	}
 
-	fmt.Printf("Successfully processed %d employees\n", len(employees))
+	// 4. 删除已离职的员工（在数据库中但不在API返回中）
+	var deletedCount int
+	for userID := range existingUserIDs {
+		if !apiEmployeeIDs[userID] {
+			_, err := h.db.Exec("DELETE FROM users WHERE id = $1", userID)
+			if err != nil {
+				fmt.Printf("Failed to delete user %s: %v\n", userID, err)
+				continue
+			}
+			fmt.Printf("Deleted resigned employee: %s\n", userID)
+			deletedCount++
+		}
+	}
+
+	fmt.Printf("Sync completed - Inserted: %d, Updated: %d, Deleted: %d, Total: %d\n", 
+		insertedCount, updatedCount, deletedCount, len(employees))
 	return nil
 }
 
