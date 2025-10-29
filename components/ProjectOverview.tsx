@@ -177,6 +177,14 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
     // 然后排序项目
     return filtered.sort((a, b) => {
+      // 新项目或正在编辑的项目始终排在最前面
+      const aIsNew = (editingId && a.id === editingId) || a.isNew;
+      const bIsNew = (editingId && b.id === editingId) || b.isNew;
+      
+      if (aIsNew && !bIsNew) return -1;
+      if (!aIsNew && bIsNew) return 1;
+      
+      // 如果两个都是新项目，或者都不是新项目，则按照正常排序规则
       let comparison = 0;
       
       switch (sortConfig.field) {
