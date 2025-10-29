@@ -88,18 +88,19 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   const selectedParticipants = filters.selectedParticipants || [];
   const selectedKrs = filters.selectedKrs || [];
 
-  // 排序状态
-  const [sortConfig, setSortConfig] = useState<SortConfig>({
-    field: 'createdAt',
-    direction: 'desc'
-  });
+  // 排序状态 - 使用持久化状态
+  const sortConfig = useMemo(() => ({
+    field: filters.sortField || 'createdAt',
+    direction: filters.sortDirection || 'desc'
+  }), [filters.sortField, filters.sortDirection]);
 
-  // 排序函数
+  // 排序函数 - 更新到持久化状态
   const handleSort = (field: SortField) => {
-    setSortConfig(prevConfig => ({
-      field,
-      direction: prevConfig.field === field && prevConfig.direction === 'asc' ? 'desc' : 'asc'
-    }));
+    const newDirection = sortConfig.field === field && sortConfig.direction === 'asc' ? 'desc' : 'asc';
+    updateProjectOverviewFilters({ 
+      sortField: field,
+      sortDirection: newDirection
+    });
   };
 
   // 筛选和排序项目 - 使用高效的Set查找方式（参考看板和周会视图）

@@ -45,6 +45,8 @@ export interface FilterState {
     selectedPriorities: string[];
     selectedParticipants: string[];
     selectedKrs: string[];
+    sortField: 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'launchDate';
+    sortDirection: 'asc' | 'desc';
   };
   
   // OKR页面筛选条件
@@ -91,6 +93,8 @@ const defaultFilterState: FilterState = {
     selectedPriorities: [],
     selectedParticipants: [],
     selectedKrs: [],
+    sortField: 'createdAt',
+    sortDirection: 'desc',
   },
   okrPage: {
     searchTerm: '',

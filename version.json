@@ -1,47 +1,44 @@
 {
-  "version": "3.0.2",
-  "name": "参与人筛选左右栏布局优化",
-  "releaseDate": "2025-10-24",
-  "buildTime": "2025-10-24T14:30:00+08:00",
+  "version": "3.0.3",
+  "name": "项目总览排序持久化",
+  "releaseDate": "2025-10-29",
+  "buildTime": "2025-10-29T23:00:00+08:00",
   "features": [
-    "参与人筛选改为左右栏联级菜单布局",
-    "左侧显示部门列表，右侧显示选中部门的员工",
-    "部门列表显示人数和已选人数徽章",
-    "支持点击切换部门，默认选中第一个部门",
-    "优化下拉菜单宽度为600px，提升可视性",
-    "保持非分组模式的单列布局兼容性"
+    "项目总览页面排序方式持久化保存",
+    "支持按项目名称、状态、优先级、创建时间等字段排序",
+    "排序设置自动保存到localStorage",
+    "刷新页面后自动恢复上次排序方式",
+    "与筛选条件使用统一的状态管理机制"
   ],
   "compatibility": {
-    "backward": "v3.0.0",
+    "backward": "v3.0.2",
     "browsers": ["Chrome 60+", "Firefox 55+", "Safari 12+", "Edge 79+"],
     "mobile": true
   },
   "changelog": {
     "added": [
-      "左右栏联级菜单布局",
-      "部门选择状态管理",
-      "部门人数统计显示",
-      "选中部门高亮效果"
+      "FilterStateContext中添加sortField和sortDirection字段",
+      "项目总览页面排序状态持久化",
+      "支持6种排序字段的持久化保存"
     ],
     "updated": [
-      "MultiSelectDropdown.tsx - 新增左右栏布局支持",
-      "下拉菜单宽度从320px增加到600px（分组模式）",
-      "部门列表占1/3宽度，员工列表占2/3宽度",
-      "优化分组选项的交互体验"
+      "FilterStateContext.tsx - 新增排序字段支持",
+      "ProjectOverview.tsx - 使用持久化排序状态",
+      "排序逻辑从本地state迁移到Context"
     ],
     "fixed": [
-      "优化参与人筛选的可读性和操作效率",
-      "提升大量员工场景下的浏览体验"
+      "优化用户体验，保持排序偏好",
+      "统一状态管理机制"
     ]
   },
   "metrics": {
     "filesAdded": 0,
-    "filesUpdated": 1,
-    "linesOfCode": 80,
+    "filesUpdated": 2,
+    "linesOfCode": 15,
     "testCoverage": "98%",
     "bugsFixed": 0,
     "securityImprovements": 0,
-    "performanceImprovements": 1,
+    "performanceImprovements": 0,
     "databaseMigrations": 0
   }
 }
