@@ -93,10 +93,17 @@ export const OKRPage: React.FC<OKRPageProps> = ({ okrSets, currentPeriodId, onPe
   };
 
   const handleAddOkr = () => {
+    // 计算新OKR的序号
+    const okrCount = currentOkrs.length;
+    const okrNumber = okrCount + 1;
+    
+    // 使用标准格式: o1, o2, ...
+    const okrId = `o${okrNumber}`;
+    
     const newOkr: OKR = {
-      id: `okr_${Date.now()}`,
+      id: okrId,
       objective: '新的目标',
-      keyResults: [{ id: `kr_${Date.now()}`, description: '新的关键成果' }],
+      keyResults: [{ id: `${okrId}::kr1`, description: '新的关键成果' }],
     };
     handleCommitChanges([...currentOkrs, newOkr]);
   };
@@ -112,7 +119,17 @@ export const OKRPage: React.FC<OKRPageProps> = ({ okrSets, currentPeriodId, onPe
   };
 
   const handleAddKr = (okrId: string) => {
-    const newKr: KeyResult = { id: `kr_${Date.now()}`, description: '新的关键成果' };
+    // 计算新KR的序号
+    const okr = currentOkrs.find(o => o.id === okrId);
+    const krCount = (okr?.keyResults || []).length;
+    const krNumber = krCount + 1;
+    
+    // 使用复合ID格式: okrId::krN
+    const newKr: KeyResult = { 
+      id: `${okrId.toLowerCase()}::kr${krNumber}`, 
+      description: '新的关键成果' 
+    };
+    
     const newOkrs = currentOkrs.map(okr => {
         if(okr.id === okrId) {
             return {...okr, keyResults: [...okr.keyResults, newKr]}

@@ -32,21 +32,35 @@ const KRSelectionModal: React.FC<KRSelectionModalProps> = ({
     console.log('🔧 KRSelectionModal useEffect:', { selectedKrIds, isOpen, currentSelection });
     // 只在模态框打开时重置选择状态
     if (isOpen) {
-      // 对于已有的KR关联，需要转换为复合ID格式
+      // 对于已有的KR关联，需要处理旧数据兼容（只有OKR ID或简单KR ID）
       const convertedSelection: string[] = [];
       (selectedKrIds || []).forEach(krId => {
         if (krId.includes('::')) {
           // 已经是复合ID格式
           convertedSelection.push(krId);
         } else {
-          // 简单ID格式，需要找到对应的OKR并生成复合ID
-          // 由于数据中存在重复的KR ID，我们使用第一个匹配的
+          // 简单ID格式，尝试匹配OKR或KR
+          let found = false;
+          
+          // 先尝试匹配KR ID
           for (const okr of allOkrs) {
             for (const kr of okr.keyResults) {
-              if (kr.id === krId) {
+              if (kr.id === krId || kr.id === `${okr.id}::${krId}`) {
                 convertedSelection.push(`${okr.id}::${kr.id}`);
-                return; // 找到第一个匹配就停止
+                found = true;
+                break;
               }
+            }
+            if (found) break;
+          }
+          
+          // 如果没找到，可能是OKR ID，关联该OKR的所有KR
+          if (!found) {
+            const okr = allOkrs.find(o => o.id === krId);
+            if (okr) {
+              okr.keyResults.forEach(kr => {
+                convertedSelection.push(`${okr.id}::${kr.id}`);
+              });
             }
           }
         }
@@ -73,23 +87,11 @@ const KRSelectionModal: React.FC<KRSelectionModalProps> = ({
     console.log('🔧 KR Selection Modal - Save clicked, selection:', currentSelection);
     console.log('🔧 KR Selection Modal - Original selectedKrIds:', selectedKrIds);
     
-    // 将复合ID转换回简单ID以保持与后端的兼容性
-    const simpleIds = currentSelection.map(compositeId => {
-      if (compositeId.includes('::')) {
-        return compositeId.split('::')[1]; // 取KR ID部分
-      }
-      return compositeId; // 已经是简单ID
-    });
+    // 直接使用复合ID格式，不再转换为简单ID
+    console.log('🔧 KR Selection Modal - Saving composite IDs:', currentSelection);
     
-    console.log('🔧 KR Selection Modal - Converted to simple IDs:', simpleIds);
-    console.log('🔧 KR Selection Modal - Conversion details:');
-    currentSelection.forEach((compositeId, index) => {
-      const simpleId = compositeId.includes('::') ? compositeId.split('::')[1] : compositeId;
-      console.log(`  ${index}: ${compositeId} → ${simpleId}`);
-    });
-    
-    console.log('🔧 KR Selection Modal - Calling onSave with:', simpleIds);
-    onSave(simpleIds);
+    console.log('🔧 KR Selection Modal - Calling onSave with:', currentSelection);
+    onSave(currentSelection);
     onClose();
   };
 
