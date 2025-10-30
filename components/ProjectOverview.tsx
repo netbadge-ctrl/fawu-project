@@ -229,28 +229,36 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
               comparison = aKrCount - bKrCount;
               break;
             case 'productManagers':
-              // 按产品经理数量排序
-              const aPmCount = (a.productManagers || []).length;
-              const bPmCount = (b.productManagers || []).length;
-              comparison = aPmCount - bPmCount;
+              // 按产品经理姓名排序（取第一个产品经理）
+              const aPm = (a.productManagers || [])[0];
+              const bPm = (b.productManagers || [])[0];
+              const aPmName = aPm ? (allUsers.find(u => u.id === aPm.userId)?.name || '') : '';
+              const bPmName = bPm ? (allUsers.find(u => u.id === bPm.userId)?.name || '') : '';
+              comparison = aPmName.localeCompare(bPmName, 'zh-CN');
               break;
             case 'backendDevelopers':
-              // 按后端研发数量排序
-              const aBeCount = (a.backendDevelopers || []).length;
-              const bBeCount = (b.backendDevelopers || []).length;
-              comparison = aBeCount - bBeCount;
+              // 按后端研发姓名排序（取第一个后端研发）
+              const aBe = (a.backendDevelopers || [])[0];
+              const bBe = (b.backendDevelopers || [])[0];
+              const aBeName = aBe ? (allUsers.find(u => u.id === aBe.userId)?.name || '') : '';
+              const bBeName = bBe ? (allUsers.find(u => u.id === bBe.userId)?.name || '') : '';
+              comparison = aBeName.localeCompare(bBeName, 'zh-CN');
               break;
             case 'frontendDevelopers':
-              // 按前端研发数量排序
-              const aFeCount = (a.frontendDevelopers || []).length;
-              const bFeCount = (b.frontendDevelopers || []).length;
-              comparison = aFeCount - bFeCount;
+              // 按前端研发姓名排序（取第一个前端研发）
+              const aFe = (a.frontendDevelopers || [])[0];
+              const bFe = (b.frontendDevelopers || [])[0];
+              const aFeName = aFe ? (allUsers.find(u => u.id === aFe.userId)?.name || '') : '';
+              const bFeName = bFe ? (allUsers.find(u => u.id === bFe.userId)?.name || '') : '';
+              comparison = aFeName.localeCompare(bFeName, 'zh-CN');
               break;
             case 'qaTesters':
-              // 按测试数量排序
-              const aQaCount = (a.qaTesters || []).length;
-              const bQaCount = (b.qaTesters || []).length;
-              comparison = aQaCount - bQaCount;
+              // 按测试姓名排序（取第一个测试）
+              const aQa = (a.qaTesters || [])[0];
+              const bQa = (b.qaTesters || [])[0];
+              const aQaName = aQa ? (allUsers.find(u => u.id === aQa.userId)?.name || '') : '';
+              const bQaName = bQa ? (allUsers.find(u => u.id === bQa.userId)?.name || '') : '';
+              comparison = aQaName.localeCompare(bQaName, 'zh-CN');
               break;
             case 'createdAt':
               const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
