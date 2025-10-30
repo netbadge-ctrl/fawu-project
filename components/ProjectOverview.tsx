@@ -420,9 +420,6 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                 onClick={() => setShowMultiSortDialog(true)}
                 className="px-3 py-2 text-sm border border-gray-300 dark:border-[#4a4a4a] rounded-md bg-white dark:bg-[#2d2d2d] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1e1e1e] flex items-center gap-2"
               >
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
                 设置排序
                 {filters.useMultiSort && filters.multiSortRules && filters.multiSortRules.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded">
