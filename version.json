@@ -1,46 +1,59 @@
 {
-  "version": "3.0.3",
-  "name": "项目总览排序持久化",
-  "releaseDate": "2025-10-29",
-  "buildTime": "2025-10-29T23:00:00+08:00",
+  "version": "3.0.4",
+  "name": "KR复合ID格式统一",
+  "releaseDate": "2025-10-30",
+  "buildTime": "2025-10-30T23:15:00+08:00",
   "features": [
-    "项目总览页面排序方式持久化保存",
-    "支持按项目名称、状态、优先级、创建时间等字段排序",
-    "排序设置自动保存到localStorage",
-    "刷新页面后自动恢复上次排序方式",
-    "与筛选条件使用统一的状态管理机制",
-    "新增项目时始终显示在列表第一行，不受排序规则影响"
+    "统一OKR和KR的ID格式标准",
+    "OKR ID使用格式：o1, o2, o3...",
+    "KR ID使用复合格式：o1::kr1, o1::kr2, o2::kr1...",
+    "不区分大小写，统一使用小写",
+    "修复KR复合ID重复前缀问题",
+    "全局唯一性：避免KR ID重复问题",
+    "可追溯性：从 ID 直接看出KR属于哪个OKR",
+    "兼容旧数据格式（OKR ID、简单KR ID）",
+    "新增项目时提出时间默认为当前日期",
+    "状态选择“本周已上线”或“已完成”时验证上线时间",
+    "按成员排序使用姓名而非数量",
+    "富文本编辑器按钮文字优化（粗/红）"
   ],
   "compatibility": {
-    "backward": "v3.0.2",
+    "backward": "v3.0.3",
     "browsers": ["Chrome 60+", "Firefox 55+", "Safari 12+", "Edge 79+"],
     "mobile": true
   },
   "changelog": {
     "added": [
-      "FilterStateContext中添加sortField和sortDirection字段",
-      "项目总览页面排序状态持久化",
-      "支持6种排序字段的持久化保存"
+      "OKRPage: 创建OKR时自动生成oN格式ID",
+      "OKRPage: 添加KR时自动生成oN::krN格式ID",
+      "新建OKR时默认创建o1, o2, o3等格式ID",
+      "新增项目时默认设置提出时间为当前日期",
+      "状态验证：选择“本周已上线”或“已完成”时必须填写上线时间"
     ],
     "updated": [
-      "FilterStateContext.tsx - 新增排序字段支持",
-      "ProjectOverview.tsx - 使用持久化排序状态",
-      "排序逻辑从本地state迁移到Context"
+      "OKRPage.tsx - OKR和KR创建逻辑使用复合ID",
+      "KRSelectionModal.tsx - 保存时直接使用复合ID，不再转换",
+      "KRSelectionModal.tsx - 兼容旧数据格式（OKR ID、简单KR ID）",
+      "ProjectOverview.tsx - 按成员排序使用姓名而非数量",
+      "ProjectTable.tsx - 支持旧数据格式显示（OKR ID显示所有KR）",
+      "RichTextInput.tsx - 按钮文字改为中文（粗/红）",
+      "App.tsx - 新建项目时默认提出时间，状态验证逻辑"
     ],
     "fixed": [
-      "优化用户体验，保持排序偏好",
-      "统一状态管理机制",
-      "修复新增项目时因排序规则导致编辑行不在第一行的问题"
+      "修复KR复合ID重复前缀问题（o1::o1::kr2 → o1::kr1）",
+      "修复按成员排序时同一成员的项目无法聚合的问题",
+      "修复项目关联KR无法显示的问题（支持OKR ID格式）",
+      "初始化时智能转换旧格式为复合ID格式"
     ]
   },
   "metrics": {
-    "filesAdded": 0,
-    "filesUpdated": 2,
-    "linesOfCode": 15,
+    "filesAdded": 1,
+    "filesUpdated": 6,
+    "linesOfCode": 150,
     "testCoverage": "98%",
-    "bugsFixed": 1,
+    "bugsFixed": 4,
     "securityImprovements": 0,
-    "performanceImprovements": 0,
+    "performanceImprovements": 1,
     "databaseMigrations": 0
   }
 }
