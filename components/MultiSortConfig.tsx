@@ -39,19 +39,6 @@ const fieldLabels: Record<SortField, string> = {
   createdAt: '创建时间',
 };
 
-// 字段图标映射
-const fieldIcons: Record<SortField, string> = {
-  name: '📝',
-  status: '✓',
-  priority: '⚡',
-  keyResults: '🎯',
-  productManagers: '👤',
-  backendDevelopers: '👤',
-  frontendDevelopers: '👤',
-  qaTesters: '👤',
-  createdAt: '🕐',
-};
-
 export const MultiSortConfig: React.FC<MultiSortConfigProps> = ({
   sortRules,
   onSortRulesChange,
@@ -185,7 +172,7 @@ export const MultiSortConfig: React.FC<MultiSortConfigProps> = ({
                       >
                         {availableFields.map(field => (
                           <option key={field} value={field}>
-                            {fieldIcons[field]} {fieldLabels[field]}
+                            {fieldLabels[field]}
                           </option>
                         ))}
                       </select>
