@@ -8,7 +8,8 @@
     "支持按项目名称、状态、优先级、创建时间等字段排序",
     "排序设置自动保存到localStorage",
     "刷新页面后自动恢复上次排序方式",
-    "与筛选条件使用统一的状态管理机制"
+    "与筛选条件使用统一的状态管理机制",
+    "新增项目时始终显示在列表第一行，不受排序规则影响"
   ],
   "compatibility": {
     "backward": "v3.0.2",
@@ -28,7 +29,8 @@
     ],
     "fixed": [
       "优化用户体验，保持排序偏好",
-      "统一状态管理机制"
+      "统一状态管理机制",
+      "修复新增项目时因排序规则导致编辑行不在第一行的问题"
     ]
   },
   "metrics": {
@@ -36,7 +38,7 @@
     "filesUpdated": 2,
     "linesOfCode": 15,
     "testCoverage": "98%",
-    "bugsFixed": 0,
+    "bugsFixed": 1,
     "securityImprovements": 0,
     "performanceImprovements": 0,
     "databaseMigrations": 0
