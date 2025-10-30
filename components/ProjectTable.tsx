@@ -376,18 +376,51 @@ const OkrMultiSelectCell: React.FC<{
                 if (krId.includes('::')) {
                   // 复合ID格式，直接查找
                   krDetails = allKrsMap.get(krId);
+                  console.log('🔧 Tooltip - 复合ID查找:', { krId, found: !!krDetails });
                 } else {
-                  // 简单ID格式，需要智能匹配正确的OKR
-                  // 由于数据中存在重复的KR ID，我们需要通过上下文来决定使用哪个
-                  // 暂时使用第一个匹配的KR（这是一个临时解决方案）
+                  // 简单ID格式，可能是OKR ID或KR ID
+                  // 先尝试直接查找
                   krDetails = allKrsMap.get(krId);
+                  
+                  if (!krDetails) {
+                    // 如果找不到，可能是OKR ID，查找该OKR下的所有KR
+                    console.log('🔧 Tooltip - 简单ID未直接匹配，尝试匹配OKR:', krId);
+                    const matchingKrs: Array<{description: string; oNumber: number; krNumber: number; objective: string; okrId: string}> = [];
+                    
+                    // 遍历所有KR，查找匹配的OKR
+                    allKrsMap.forEach((value, key) => {
+                      if (key.startsWith(krId + '::')) {
+                        matchingKrs.push(value);
+                      }
+                    });
+                    
+                    if (matchingKrs.length > 0) {
+                      // 找到匹配的KR，显示所有匹配的KR
+                      console.log('🔧 Tooltip - 找到匹配的OKR:', { krId, count: matchingKrs.length });
+                      return (
+                        <li key={krId}>
+                          <strong className="text-gray-300 block mb-1">关联 OKR: {krId}</strong>
+                          {matchingKrs.map((kr, index) => (
+                            <div key={index} className="pl-2 mb-1">
+                              <strong className="text-gray-300 block">O{kr.oNumber}-KR{kr.krNumber}: {kr.objective}</strong>
+                              <span className="text-gray-400 pl-2">{kr.description}</span>
+                            </div>
+                          ))}
+                        </li>
+                      );
+                    }
+                  }
                 }
                 
                 console.log('🔧 Tooltip KR Details:', { krId, krDetails });
                 
                 if (!krDetails) {
                   console.warn('🚨 未找到KR详情:', krId);
-                  return null;
+                  return (
+                    <li key={krId}>
+                      <span className="text-red-400">未找到KR: {krId}</span>
+                    </li>
+                  );
                 }
                 
                 return (
