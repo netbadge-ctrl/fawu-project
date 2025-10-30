@@ -47,6 +47,13 @@ export interface FilterState {
     selectedKrs: string[];
     sortField: 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'launchDate';
     sortDirection: 'asc' | 'desc';
+    // 多字段排序规则
+    multiSortRules: Array<{
+      id: string;
+      field: 'name' | 'status' | 'priority' | 'keyResults' | 'productManagers' | 'backendDevelopers' | 'frontendDevelopers' | 'qaTesters' | 'createdAt';
+      direction: 'asc' | 'desc';
+    }>;
+    useMultiSort: boolean; // 是否启用多字段排序
   };
   
   // OKR页面筛选条件
@@ -95,6 +102,8 @@ const defaultFilterState: FilterState = {
     selectedKrs: [],
     sortField: 'createdAt',
     sortDirection: 'desc',
+    multiSortRules: [],
+    useMultiSort: false,
   },
   okrPage: {
     searchTerm: '',

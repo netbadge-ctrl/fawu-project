@@ -5,6 +5,7 @@ import { MultiSelectDropdown } from './MultiSelectDropdown';
 import { KRFilterButton } from './KRFilterButton';
 import { ProjectTable } from './ProjectTable';
 import { debounce } from '../utils';
+import { MultiSortConfig, SortRule } from './MultiSortConfig';
 
 type SortField = 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'launchDate';
 type SortDirection = 'asc' | 'desc';
@@ -50,6 +51,9 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   // 使用新的状态管理系统
   const { state, updateProjectOverviewFilters } = useFilterState();
   const filters = state.projectOverview;
+
+  // 多字段排序对话框状态
+  const [showMultiSortDialog, setShowMultiSortDialog] = useState(false);
 
   // 本地搜索状态（用于即时显示，不触发重新计算）
   const [localSearchTerm, setLocalSearchTerm] = useState(filters.searchTerm);
@@ -100,6 +104,14 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     updateProjectOverviewFilters({ 
       sortField: field,
       sortDirection: newDirection
+    });
+  };
+
+  // 处理多字段排序规则变更
+  const handleMultiSortRulesChange = (rules: SortRule[]) => {
+    updateProjectOverviewFilters({ 
+      multiSortRules: rules,
+      useMultiSort: rules.length > 0
     });
   };
 
@@ -184,7 +196,80 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       if (aIsNew && !bIsNew) return -1;
       if (!aIsNew && bIsNew) return 1;
       
-      // 如果两个都是新项目，或者都不是新项目，则按照正常排序规则
+      // 如果启用了多字段排序且有排序规则
+      if (filters.useMultiSort && filters.multiSortRules && filters.multiSortRules.length > 0) {
+        // 按照规则顺序依次比较
+        for (const rule of filters.multiSortRules) {
+          let comparison = 0;
+          
+          switch (rule.field) {
+            case 'name':
+              comparison = a.name.localeCompare(b.name, 'zh-CN');
+              break;
+            case 'status':
+              const statusOrder = {
+                '未开始': 0, '讨论中': 1, '产品设计': 2, '需求完成': 3, '评审完成': 4,
+                '开发中': 5, '开发完成': 6, '测试中': 7, '测试完成': 8, '本周已上线': 9,
+                '已完成': 10, '暂停': 11, '项目进行中': 12
+              };
+              const aStatusOrder = statusOrder[a.status as keyof typeof statusOrder] ?? 999;
+              const bStatusOrder = statusOrder[b.status as keyof typeof statusOrder] ?? 999;
+              comparison = aStatusOrder - bStatusOrder;
+              break;
+            case 'priority':
+              const priorityOrder = { '部门OKR': 0, '个人OKR': 1, '临时重要需求': 2, '不重要的需求': 3 };
+              const aOrder = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 999;
+              const bOrder = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 999;
+              comparison = aOrder - bOrder;
+              break;
+            case 'keyResults':
+              // 按关联的KR数量排序
+              const aKrCount = (a.keyResultIds || []).length;
+              const bKrCount = (b.keyResultIds || []).length;
+              comparison = aKrCount - bKrCount;
+              break;
+            case 'productManagers':
+              // 按产品经理数量排序
+              const aPmCount = (a.productManagers || []).length;
+              const bPmCount = (b.productManagers || []).length;
+              comparison = aPmCount - bPmCount;
+              break;
+            case 'backendDevelopers':
+              // 按后端研发数量排序
+              const aBeCount = (a.backendDevelopers || []).length;
+              const bBeCount = (b.backendDevelopers || []).length;
+              comparison = aBeCount - bBeCount;
+              break;
+            case 'frontendDevelopers':
+              // 按前端研发数量排序
+              const aFeCount = (a.frontendDevelopers || []).length;
+              const bFeCount = (b.frontendDevelopers || []).length;
+              comparison = aFeCount - bFeCount;
+              break;
+            case 'qaTesters':
+              // 按测试数量排序
+              const aQaCount = (a.qaTesters || []).length;
+              const bQaCount = (b.qaTesters || []).length;
+              comparison = aQaCount - bQaCount;
+              break;
+            case 'createdAt':
+              const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              comparison = bTime - aTime;
+              break;
+          }
+          
+          // 如果当前规则有结果，应用排序方向并返回
+          if (comparison !== 0) {
+            return rule.direction === 'asc' ? comparison : -comparison;
+          }
+          // 如果相等，继续下一个规则
+        }
+        // 所有规则都相等，返回0
+        return 0;
+      }
+      
+      // 如果未启用多字段排序，使用原有的单字段排序逻辑
       let comparison = 0;
       
       switch (sortConfig.field) {
@@ -248,7 +333,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       
       return sortConfig.direction === 'asc' ? -comparison : comparison;
     });
-  }, [projects, searchTerm, selectedStatuses, selectedPriorities, selectedParticipants, selectedKrs, editingId, sortConfig]);
+  }, [projects, searchTerm, selectedStatuses, selectedPriorities, selectedParticipants, selectedKrs, editingId, sortConfig, filters.useMultiSort, filters.multiSortRules]);
 
   // 准备筛选选项
   const statusOptions = Object.values(ProjectStatus).map(status => ({ value: status, label: status }));
@@ -322,6 +407,21 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                 setSelectedKrs={setSelectedKrs}
                 placeholder="按KR筛选"
               />
+              {/* 多字段排序按钮 */}
+              <button
+                onClick={() => setShowMultiSortDialog(true)}
+                className="px-3 py-2 text-sm border border-gray-300 dark:border-[#4a4a4a] rounded-md bg-white dark:bg-[#2d2d2d] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1e1e1e] flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                设置排序
+                {filters.useMultiSort && filters.multiSortRules && filters.multiSortRules.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded">
+                    {filters.multiSortRules.length}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -346,6 +446,15 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           onSort={handleSort}
         />
       </div>
+
+      {/* 多字段排序对话框 */}
+      {showMultiSortDialog && (
+        <MultiSortConfig
+          sortRules={filters.multiSortRules || []}
+          onSortRulesChange={handleMultiSortRulesChange}
+          onClose={() => setShowMultiSortDialog(false)}
+        />
+      )}
     </main>
   );
 };
