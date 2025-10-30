@@ -32,21 +32,23 @@ const KRSelectionModal: React.FC<KRSelectionModalProps> = ({
     console.log('🔧 KRSelectionModal useEffect:', { selectedKrIds, isOpen, currentSelection });
     // 只在模态框打开时重置选择状态
     if (isOpen) {
-      // 对于已有的KR关联，需要处理旧数据兼容（只有OKR ID或简单KR ID）
+      // 处理旧数据兼容：只有OKR ID或旧格式的简单KR ID
       const convertedSelection: string[] = [];
       (selectedKrIds || []).forEach(krId => {
         if (krId.includes('::')) {
-          // 已经是复合ID格式
+          // 已经是复合ID格式，直接使用
           convertedSelection.push(krId);
         } else {
-          // 简单ID格式，尝试匹配OKR或KR
+          // 旧数据格式，需要转换
           let found = false;
           
-          // 先尝试匹配KR ID
+          // 先尝试匹配简单KR ID（kr1, kr2...）
           for (const okr of allOkrs) {
             for (const kr of okr.keyResults) {
-              if (kr.id === krId || kr.id === `${okr.id}::${krId}`) {
-                convertedSelection.push(`${okr.id}::${kr.id}`);
+              // kr.id已经是复合格式（o1::kr1），提取sequence部分
+              const krSequence = kr.id.split('::')[1];
+              if (krSequence === krId) {
+                convertedSelection.push(kr.id);
                 found = true;
                 break;
               }
@@ -54,12 +56,12 @@ const KRSelectionModal: React.FC<KRSelectionModalProps> = ({
             if (found) break;
           }
           
-          // 如果没找到，可能是OKR ID，关联该OKR的所有KR
+          // 如果没找到，可能是OKR ID（o1, o2...），关联该OKR的所有KR
           if (!found) {
             const okr = allOkrs.find(o => o.id === krId);
             if (okr) {
               okr.keyResults.forEach(kr => {
-                convertedSelection.push(`${okr.id}::${kr.id}`);
+                convertedSelection.push(kr.id);
               });
             }
           }
@@ -70,14 +72,13 @@ const KRSelectionModal: React.FC<KRSelectionModalProps> = ({
   }, [selectedKrIds, isOpen, allOkrs]);
 
   const handleToggleOption = (okrId: string, krId: string) => {
-    // 生成复合ID来确保唯一性，因为现在数据中的KR ID仍然是简单格式
-    const uniqueKrId = `${okrId}::${krId}`;
-    console.log('🔧 KRSelectionModal - Toggle KR:', { okrId, krId, uniqueKrId, currentSelection });
+    // 后端返回的krId已经是复合ID格式（o1::kr1），直接使用
+    console.log('🔧 KRSelectionModal - Toggle KR:', { okrId, krId, currentSelection });
     
     const selection = currentSelection || [];
-    const newSelection = selection.includes(uniqueKrId)
-      ? selection.filter(id => id !== uniqueKrId)
-      : [...selection, uniqueKrId];
+    const newSelection = selection.includes(krId)
+      ? selection.filter(id => id !== krId)
+      : [...selection, krId];
       
     console.log('🔧 KRSelectionModal - New selection:', newSelection);
     setCurrentSelection(newSelection);
@@ -176,20 +177,18 @@ const KRSelectionModal: React.FC<KRSelectionModalProps> = ({
                 </h3>
                 <div className="space-y-3 pl-4">
                   {okr.keyResults.map((kr, krIndex) => {
-                    // 生成复合ID来确保唯一性
-                    const uniqueKrId = `${okr.id}::${kr.id}`;
-                    const isChecked = currentSelection.includes(uniqueKrId);
+                    // 后端返回的kr.id已经是复合ID格式（o1::kr1），直接使用
+                    const isChecked = currentSelection.includes(kr.id);
                     console.log('🔧 KRSelectionModal render KR:', { 
                       okrIndex: okrIndex + 1, 
                       krIndex: krIndex + 1, 
-                      originalKrId: kr.id,
-                      uniqueKrId: uniqueKrId,
+                      krId: kr.id,
                       description: kr.description,
                       isChecked,
                       currentSelection 
                     });
                     return (
-                      <label key={uniqueKrId} className="flex items-start gap-3 cursor-pointer p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <label key={kr.id} className="flex items-start gap-3 cursor-pointer p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                         <input
                           type="checkbox"
                           checked={isChecked}
