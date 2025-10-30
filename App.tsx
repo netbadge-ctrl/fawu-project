@@ -244,6 +244,13 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
   }, [okrSets, currentOkrPeriodId]);
 
   const handleCreateProject = useCallback(() => {
+    // 获取当前日期，格式为 YYYY-MM-DD
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+    
     const newProject: Project = {
       id: `new_${Date.now()}`,
       name: '',
@@ -257,7 +264,7 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
       backendDevelopers: [],
       frontendDevelopers: [],
       qaTesters: [],
-      proposedDate: null,
+      proposedDate: todayStr, // 默认设置为当前日期
       launchDate: null,
       followers: [],
       comments: [],
@@ -287,6 +294,14 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
   const handleUpdateProject = useCallback(async (projectId: string, field: keyof Project, value: any) => {
     const projectToUpdate = (projects || []).find(p => p.id === projectId);
     if (!projectToUpdate) return;
+    
+    // 当状态选择“本周已上线”或“已完成”时，验证上线时间
+    if (field === 'status' && (value === ProjectStatus.LaunchedThisWeek || value === ProjectStatus.Completed)) {
+      if (!projectToUpdate.launchDate) {
+        alert('选择“本周已上线”或“已完成”状态时，必须填写上线时间！');
+        return;
+      }
+    }
     
     // 优化的值比较逻辑，避免昂贵的JSON.stringify
     const oldValue = projectToUpdate[field];
