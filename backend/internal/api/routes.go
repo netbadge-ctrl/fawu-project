@@ -15,11 +15,17 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 
 	// 配置CORS
 	config := cors.DefaultConfig()
-	config.AllowAllOrigins = true
+	// 明确指定允许的源地址（生产环境和本地开发环境）
+	config.AllowOrigins = []string{
+		"http://localhost:5173",
+		"http://127.0.0.1:5173",
+		"http://120.92.36.175:5173",
+	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"}
 	config.ExposeHeaders = []string{"Content-Length"}
 	config.AllowCredentials = true
+	config.MaxAge = 12 * 3600 // 预检请求缓存12小时
 	router.Use(cors.New(config))
 
 	// 创建处理器
