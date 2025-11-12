@@ -201,43 +201,6 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
     fetchData();
   }, [fetchData]);
 
-  // Effect for handling the weekly update rollover
-  useEffect(() => {
-    const handleWeeklyRollover = async () => {
-        const today = new Date();
-        // In JavaScript, getDay() returns 0 for Sunday, 1 for Monday, ..., 6 for Saturday.
-        const isMonday = today.getDay() === 1;
-
-        if (!isMonday) {
-            return;
-        }
-
-        const lastRolloverDate = localStorage.getItem('lastWeeklyRolloverDate');
-        const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-        if (lastRolloverDate === todayDateString) {
-            return; // Rollover already performed today
-        }
-
-        console.log("It's Monday! Performing weekly update rollover...");
-        setIsLoading(true);
-        try {
-            await api.performWeeklyRollover();
-            localStorage.setItem('lastWeeklyRolloverDate', todayDateString);
-            await fetchData(); // Refetch data to show the changes
-        } catch (error) {
-            console.error("Failed to perform weekly rollover", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Run this check only after the initial data has loaded
-    if (!isLoading) {
-        handleWeeklyRollover();
-    }
-  }, [isLoading, fetchData]);
-
   const activeOkrs = useMemo(() => {
     if (!currentOkrPeriodId) return [];
     return (okrSets || []).find(s => s.periodId === currentOkrPeriodId)?.okrs || [];

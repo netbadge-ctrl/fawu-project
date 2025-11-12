@@ -16,7 +16,14 @@ import (
 )
 
 func Start(db *sql.DB) {
-	c := cron.New()
+	// 使用北京时区
+	beijing, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		log.Printf("Failed to load Beijing timezone, using UTC: %v", err)
+		beijing = time.UTC
+	}
+	
+	c := cron.New(cron.WithLocation(beijing))
 
 	// 每天上午11:00执行员工数据同步
 	c.AddFunc("0 11 * * *", func() {
@@ -28,8 +35,20 @@ func Start(db *sql.DB) {
 		}
 	})
 
+	// 每周一凌晨2点执行周度滚动（北京时间）
+	c.AddFunc("0 2 * * 1", func() {
+		log.Println("Starting weekly rollover...")
+		if err := performWeeklyRollover(db); err != nil {
+			log.Printf("Weekly rollover failed: %v", err)
+		} else {
+			log.Println("Weekly rollover completed successfully")
+		}
+	})
+
 	c.Start()
-	log.Println("Scheduler started - employee sync scheduled for 11:00 AM daily")
+	log.Println("Scheduler started:")
+	log.Println("  - Employee sync: 11:00 AM daily (Beijing time)")
+	log.Println("  - Weekly rollover: 02:00 AM every Monday (Beijing time)")
 }
 
 func syncEmployeeData(db *sql.DB) error {
@@ -173,4 +192,34 @@ func getDepartmentName(deptID int) string {
 	default:
 		return fmt.Sprintf("部门%d", deptID)
 	}
+}
+
+// performWeeklyRollover 执行周度滚动：将本周进展复制到上周，并清空本周进展
+func performWeeklyRollover(db *sql.DB) error {
+	query := `
+		UPDATE projects 
+		SET last_week_update = weekly_update,
+		    weekly_update = ''
+		WHERE weekly_update IS NOT NULL AND weekly_update != ''
+		RETURNING id
+	`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return fmt.Errorf("failed to execute rollover query: %w", err)
+	}
+	defer rows.Close()
+
+	var updatedProjectIds []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			log.Printf("Failed to scan project id: %v", err)
+			continue
+		}
+		updatedProjectIds = append(updatedProjectIds, id)
+	}
+
+	log.Printf("Weekly rollover completed - Updated %d projects, cleared weekly_update", len(updatedProjectIds))
+	return nil
 }
