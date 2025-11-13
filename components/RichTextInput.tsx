@@ -113,7 +113,17 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
             }
         }
         
+        // 清除可能被浏览器添加的背景色
         setTimeout(() => {
+            if (contentRef.current) {
+                // 移除所有 span 元素的 background 和 backgroundColor 样式
+                const spans = contentRef.current.querySelectorAll('span[style*="background"], font[style*="background"]');
+                spans.forEach((span) => {
+                    const element = span as HTMLElement;
+                    if (element.style.background) element.style.background = '';
+                    if (element.style.backgroundColor) element.style.backgroundColor = '';
+                });
+            }
             updateButtonStates();
             handleInput();
         }, 0);

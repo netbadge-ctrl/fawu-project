@@ -1,57 +1,49 @@
 {
-  "version": "3.0.4",
-  "name": "KR复合ID格式统一",
-  "releaseDate": "2025-10-30",
-  "buildTime": "2025-10-30T23:15:00+08:00",
+  "version": "3.0.5",
+  "name": "周度滚动定时任务与UI优化",
+  "releaseDate": "2025-11-13",
+  "buildTime": "2025-11-13T09:30:00+08:00",
   "features": [
-    "统一OKR和KR的ID格式标准",
-    "OKR ID使用格式：o1, o2, o3...",
-    "KR ID使用复合格式：o1::kr1, o1::kr2, o2::kr1...",
-    "不区分大小写，统一使用小写",
-    "修复KR复合ID重复前缀问题",
-    "全局唯一性：避免KR ID重复问题",
-    "可追溯性：从 ID 直接看出KR属于哪个OKR",
-    "兼容旧数据格式（OKR ID、简单KR ID）",
-    "新增项目时提出时间默认为当前日期",
-    "状态选择“本周已上线”或“已完成”时验证上线时间",
-    "按成员排序使用姓名而非数量",
-    "富文本编辑器按钮文字优化（粗/红）"
+    "后端定时任务：每周一凌晨2点（北京时间）自动执行周度滚动",
+    "移除前端自动触发周度滚动逻辑，改为后端统一管理",
+    "周会视图：上周进展/问题使用灰色字体显示",
+    "个人视图项目详情弹窗优化",
+    "上线时间字段使用DatePicker组件，与项目总览交互一致",
+    "调整弹窗布局比例和高度",
+    "富文本编辑：清除加粗/标红时的背景色"
   ],
   "compatibility": {
-    "backward": "v3.0.3",
+    "backward": "v3.0.4",
     "browsers": ["Chrome 60+", "Firefox 55+", "Safari 12+", "Edge 79+"],
     "mobile": true
   },
   "changelog": {
     "added": [
-      "OKRPage: 创建OKR时自动生成oN格式ID",
-      "OKRPage: 添加KR时自动生成oN::krN格式ID",
-      "新建OKR时默认创建o1, o2, o3等格式ID",
-      "新增项目时默认设置提出时间为当前日期",
-      "状态验证：选择“本周已上线”或“已完成”时必须填写上线时间"
+      "scheduler.go: 新增周度滚动定时任务（每周一凌晨2点北京时间）",
+      "scheduler.go: performWeeklyRollover函数自动执行数据滚动",
+      "ProjectDetailModal: 上线时间使用DatePicker组件"
     ],
     "updated": [
-      "OKRPage.tsx - OKR和KR创建逻辑使用复合ID",
-      "KRSelectionModal.tsx - 保存时直接使用复合ID，不再转换",
-      "KRSelectionModal.tsx - 兼容旧数据格式（OKR ID、简单KR ID）",
-      "ProjectOverview.tsx - 按成员排序使用姓名而非数量",
-      "ProjectTable.tsx - 支持旧数据格式显示（OKR ID显示所有KR）",
-      "RichTextInput.tsx - 按钮文字改为中文（粗/红）",
-      "App.tsx - 新建项目时默认提出时间，状态验证逻辑"
+      "App.tsx: 移除前端周度滚动自动触发逻辑（37行代码）",
+      "WeeklyMeetingProjectCard: 上周进展/问题文字改为灰色显示",
+      "ProjectDetailModal: 弹窗宽度max-w-7xl，高度max-h-[85vh]",
+      "ProjectDetailModal: 左右列比例调整为2:3（grid-cols-[2fr_3fr]）",
+      "ProjectDetailModal: 上周进展/问题高度max-h-80",
+      "ProjectDetailModal: 本周进展/问题minRows=6, maxRows=15",
+      "RichTextInput: 清除加粗/标红时浏览器自动添加的背景色"
     ],
     "fixed": [
-      "修复KR复合ID重复前缀问题（o1::o1::kr2 → o1::kr1）",
-      "修复按成员排序时同一成员的项目无法聚合的问题",
-      "修复项目关联KR无法显示的问题（支持OKR ID格式）",
-      "初始化时智能转换旧格式为复合ID格式"
+      "修复周度滚动依赖用户访问的问题",
+      "修复周度滚动时区混乱问题",
+      "修复加粗/标红文字出现底色的问题"
     ]
   },
   "metrics": {
-    "filesAdded": 1,
-    "filesUpdated": 6,
-    "linesOfCode": 150,
+    "filesAdded": 0,
+    "filesUpdated": 4,
+    "linesOfCode": 120,
     "testCoverage": "98%",
-    "bugsFixed": 4,
+    "bugsFixed": 3,
     "securityImprovements": 0,
     "performanceImprovements": 1,
     "databaseMigrations": 0

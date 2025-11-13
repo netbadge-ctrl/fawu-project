@@ -390,6 +390,9 @@ const EditableUpdateDisplay: React.FC<{
         );
     }
     
+    // 判断是否为上周进展，应用灰色样式
+    const isLastWeek = title === '上周进展/问题';
+    
     return (
         <div className="relative update-tooltip-container">
             <h4 className="font-semibold text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -404,7 +407,9 @@ const EditableUpdateDisplay: React.FC<{
                 )}
             </h4>
             <div
-                className="p-3 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg min-h-[5rem] max-h-[7.5rem] overflow-hidden text-sm text-gray-800 dark:text-gray-300 weekly-update-content cursor-pointer leading-relaxed line-clamp-5"
+                className={`p-3 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg min-h-[5rem] max-h-[7.5rem] overflow-hidden text-sm weekly-update-content cursor-pointer leading-relaxed line-clamp-5 ${
+                    isLastWeek ? 'text-gray-500 dark:text-gray-500' : 'text-gray-800 dark:text-gray-300'
+                }`}
                 dangerouslySetInnerHTML={{ __html: content }}
                 onClick={handleClick}
                 style={{

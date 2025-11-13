@@ -4,6 +4,7 @@ import { IconX, IconStar, IconPencil, IconChevronDown } from './Icons';
 import { RichTextInput } from './RichTextInput';
 import { AutoResizeInput } from './AutoResizeInput';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
+import { DatePicker } from './DatePicker';
 
 const PriorityBadge: React.FC<{ priority: Priority }> = ({ priority }) => {
     const priorityStyles: Record<Priority, string> = {
@@ -282,6 +283,12 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
         }
     };
 
+    const handleLaunchDateSave = (newLaunchDate: string) => {
+        if (newLaunchDate !== (project.launchDate || '')) {
+            onUpdateProject(project.id, 'launchDate', newLaunchDate || null);
+        }
+    };
+
     const roleInfo: { key: ProjectRoleKey, name: string }[] = [
         { key: 'productManagers', name: '产品经理' },
         { key: 'backendDevelopers', name: '后端研发' },
@@ -297,7 +304,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-            <div className="bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-xl w-full max-w-6xl text-gray-900 dark:text-white shadow-lg flex flex-col max-h-[95vh]">
+            <div className="bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-xl w-full max-w-7xl text-gray-900 dark:text-white shadow-lg flex flex-col max-h-[85vh]">
                 {/* Header */}
                 <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 dark:border-[#363636]">
                     <div className="flex-1 mr-4">
@@ -327,9 +334,9 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="flex-grow p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="flex-grow p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8">
                     {/* Left Column (Info) */}
-                    <div className="md:col-span-1 space-y-6">
+                    <div className="space-y-6">
                         <InfoBlock label="解决的业务问题">
                             <EditableText
                                 value={project.businessProblem || ''}
@@ -338,7 +345,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                 multiline
                             />
                         </InfoBlock>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <InfoBlock label="优先级">
                                 <EditablePrioritySelect 
                                     priority={project.priority} 
@@ -349,6 +356,13 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                 <EditableStatusSelect 
                                     status={project.status} 
                                     onStatusChange={handleStatusChange}
+                                />
+                            </InfoBlock>
+                            <InfoBlock label="上线时间">
+                                <DatePicker 
+                                    selectedDate={project.launchDate || undefined}
+                                    onSelectDate={handleLaunchDateSave}
+                                    placeholder="选择上线时间"
                                 />
                             </InfoBlock>
                         </div>
@@ -380,7 +394,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                         <InfoBlock label="上周进展/问题">
                              <div 
                                 dangerouslySetInnerHTML={{ __html: project.lastWeekUpdate || `<span class="text-sm text-gray-400 dark:text-gray-500">暂无记录</span>`}}
-                                className="p-2 bg-gray-100 dark:bg-[#2d2d2d] rounded-lg text-gray-600 dark:text-gray-400 whitespace-pre-wrap text-xs max-h-40 overflow-y-auto"
+                                className="p-2 bg-gray-100 dark:bg-[#2d2d2d] rounded-lg text-gray-600 dark:text-gray-400 whitespace-pre-wrap text-xs max-h-80 overflow-y-auto"
                                 style={{
                                     wordWrap: 'break-word',
                                     wordBreak: 'break-word',
@@ -390,15 +404,15 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                         </InfoBlock>
                     </div>
                     {/* Right Column (Editable) */}
-                    <div className="md:col-span-2 space-y-6">
+                    <div className="space-y-6">
                         <InfoBlock label="本周进展/问题">
                             <div onBlur={handleWeeklyUpdateBlur}>
                                 <RichTextInput
                                     html={weeklyUpdateHtml}
                                     onChange={setWeeklyUpdateHtml}
                                     placeholder="输入本周进展/问题..."
-                                    minRows={4}
-                                    maxRows={12}
+                                    minRows={6}
+                                    maxRows={15}
                                 />
                             </div>
                         </InfoBlock>
