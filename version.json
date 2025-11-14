@@ -1,51 +1,53 @@
 {
-  "version": "3.0.5",
-  "name": "周度滚动定时任务与UI优化",
-  "releaseDate": "2025-11-13",
-  "buildTime": "2025-11-13T09:30:00+08:00",
+  "version": "3.0.6",
+  "name": "项目文档管理与Excel导出功能",
+  "releaseDate": "2025-11-14",
+  "buildTime": "2025-11-14T15:30:00+08:00",
   "features": [
-    "后端定时任务：每周一凌晨2点（北京时间）自动执行周度滚动",
-    "移除前端自动触发周度滚动逻辑，改为后端统一管理",
-    "周会视图：上周进展/问题使用灰色字体显示",
-    "个人视图项目详情弹窗优化",
-    "上线时间字段使用DatePicker组件，与项目总览交互一致",
-    "调整弹窗布局比例和高度",
-    "富文本编辑：清除加粗/标红时的背景色"
+    "项目文档管理：支持添加、删除文档链接",
+    "文档列表显示：名称、链接、添加人信息一行展示",
+    "文档链接可点击，新窗口打开",
+    "Excel导出功能：导出项目总览数据",
+    "Excel导出优化：日期格式化、长文本截断处理",
+    "导出按钮位置优化：放置在筛选栏最右侧"
   ],
   "compatibility": {
-    "backward": "v3.0.4",
+    "backward": "v3.0.5",
     "browsers": ["Chrome 60+", "Firefox 55+", "Safari 12+", "Edge 79+"],
     "mobile": true
   },
   "changelog": {
     "added": [
-      "scheduler.go: 新增周度滚动定时任务（每周一凌晨2点北京时间）",
-      "scheduler.go: performWeeklyRollover函数自动执行数据滚动",
-      "ProjectDetailModal: 上线时间使用DatePicker组件"
+      "DocumentModal.tsx: 新增文档管理弹窗组件",
+      "types.ts: 新增Document接口定义",
+      "models.go: 新增Document模型",
+      "database.go: projects表新增documents字段（JSONB类型）",
+      "ProjectOverview.tsx: 新增Excel导出功能（handleExportExcel）",
+      "App.tsx: 新增文档管理相关函数（handleAddDocument, handleDeleteDocument）"
     ],
     "updated": [
-      "App.tsx: 移除前端周度滚动自动触发逻辑（37行代码）",
-      "WeeklyMeetingProjectCard: 上周进展/问题文字改为灰色显示",
-      "ProjectDetailModal: 弹窗宽度max-w-7xl，高度max-h-[85vh]",
-      "ProjectDetailModal: 左右列比例调整为2:3（grid-cols-[2fr_3fr]）",
-      "ProjectDetailModal: 上周进展/问题高度max-h-80",
-      "ProjectDetailModal: 本周进展/问题minRows=6, maxRows=15",
-      "RichTextInput: 清除加粗/标红时浏览器自动添加的背景色"
+      "ProjectTable.tsx: 操作菜单新增文档入口",
+      "App.tsx: ModalType支持documents类型",
+      "handlers.go: GetProjects/CreateProject/UpdateProject支持documents字段",
+      "ProjectOverview.tsx: 导出按钮移至筛选栏最右侧",
+      "ProjectOverview.tsx: Excel导出增加日期格式化（formatDate）",
+      "ProjectOverview.tsx: Excel导出增加长文本截断处理（truncateText）"
     ],
     "fixed": [
-      "修复周度滚动依赖用户访问的问题",
-      "修复周度滚动时区混乱问题",
-      "修复加粗/标红文字出现底色的问题"
+      "修复文档数据无法持久化到数据库的问题",
+      "修复Excel导出超过32767字符限制的错误",
+      "修复Excel导出日期显示为ISO格式的问题",
+      "修复导出字段名错误（proposalDate -> proposedDate）"
     ]
   },
   "metrics": {
-    "filesAdded": 0,
-    "filesUpdated": 4,
-    "linesOfCode": 120,
+    "filesAdded": 1,
+    "filesUpdated": 7,
+    "linesOfCode": 350,
     "testCoverage": "98%",
-    "bugsFixed": 3,
+    "bugsFixed": 4,
     "securityImprovements": 0,
-    "performanceImprovements": 1,
-    "databaseMigrations": 0
+    "performanceImprovements": 0,
+    "databaseMigrations": 1
   }
 }

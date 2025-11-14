@@ -32,7 +32,7 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		SELECT id, name, priority, business_problem, key_result_ids, weekly_update, 
 		       last_week_update, status, product_managers, backend_developers, 
 		       frontend_developers, qa_testers, proposal_date, launch_date, 
-		       created_at, followers, comments, change_log
+		       created_at, followers, comments, change_log, documents
 		FROM projects
 		ORDER BY created_at DESC
 	`
@@ -52,13 +52,13 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		var keyResultIds pq.StringArray
 		var followers pq.StringArray
 		var productManagers, backendDevelopers, frontendDevelopers, qaTesters []byte
-		var comments, changeLog []byte
+		var comments, changeLog, documents []byte
 
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.Priority, &p.BusinessProblem, &keyResultIds,
 			&p.WeeklyUpdate, &p.LastWeekUpdate, &p.Status, &productManagers,
 			&backendDevelopers, &frontendDevelopers, &qaTesters,
-			&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followers, &comments, &changeLog,
+			&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followers, &comments, &changeLog, &documents,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -76,6 +76,7 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		json.Unmarshal(qaTesters, &p.QaTesters)
 		json.Unmarshal(comments, &p.Comments)
 		json.Unmarshal(changeLog, &p.ChangeLog)
+		json.Unmarshal(documents, &p.Documents)
 
 		// 初始化空的TimeSlots
 		h.initializeEmptyTimeSlots(&p)
@@ -331,6 +332,7 @@ func (h *Handler) CreateProject(c *gin.Context) {
 	qaTestersJSON, _ := json.Marshal(project.QaTesters)
 	commentsJSON, _ := json.Marshal(project.Comments)
 	changeLogJSON, _ := json.Marshal(project.ChangeLog)
+	documentsJSON, _ := json.Marshal(project.Documents)
 
 	// 插入项目基本信息
 	query := `
@@ -338,15 +340,15 @@ func (h *Handler) CreateProject(c *gin.Context) {
 			id, name, priority, business_problem, key_result_ids, weekly_update, 
 			last_week_update, status, product_managers, backend_developers, 
 			frontend_developers, qa_testers, proposal_date, launch_date, 
-			created_at, followers, comments, change_log
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
+			created_at, followers, comments, change_log, documents
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
 
 	_, err = tx.Exec(query,
 		project.ID, project.Name, project.Priority, project.BusinessProblem,
 		pq.Array(project.KeyResultIds), project.WeeklyUpdate, project.LastWeekUpdate,
 		project.Status, productManagersJSON, backendDevelopersJSON,
 		frontendDevelopersJSON, qaTestersJSON, project.ProposalDate, project.LaunchDate,
-		project.CreatedAt, pq.Array(project.Followers), commentsJSON, changeLogJSON)
+		project.CreatedAt, pq.Array(project.Followers), commentsJSON, changeLogJSON, documentsJSON)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -416,20 +418,20 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 		SELECT id, name, priority, business_problem, key_result_ids, weekly_update, 
 		       last_week_update, status, product_managers, backend_developers, 
 		       frontend_developers, qa_testers, proposal_date, launch_date, 
-		       created_at, followers, comments, change_log
+		       created_at, followers, comments, change_log, documents
 		FROM projects WHERE id = $1
 	`
 
 	var keyResultIds pq.StringArray
 	var followers pq.StringArray
 	var productManagers, backendDevelopers, frontendDevelopers, qaTesters []byte
-	var comments, changeLog []byte
+	var comments, changeLog, documents []byte
 
 	err := h.db.QueryRow(query, projectID).Scan(
 		&existing.ID, &existing.Name, &existing.Priority, &existing.BusinessProblem, &keyResultIds,
 		&existing.WeeklyUpdate, &existing.LastWeekUpdate, &existing.Status, &productManagers,
 		&backendDevelopers, &frontendDevelopers, &qaTesters,
-		&existing.ProposalDate, &existing.LaunchDate, &existing.CreatedAt, &followers, &comments, &changeLog,
+		&existing.ProposalDate, &existing.LaunchDate, &existing.CreatedAt, &followers, &comments, &changeLog, &documents,
 	)
 
 	if err != nil {
@@ -450,6 +452,7 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	json.Unmarshal(qaTesters, &existing.QaTesters)
 	json.Unmarshal(comments, &existing.Comments)
 	json.Unmarshal(changeLog, &existing.ChangeLog)
+	json.Unmarshal(documents, &existing.Documents)
 
 	// 合并更新
 	if updates.Name != "" {
@@ -500,6 +503,9 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	if updates.ChangeLog != nil {
 		existing.ChangeLog = updates.ChangeLog
 	}
+	if updates.Documents != nil {
+		existing.Documents = updates.Documents
+	}
 	if updates.CreatedAt != "" {
 		existing.CreatedAt = updates.CreatedAt
 	}
@@ -519,6 +525,7 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	qaTestersJSON, _ := json.Marshal(existing.QaTesters)
 	commentsJSON, _ := json.Marshal(existing.Comments)
 	changeLogJSON, _ := json.Marshal(existing.ChangeLog)
+	documentsJSON, _ := json.Marshal(existing.Documents)
 
 	// 更新项目基本信息
 	updateQuery := `
@@ -528,7 +535,7 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 			product_managers = $9, backend_developers = $10, 
 			frontend_developers = $11, qa_testers = $12, 
 			proposal_date = $13, launch_date = $14, followers = $15, 
-			comments = $16, change_log = $17, created_at = $18
+			comments = $16, change_log = $17, created_at = $18, documents = $19
 		WHERE id = $1
 	`
 
@@ -537,7 +544,7 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 		pq.Array(existing.KeyResultIds), existing.WeeklyUpdate, existing.LastWeekUpdate,
 		existing.Status, productManagersJSON, backendDevelopersJSON,
 		frontendDevelopersJSON, qaTestersJSON, existing.ProposalDate, existing.LaunchDate,
-		pq.Array(existing.Followers), commentsJSON, changeLogJSON, existing.CreatedAt)
+		pq.Array(existing.Followers), commentsJSON, changeLogJSON, existing.CreatedAt, documentsJSON)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

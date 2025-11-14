@@ -12,8 +12,9 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { RoleEditModal } from './components/RoleEditModal';
 import { CommentModal } from './components/CommentModal';
 import { ChangeLogModal } from './components/ChangeLogModal';
+import { DocumentModal } from './components/DocumentModal';
 import { api } from './api.ts';
-import { Project, ProjectStatus, Role, User, ProjectRoleKey, OKR, Priority, Comment, ChangeLogEntry, OkrSet } from './types';
+import { Project, ProjectStatus, Role, User, ProjectRoleKey, OKR, Priority, Comment, ChangeLogEntry, OkrSet, Document } from './types';
 
 export type ViewType = 'overview' | 'okr' | 'kanban' | 'personal' | 'weekly' | 'monthly';
 
@@ -54,7 +55,7 @@ const getCurrentOkrPeriod = (okrSets: OkrSet[]): OkrSet => {
   return sortedSets[0];
 };
 
-type ModalType = 'role' | 'comments' | 'changelog';
+type ModalType = 'role' | 'comments' | 'changelog' | 'documents';
 type ModalState = {
   isOpen: boolean;
   type?: ModalType;
@@ -232,6 +233,7 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
       followers: [],
       comments: [],
       changeLog: [],
+      documents: [], // 文档列表
       createdAt: new Date().toISOString(),
       isNew: true,
     };
@@ -609,6 +611,31 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
       handleOpenModal('comments', project.id, { replyToUser: userToReply });
   }, [handleOpenModal]);
   
+  // 文档管理函数
+  const handleAddDocument = useCallback(async (projectId: string, name: string, url: string) => {
+    const project = (projects || []).find(p => p.id === projectId);
+    if (!project || !currentUser) return;
+
+    const newDocument: Document = {
+      id: `doc_${Date.now()}`,
+      name,
+      url,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser.id,
+    };
+    
+    const newDocuments = [...(project.documents || []), newDocument];
+    await handleUpdateProject(projectId, 'documents', newDocuments);
+  }, [projects, currentUser, handleUpdateProject]);
+
+  const handleDeleteDocument = useCallback(async (projectId: string, documentId: string) => {
+    const project = (projects || []).find(p => p.id === projectId);
+    if (!project) return;
+    
+    const newDocuments = (project.documents || []).filter(doc => doc.id !== documentId);
+    await handleUpdateProject(projectId, 'documents', newDocuments);
+  }, [projects, handleUpdateProject]);
+  
   const currentProjectForModal = (projects || []).find(p => p.id === modalState.projectId);
 
   const renderView = () => {
@@ -734,6 +761,17 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
             allUsers={allUsers}
             onClose={handleCloseModal}
           />
+      )}
+      {modalState.isOpen && modalState.type === 'documents' && currentProjectForModal && (
+        <DocumentModal
+          isOpen={true}
+          onClose={handleCloseModal}
+          documents={currentProjectForModal.documents || []}
+          onAddDocument={(name, url) => handleAddDocument(currentProjectForModal.id, name, url)}
+          onDeleteDocument={(docId) => handleDeleteDocument(currentProjectForModal.id, docId)}
+          projectName={currentProjectForModal.name}
+          allUsers={allUsers}
+        />
       )}
     </div>
   );

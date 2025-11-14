@@ -177,6 +177,22 @@ func runMigrations(db *sql.DB) error {
 			return fmt.Errorf("failed to add created_at column: %w", err)
 		}
 
+		// 添加 documents 字段
+		addDocumentsColumn := `
+		DO $$ 
+		BEGIN 
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns 
+				WHERE table_name = 'projects' AND column_name = 'documents'
+			) THEN
+				ALTER TABLE projects ADD COLUMN documents JSONB DEFAULT '[]'::jsonb;
+			END IF;
+		END $$;`
+
+		if _, err := db.Exec(addDocumentsColumn); err != nil {
+			return fmt.Errorf("failed to add documents column: %w", err)
+		}
+
 		// 创建产品月会工作条目表
 		createMonthlyWorkItemsTable := `
 		CREATE TABLE IF NOT EXISTS monthly_work_items (

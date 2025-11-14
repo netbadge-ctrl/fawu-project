@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useLayoutEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Project, User, ProjectStatus, ProjectRoleKey, OKR, Priority, Role } from '../types';
-import { IconTrash, IconCheck, IconX, IconMoreHorizontal, IconStar, IconMessageCircle, IconHistory, IconChevronDown, IconPlus } from './Icons';
+import { IconTrash, IconCheck, IconX, IconMoreHorizontal, IconStar, IconMessageCircle, IconHistory, IconChevronDown, IconPlus, IconFileText } from './Icons';
 import { RoleCell } from './RoleCell';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DatePicker } from './DatePicker';
@@ -34,7 +34,7 @@ interface ProjectTableProps {
   onUpdateProject: (projectId: string, field: keyof Project, value: any) => void;
   onDeleteProject: (id: string) => void;
   onCancelNewProject: (id: string) => void;
-  onOpenModal: (type: 'role' | 'comments' | 'changelog', projectId: string, details?: any) => void;
+  onOpenModal: (type: 'role' | 'comments' | 'changelog' | 'documents', projectId: string, details?: any) => void;
   onToggleFollow: (projectId: string) => void;
   onCreateProject: () => void;
   sortConfig?: SortConfig;
@@ -494,6 +494,7 @@ const ActionsCell: React.FC<{
             <ul>
                 <li><button onClick={() => handleAction(onToggleFollow)} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]"><IconStar className={`w-4 h-4 ${isFollowing ? 'text-yellow-400 fill-yellow-400' : ''}`} /><span>{isFollowing ? '取消关注' : '关注'}</span></button></li>
                 <li><button onClick={() => handleAction(() => onOpenModal('comments'))} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]"><IconMessageCircle className="w-4 h-4" /><span>评论</span></button></li>
+                <li><button onClick={() => handleAction(() => onOpenModal('documents'))} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]"><IconFileText className="w-4 h-4" /><span>文档</span></button></li>
                 <li><button onClick={() => handleAction(() => onOpenModal('changelog'))} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]"><IconHistory className="w-4 h-4" /><span>变更记录</span></button></li>
                 <li><hr className="border-t border-gray-200 dark:border-[#4a4a4a] my-1" /></li>
                 <li><button onClick={handleDeleteClick} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"><IconTrash className="w-4 h-4" /><span>删除</span></button></li>
@@ -586,7 +587,7 @@ interface ProjectRowProps {
     onUpdateProject: (projectId: string, field: keyof Project, value: any) => void;
     onDelete: (id: string) => void;
     onCancel: (id: string) => void;
-    onOpenModal: (type: 'role' | 'comments' | 'changelog', projectId: string, details?: any) => void;
+    onOpenModal: (type: 'role' | 'comments' | 'changelog' | 'documents', projectId: string, details?: any) => void;
     onToggleFollow: (projectId: string) => void;
     columnStyles: React.CSSProperties[];
     getTdClassName: (index: number, isNew?: boolean) => string;

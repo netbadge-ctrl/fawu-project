@@ -55,6 +55,15 @@ type ChangeLogEntry struct {
 	ChangedAt string `json:"changedAt"`
 }
 
+// Document 文档链接
+type Document struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	URL       string `json:"url"`
+	CreatedAt string `json:"createdAt"`
+	CreatedBy string `json:"createdBy"`
+}
+
 // KeyResult OKR关键结果
 // 注意：KR ID现在采用复合格式 "okrId::krSequence"，确保全局唯一性
 // 例如："o1::kr1", "o2::kr1" 等
@@ -117,6 +126,7 @@ type Project struct {
 	Followers          []string         `json:"followers" db:"followers"`
 	Comments           []Comment        `json:"comments" db:"comments"`
 	ChangeLog          []ChangeLogEntry `json:"changeLog" db:"change_log"`
+	Documents          []Document       `json:"documents" db:"documents"`
 }
 
 // EmployeeResponse 员工接口响应

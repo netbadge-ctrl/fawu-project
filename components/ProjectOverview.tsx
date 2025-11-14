@@ -6,6 +6,7 @@ import { KRFilterButton } from './KRFilterButton';
 import { ProjectTable } from './ProjectTable';
 import { debounce } from '../utils';
 import { MultiSortConfig, SortRule } from './MultiSortConfig';
+import * as XLSX from 'xlsx';
 
 type SortField = 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'launchDate';
 type SortDirection = 'asc' | 'desc';
@@ -118,9 +119,9 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   // 筛选和排序项目 - 使用高效的Set查找方式（参考看板和周会视图）
   const filteredAndSortedProjects = useMemo(() => {
     // 确保项目数组存在且去重（防止重复key错误）
-    const uniqueProjects: Project[] = Array.from(
+    const uniqueProjects = Array.from(
       new Map((projects || []).map(p => [p.id, p])).values()
-    );
+    ) as Project[];
     
     // 预计算所有筛选集合，使用Set进行O(1)查找
     const statusSet = new Set(selectedStatuses);
@@ -343,6 +344,132 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     });
   }, [projects, searchTerm, selectedStatuses, selectedPriorities, selectedParticipants, selectedKrs, editingId, sortConfig, filters.useMultiSort, filters.multiSortRules]);
 
+  // 导出Excel功能
+  const handleExportExcel = useCallback(() => {
+    try {
+      console.log('开始导出Excel...');
+      console.log('filteredAndSortedProjects:', filteredAndSortedProjects);
+      
+      // Excel单元格最大字符数限制
+      const MAX_CELL_LENGTH = 32767;
+      
+      // 截断长文本
+      const truncateText = (text: string | null | undefined, maxLength: number = MAX_CELL_LENGTH): string => {
+        if (!text) return '';
+        const strText = String(text);
+        if (strText.length <= maxLength) return strText;
+        return strText.substring(0, maxLength - 3) + '...';
+      };
+      
+      // 格式化日期：将 ISO 格式转换为 YYYY-MM-DD
+      const formatDate = (dateStr: string | null | undefined): string => {
+        if (!dateStr) return '';
+        try {
+          // 如果已经是 YYYY-MM-DD 格式，直接返回
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            return dateStr;
+          }
+          // 处理 ISO 格式（如 2025-11-13T00:00:00Z）
+          const date = new Date(dateStr);
+          if (isNaN(date.getTime())) return dateStr; // 如果无法解析，返回原值
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        } catch (error) {
+          return dateStr; // 出错时返回原值
+        }
+      };
+      
+      // 准备导出数据
+      const exportData = filteredAndSortedProjects
+        .filter(p => !p.isNew) // 过滤掉新建中的项目
+        .map(project => {
+          // 获取成员姓名
+          const getNames = (members: any[] = []) => {
+            return members
+              .map(m => {
+                const user = allUsers.find(u => u.id === m.userId);
+                return user?.name || '';
+              })
+              .filter(name => name)
+              .join('、');
+          };
+
+          // 获取KR描述
+          const getKRs = (krIds: string[] = []) => {
+            const krs: string[] = [];
+            krIds.forEach(krId => {
+              activeOkrs.forEach(okr => {
+                okr.keyResults.forEach(kr => {
+                  if (kr.id === krId) {
+                    krs.push(`${okr.id}-${kr.id}: ${kr.description}`);
+                  }
+                });
+              });
+            });
+            return krs.join('\n');
+          };
+
+          return {
+            '项目名称': truncateText(project.name, 255),
+            '优先级': project.priority || '',
+            '状态': project.status || '',
+            '解决的业务问题': truncateText(project.businessProblem, 1000),
+            '关联的KR': truncateText(getKRs(project.keyResultIds), 2000),
+            '产品经理': truncateText(getNames(project.productManagers), 500),
+            '后端研发': truncateText(getNames(project.backendDevelopers), 500),
+            '前端研发': truncateText(getNames(project.frontendDevelopers), 500),
+            '测试': truncateText(getNames(project.qaTesters), 500),
+            '提出时间': formatDate(project.proposedDate),
+            '上线时间': formatDate(project.launchDate),
+            '本周进展/问题': truncateText(project.weeklyUpdate, 10000),
+            '上周进展/问题': truncateText(project.lastWeekUpdate, 10000)
+          };
+        });
+
+      console.log('导出数据条数:', exportData.length);
+
+      // 创建工作簿
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '项目列表');
+
+      // 设置列宽
+      const colWidths = [
+        { wch: 30 }, // 项目名称
+        { wch: 10 }, // 优先级
+        { wch: 12 }, // 状态
+        { wch: 40 }, // 解决的业务问题
+        { wch: 50 }, // 关联的KR
+        { wch: 15 }, // 产品经理
+        { wch: 15 }, // 后端研发
+        { wch: 15 }, // 前端研发
+        { wch: 15 }, // 测试
+        { wch: 12 }, // 提出时间
+        { wch: 12 }, // 上线时间
+        { wch: 40 }, // 本周进展/问题
+        { wch: 40 }, // 上周进展/问题
+      ];
+      ws['!cols'] = colWidths;
+
+      // 生成文件名（包含导出时间）
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+      const fileName = `项目列表_${dateStr}.xlsx`;
+
+      console.log('准备下载文件:', fileName);
+      
+      // 导出文件
+      XLSX.writeFile(wb, fileName);
+      
+      console.log('Excel导出完成!');
+    } catch (error) {
+      console.error('导出Excel失败:', error);
+      alert('导出Excel失败: ' + (error instanceof Error ? error.message : String(error)));
+    }
+  }, [filteredAndSortedProjects, allUsers, activeOkrs]);
+
   // 准备筛选选项
   const statusOptions = Object.values(ProjectStatus).map(status => ({ value: status, label: status }));
   const priorityOptions = Object.values(Priority).map(priority => ({ value: priority, label: priority }));
@@ -428,6 +555,18 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                 )}
               </button>
             </div>
+            
+            {/* 导出Excel按钮 - 移到最右边 */}
+            <button
+              onClick={handleExportExcel}
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-[#4a4a4a] rounded-md bg-white dark:bg-[#2d2d2d] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1e1e1e] flex items-center gap-2 flex-shrink-0"
+              title="导出当前筛选结果为Excel文件"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              导出Excel
+            </button>
           </div>
         </div>
       </div>

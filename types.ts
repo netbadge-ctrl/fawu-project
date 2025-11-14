@@ -88,6 +88,14 @@ export interface ChangeLogEntry {
   changedAt: string;
 }
 
+export interface Document {
+  id: string;
+  name: string;
+  url: string;
+  createdAt: string;
+  createdBy: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -107,6 +115,7 @@ export interface Project {
   followers: string[];
   comments: Comment[];
   changeLog: ChangeLogEntry[];
+  documents: Document[]; // 项目文档列表
   isNew?: boolean;
 }
 
