@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Project, User, OKR, ProjectRoleKey, Priority, ProjectStatus, Role } from '../types';
-import { IconX, IconStar, IconPencil, IconChevronDown } from './Icons';
+import { IconX, IconStar, IconPencil, IconChevronDown, IconFileText } from './Icons';
 import { RichTextInput } from './RichTextInput';
 import { AutoResizeInput } from './AutoResizeInput';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
@@ -401,6 +401,43 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                     overflowWrap: 'anywhere'
                                 }}
                             />
+                        </InfoBlock>
+                        <InfoBlock label="项目文档">
+                            {project.documents && project.documents.length > 0 ? (
+                                <div className="space-y-2">
+                                    {project.documents.map(doc => {
+                                        const creator = allUsers.find(u => u.id === doc.createdBy);
+                                        return (
+                                            <div 
+                                                key={doc.id}
+                                                className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#2d2d2d] rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors group"
+                                            >
+                                                <IconFileText className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                                                <div className="flex-1 min-w-0 flex items-center gap-2">
+                                                    <span className="font-medium text-sm text-gray-900 dark:text-gray-100 flex-shrink-0">
+                                                        {doc.name}
+                                                    </span>
+                                                    <span className="text-gray-400 dark:text-gray-500 flex-shrink-0">-</span>
+                                                    <a 
+                                                        href={doc.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-blue-600 dark:text-blue-400 hover:underline text-sm truncate flex-1 min-w-0"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        {doc.url}
+                                                    </a>
+                                                </div>
+                                                <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                                    {creator?.name || '未知'}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <span className="text-sm text-gray-400 dark:text-gray-500">暂无文档</span>
+                            )}
                         </InfoBlock>
                     </div>
                     {/* Right Column (Editable) */}
