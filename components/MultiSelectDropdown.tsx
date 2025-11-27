@@ -251,6 +251,24 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
         }
     }, [flatFilteredOptions, areAllFilteredSelected, selectedValues, onSelectionChange]);
     
+    // 部门全选/取消全选
+    const handleToggleDepartment = useCallback((departmentLabel: string) => {
+        const currentGroup = filteredGroupedOptions?.find(g => g.label === departmentLabel);
+        if (!currentGroup) return;
+        
+        const groupValues = currentGroup.options.map(o => o.value);
+        const allGroupSelected = groupValues.every(v => selectedValues.includes(v));
+        
+        if (allGroupSelected) {
+            // 取消选择该部门的所有人员
+            const groupValuesSet = new Set(groupValues);
+            onSelectionChange(selectedValues.filter(v => !groupValuesSet.has(v)));
+        } else {
+            // 选择该部门的所有人员
+            onSelectionChange([...new Set([...selectedValues, ...groupValues])]);
+        }
+    }, [filteredGroupedOptions, selectedValues, onSelectionChange]);
+    
     const renderOption = (option: Option) => {
         const isSelected = selectedValues.includes(option.value);
         return (
@@ -375,32 +393,54 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                                 
                                 {filteredGroupedOptions.map(group => {
                                     const groupSelectedCount = group.options.filter(opt => selectedValues.includes(opt.value)).length;
+                                    const allGroupSelected = group.options.every(opt => selectedValues.includes(opt.value));
+                                    
                                     return (
                                         <li key={group.label}>
-                                            <button
-                                                onClick={() => setSelectedDepartment(group.label)}
-                                                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
-                                                    selectedDepartment === group.label
-                                                        ? 'bg-[#6C63FF] text-white shadow-sm'
-                                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]'
-                                                }`}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <span className="font-medium">{group.label}</span>
-                                                    {groupSelectedCount > 0 && (
-                                                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                                                            selectedDepartment === group.label
-                                                                ? 'bg-white/20 text-white'
-                                                                : 'bg-[#6C63FF]/10 text-[#6C63FF]'
-                                                        }`}>
-                                                            {groupSelectedCount}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="text-xs mt-1 opacity-75">
-                                                    {group.options.length}人
-                                                </div>
-                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => setSelectedDepartment(group.label)}
+                                                    className={`flex-1 text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+                                                        selectedDepartment === group.label
+                                                            ? 'bg-[#6C63FF] text-white shadow-sm'
+                                                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-medium">{group.label}</span>
+                                                        {groupSelectedCount > 0 && (
+                                                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                                                                selectedDepartment === group.label
+                                                                    ? 'bg-white/20 text-white'
+                                                                    : 'bg-[#6C63FF]/10 text-[#6C63FF]'
+                                                            }`}>
+                                                                {groupSelectedCount}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-xs mt-1 opacity-75">
+                                                        {group.options.length}人
+                                                    </div>
+                                                </button>
+                                                
+                                                {/* 部门全选按钮 */}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleToggleDepartment(group.label);
+                                                    }}
+                                                    className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-xs transition-all duration-200 ${
+                                                        allGroupSelected
+                                                            ? 'bg-[#6C63FF] text-white hover:bg-[#5a52d9]'
+                                                            : 'bg-gray-100 dark:bg-[#3a3a3a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#4a4a4a]'
+                                                    }`}
+                                                    title={allGroupSelected ? '取消全选' : '全选'}
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                </button>
+                                            </div>
                                         </li>
                                     );
                                 })}

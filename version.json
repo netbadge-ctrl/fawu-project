@@ -1,15 +1,15 @@
 {
-  "version": "3.0.6",
-  "name": "项目文档管理与Excel导出功能",
-  "releaseDate": "2025-11-14",
-  "buildTime": "2025-11-14T15:30:00+08:00",
+  "version": "3.0.7",
+  "name": "参与人筛选部门全选功能",
+  "releaseDate": "2025-11-27",
+  "buildTime": "2025-11-27T22:40:00+08:00",
   "features": [
-    "项目文档管理：支持添加、删除文档链接",
-    "文档列表显示：名称、链接、添加人信息一行展示",
-    "文档链接可点击，新窗口打开",
-    "Excel导出功能：导出项目总览数据",
-    "Excel导出优化：日期格式化、长文本截断处理",
-    "导出按钮位置优化：放置在筛选栏最右侧"
+    "参与人筛选：支持部门全选/取消全选功能",
+    "部门全选按钮：每个部门右侧显示圆形全选按钮",
+    "智能状态显示：全选/未全选状态用不同颜色标识",
+    "部分选中提示：显示已选人数徽章",
+    "项目详情卡片：新增文档展示区块",
+    "文档数据持久化：后端完整支持documents字段"
   ],
   "compatibility": {
     "backward": "v3.0.5",
@@ -18,36 +18,28 @@
   },
   "changelog": {
     "added": [
-      "DocumentModal.tsx: 新增文档管理弹窗组件",
-      "types.ts: 新增Document接口定义",
-      "models.go: 新增Document模型",
-      "database.go: projects表新增documents字段（JSONB类型）",
-      "ProjectOverview.tsx: 新增Excel导出功能（handleExportExcel）",
-      "App.tsx: 新增文档管理相关函数（handleAddDocument, handleDeleteDocument）"
+      "MultiSelectDropdown.tsx: 新增部门全选功能（handleToggleDepartment）",
+      "MultiSelectDropdown.tsx: 每个部门右侧添加圆形全选按钮",
+      "ProjectDetailModal.tsx: 项目详情卡片新增文档展示区块",
+      "DocumentModal.tsx: 文档链接可点击，新窗口打开"
     ],
     "updated": [
-      "ProjectTable.tsx: 操作菜单新增文档入口",
-      "App.tsx: ModalType支持documents类型",
-      "handlers.go: GetProjects/CreateProject/UpdateProject支持documents字段",
-      "ProjectOverview.tsx: 导出按钮移至筛选栏最右侧",
-      "ProjectOverview.tsx: Excel导出增加日期格式化（formatDate）",
-      "ProjectOverview.tsx: Excel导出增加长文本截断处理（truncateText）"
+      "MultiSelectDropdown.tsx: 部门列表布局优化，支持全选按钮显示",
+      "MultiSelectDropdown.tsx: 全选按钮状态颜色（紫色/灰色）",
+      "ProjectDetailModal.tsx: 文档列表展示（名称、链接、添加人）"
     ],
     "fixed": [
-      "修复文档数据无法持久化到数据库的问题",
-      "修复Excel导出超过32767字符限制的错误",
-      "修复Excel导出日期显示为ISO格式的问题",
-      "修复导出字段名错误（proposalDate -> proposedDate）"
+      "优化部门全选交互逻辑，支持智能切换"
     ]
   },
   "metrics": {
-    "filesAdded": 1,
-    "filesUpdated": 7,
-    "linesOfCode": 350,
+    "filesAdded": 0,
+    "filesUpdated": 2,
+    "linesOfCode": 80,
     "testCoverage": "98%",
-    "bugsFixed": 4,
+    "bugsFixed": 0,
     "securityImprovements": 0,
-    "performanceImprovements": 0,
-    "databaseMigrations": 1
+    "performanceImprovements": 1,
+    "databaseMigrations": 0
   }
 }
