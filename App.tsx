@@ -9,6 +9,7 @@ import { WeeklyMeetingView } from './components/WeeklyMeetingView';
 import { MonthlyMeetingView } from './components/MonthlyMeetingView';
 
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { PersonalViewSkeleton, ProjectOverviewSkeleton, OKRPageSkeleton, KanbanViewSkeleton } from './components/SkeletonLoader';
 import { RoleEditModal } from './components/RoleEditModal';
 import { CommentModal } from './components/CommentModal';
 import { ChangeLogModal } from './components/ChangeLogModal';
@@ -88,99 +89,9 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
             api.fetchOkrSets(),
             api.fetchUsers()
         ]);
-        // 为"最后一次测试"项目添加陈雨的测试评论
-        console.log('开始检查项目和用户数据...');
-        console.log('项目数量:', fetchedProjects.length);
-        console.log('用户数量:', fetchedUsers.length);
-        console.log('所有项目名称:', fetchedProjects.map(p => p.name));
-        console.log('所有用户名称:', fetchedUsers.map(u => u.name));
-        
-        if (fetchedProjects.length > 0 && fetchedUsers.length > 0) {
-            const testProject = fetchedProjects.find(p => p.name === '最后一次测试');
-            const chenYuUser = fetchedUsers.find(u => u.name === '陈雨');
-            
-            console.log('找到的测试项目:', testProject ? testProject.name : '未找到');
-            console.log('找到的陈雨用户:', chenYuUser ? chenYuUser.name : '未找到');
-            console.log('当前用户:', currentUser.name);
-            
-            if (testProject) {
-                console.log('测试项目现有评论数量:', testProject.comments ? testProject.comments.length : 0);
-            }
-            
-            if (testProject && chenYuUser) {
-                // 清空现有评论，添加陈雨的评论
-                const testComments = [
-                    {
-                        id: 'chenyu_comment_1',
-                        userId: chenYuUser.id,
-                        text: '这个项目的测试用例我已经review过了，整体质量不错，建议再补充一些边界条件的测试。',
-                        createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), // 3小时前
-                        mentions: [],
-                        readBy: [chenYuUser.id]
-                    },
-                    {
-                        id: 'chenyu_comment_2',
-                        userId: chenYuUser.id,
-                        text: '另外，我觉得性能测试这块还需要加强一下，特别是并发场景下的表现。',
-                        createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1小时前
-                        mentions: [],
-                        readBy: [chenYuUser.id]
-                    }
-                ];
-                
-                testProject.comments = testComments;
-                console.log(`✅ 已为"${testProject.name}"项目添加陈雨的评论，评论数量:`, testProject.comments.length);
-            } else {
-                console.log('❌ 未添加测试评论，原因:');
-                if (!testProject) console.log('- 未找到"最后一次测试"项目');
-                if (!chenYuUser) console.log('- 未找到"陈雨"用户');
-            }
-        }
         
         setProjects(fetchedProjects);
         setOkrSets(fetchedOkrSets);
-        
-        // 检查项目数据中的KR关联
-        console.log('🔧 App - Setting projects, checking KR associations:');
-        if (fetchedProjects && fetchedProjects.length > 0) {
-            fetchedProjects.forEach(project => {
-                if (project.keyResultIds && project.keyResultIds.length > 0) {
-                    console.log('🔧 App - Project with KRs:', {
-                        projectId: project.id,
-                        projectName: project.name,
-                        keyResultIds: project.keyResultIds,
-                        keyResultCount: project.keyResultIds.length
-                    });
-                }
-            });
-        }
-        
-        // 检查OKR数据
-        console.log('🔧 App - Setting OKRs:');
-        if (fetchedOkrSets && fetchedOkrSets.length > 0) {
-            fetchedOkrSets.forEach(okrSet => {
-                console.log('🔧 App - OKR Set:', {
-                    periodId: okrSet.periodId,
-                    okrCount: okrSet.okrs?.length || 0
-                });
-                okrSet.okrs?.forEach((okr, okrIndex) => {
-                    console.log('🔧 App - OKR:', {
-                        okrIndex: okrIndex + 1,
-                        okrId: okr.id,
-                        objective: okr.objective,
-                        krCount: okr.keyResults?.length || 0
-                    });
-                    okr.keyResults?.forEach((kr, krIndex) => {
-                        console.log('🔧 App - KR:', {
-                            okrIndex: okrIndex + 1,
-                            krIndex: krIndex + 1,
-                            krId: kr.id,
-                            description: kr.description
-                        });
-                    });
-                });
-            });
-        }
         
         if (fetchedOkrSets.length > 0) {
             if (!currentOkrPeriodId || !(fetchedOkrSets || []).find(s => s.periodId === currentOkrPeriodId)) {
@@ -295,7 +206,6 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
 
     // For new projects, just update local state.
     if (projectToUpdate.isNew) {
-        console.log('🔧 App - Updating new project local state:', { projectId, field, value });
         const updatedProject = { ...projectToUpdate, [field]: value };
         setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
         return;
@@ -400,18 +310,7 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
     
     // Asynchronously call the API without blocking UI.
     try {
-        console.log('🔧 App - Updating project via API:', { projectId, field, value });
-        if (field === 'keyResultIds') {
-            console.log('🔧 App - KR update details:', { 
-                oldKRs: projectToUpdate.keyResultIds,
-                newKRs: value,
-                isArray: Array.isArray(value),
-                dataBeingSet: JSON.stringify(value)
-            });
-            console.log('🔧 App - Updates object being sent to API:', updates);
-        }
-        const result = await api.updateProject(projectId, updates);
-        console.log('🔧 App - Project update successful, API response:', result);
+        await api.updateProject(projectId, updates);
         // On success, state is already updated. No full refresh needed.
     } catch (error) {
         console.error("Failed to update project", error);
@@ -639,6 +538,22 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
   const currentProjectForModal = (projects || []).find(p => p.id === modalState.projectId);
 
   const renderView = () => {
+    // 显示骨架屏而不是loading spinner
+    if (isLoading) {
+      switch (view) {
+        case 'personal':
+          return <PersonalViewSkeleton />;
+        case 'overview':
+          return <ProjectOverviewSkeleton />;
+        case 'okr':
+          return <OKRPageSkeleton />;
+        case 'kanban':
+          return <KanbanViewSkeleton />;
+        default:
+          return <PersonalViewSkeleton />;
+      }
+    }
+
     switch (view) {
       case 'personal':
         return (
@@ -732,7 +647,6 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-[#1A1A1A] text-gray-800 dark:text-gray-300 font-sans">
-      {isLoading && <LoadingSpinner />}
       <Sidebar view={view} setView={setView} currentUser={currentUser} />
       {renderView()}
       {modalState.isOpen && modalState.type === 'role' && currentProjectForModal && modalState.roleKey && modalState.roleName && (
