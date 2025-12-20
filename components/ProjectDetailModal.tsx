@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Project, User, OKR, ProjectRoleKey, Priority, ProjectStatus, Role } from '../types';
-import { IconX, IconStar, IconPencil, IconChevronDown, IconFileText } from './Icons';
+import { IconX, IconStar, IconPencil, IconChevronDown, IconFileText, IconClipboard } from './Icons';
 import { RichTextInput } from './RichTextInput';
 import { AutoResizeInput } from './AutoResizeInput';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
@@ -256,6 +256,117 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 }) => {
     
     const [weeklyUpdateHtml, setWeeklyUpdateHtml] = useState(project.weeklyUpdate);
+    const [copySuccess, setCopySuccess] = useState(false);
+
+    // 复制排期到剪贴板
+    const handleCopySchedule = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('复制排期按钮被点击');
+        
+        const roleInfo: { key: ProjectRoleKey, name: string }[] = [
+            { key: 'productManagers', name: '产品经理' },
+            { key: 'backendDevelopers', name: '后端研发' },
+            { key: 'frontendDevelopers', name: '前端研发' },
+            { key: 'qaTesters', name: '测试' },
+        ];
+
+        let scheduleText = `${project.name} - 团队排期\n\n`;
+
+        roleInfo.forEach(({ key, name }) => {
+            const team = project[key] as Role;
+            scheduleText += `${name}：\n`;
+            
+            if (team.length === 0) {
+                scheduleText += '  暂无\n';
+            } else {
+                team.forEach(member => {
+                    const user = allUsers.find(u => u.id === member.userId);
+                    let scheduleStr = '';
+                    
+                    // 获取成员的排期信息
+                    if (member.timeSlots && member.timeSlots.length > 0) {
+                        const validSlots = member.timeSlots.filter((slot: any) => slot.startDate && slot.endDate);
+                        
+                        if (validSlots.length === 0) {
+                            const startOnlySlots = member.timeSlots.filter((slot: any) => slot.startDate && !slot.endDate);
+                            if (startOnlySlots.length > 0) {
+                                scheduleStr = startOnlySlots[0].startDate.replace(/-/g, '.') + ' 开始';
+                            } else {
+                                scheduleStr = '无排期';
+                            }
+                        } else if (validSlots.length === 1) {
+                            const slot = validSlots[0];
+                            const startDate = new Date(slot.startDate).toLocaleDateString('zh-CN', {
+                                month: '2-digit',
+                                day: '2-digit'
+                            }).replace(/\//g, '.');
+                            const endDate = new Date(slot.endDate).toLocaleDateString('zh-CN', {
+                                month: '2-digit',
+                                day: '2-digit'
+                            }).replace(/\//g, '.');
+                            scheduleStr = `${startDate} - ${endDate}`;
+                        } else {
+                            const sortedSlots = validSlots.sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+                            const firstStartDate = new Date(sortedSlots[0].startDate).toLocaleDateString('zh-CN', {
+                                month: '2-digit',
+                                day: '2-digit'
+                            }).replace(/\//g, '.');
+                            
+                            const latestEndDate = validSlots.reduce((latest: string, slot: any) => {
+                                return new Date(slot.endDate) > new Date(latest) ? slot.endDate : latest;
+                            }, validSlots[0].endDate);
+                            
+                            const lastEndDate = new Date(latestEndDate).toLocaleDateString('zh-CN', {
+                                month: '2-digit',
+                                day: '2-digit'
+                            }).replace(/\//g, '.');
+                            
+                            scheduleStr = `${firstStartDate} - ${lastEndDate}`;
+                        }
+                    } else if (member.startDate && member.endDate) {
+                        scheduleStr = `${member.startDate.replace(/-/g, '.')} - ${member.endDate.replace(/-/g, '.')}`;
+                    } else if (member.startDate) {
+                        scheduleStr = `${member.startDate.replace(/-/g, '.')} 开始`;
+                    } else {
+                        scheduleStr = '无排期';
+                    }
+                    
+                    scheduleText += `  ${user?.name || '未知'} - ${scheduleStr}\n`;
+                });
+            }
+            scheduleText += '\n';
+        });
+
+        console.log('准备复制的内容:', scheduleText);
+
+        try {
+            await navigator.clipboard.writeText(scheduleText);
+            console.log('复制成功');
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
+        } catch (err) {
+            console.error('复制失败:', err);
+            // 如果 clipboard API 失败,尝试使用备用方案
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = scheduleText;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                console.log('使用备用方案复制成功');
+                setCopySuccess(true);
+                setTimeout(() => setCopySuccess(false), 2000);
+            } catch (fallbackErr) {
+                console.error('备用方案也失败:', fallbackErr);
+                alert('复制失败,请手动复制');
+            }
+        }
+    };
 
     const handleWeeklyUpdateBlur = () => {
         if (weeklyUpdateHtml !== project.weeklyUpdate) {
@@ -453,7 +564,18 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                 />
                             </div>
                         </InfoBlock>
-                         <InfoBlock label="团队角色">
+                         <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <h4 className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">团队角色</h4>
+                                <button
+                                    onClick={handleCopySchedule}
+                                    className="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-gray-100 dark:bg-[#2d2d2d] border border-gray-200 dark:border-[#4a4a4a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#3a3a3a] transition-colors"
+                                    title="复制排期到剪贴板"
+                                >
+                                    <IconClipboard className="w-3.5 h-3.5" />
+                                    <span>{copySuccess ? '已复制' : '复制排期'}</span>
+                                </button>
+                            </div>
                             <div className="bg-gray-50 dark:bg-[#2d2d2d] rounded-lg border border-gray-200 dark:border-[#4a4a4a]/80 divide-y divide-gray-200 dark:divide-white/10">
                                 {roleInfo.map(({ key, name }) => {
                                     const team = project[key] as Role;
@@ -472,8 +594,16 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                                         <ul className="space-y-1">
                                                             {team.map(member => {
                                                                 const user = allUsers.find(u => u.id === member.userId);
-                                                                // 获取成员的排期信息（支持多段排期）
+                                                                
+                                                                // 获取当前日期(只比较日期,不比较时间)
+                                                                const today = new Date();
+                                                                today.setHours(0, 0, 0, 0);
+                                                                
+                                                                // 判断排期是否已过期
+                                                                let isExpired = false;
                                                                 let scheduleText;
+                                                                
+                                                                // 获取成员的排期信息（支持多段排期）
                                                                 if (member.timeSlots && member.timeSlots.length > 0) {
                                                                     // 过滤出有效的时段（有开始和结束日期）
                                                                     const validSlots = member.timeSlots.filter((slot: any) => slot.startDate && slot.endDate);
@@ -496,6 +626,22 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                                                         const slot = validSlots[0];
                                                                         const startDateObj = new Date(slot.startDate);
                                                                         const endDateObj = new Date(slot.endDate);
+                                                                        endDateObj.setHours(0, 0, 0, 0);
+                                                                        
+                                                                        // 判断是否过期
+                                                                        isExpired = endDateObj < today;
+                                                                        
+                                                                        // 调试信息
+                                                                        if (isExpired) {
+                                                                            console.log('检测到过期排期:', {
+                                                                                userName: user?.name,
+                                                                                endDate: slot.endDate,
+                                                                                endDateObj,
+                                                                                today,
+                                                                                isExpired
+                                                                            });
+                                                                        }
+                                                                        
                                                                         if (!isNaN(startDateObj.getTime()) && !isNaN(endDateObj.getTime())) {
                                                                             const startDate = startDateObj.toLocaleDateString('zh-CN', {
                                                                                 month: '2-digit',
@@ -522,6 +668,10 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                                                         }, validSlots[0].endDate);
                                                                                                                         
                                                                         const lastEndDateObj = new Date(latestEndDate);
+                                                                        lastEndDateObj.setHours(0, 0, 0, 0);
+                                                                        
+                                                                        // 判断是否过期
+                                                                        isExpired = lastEndDateObj < today;
                                                                                                                         
                                                                         if (!isNaN(firstStartDateObj.getTime()) && !isNaN(lastEndDateObj.getTime())) {
                                                                             const startDate = firstStartDateObj.toLocaleDateString('zh-CN', {
@@ -540,6 +690,11 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                                                 } else if (member.startDate && member.endDate) {
                                                                     const startDateObj = new Date(member.startDate);
                                                                     const endDateObj = new Date(member.endDate);
+                                                                    endDateObj.setHours(0, 0, 0, 0);
+                                                                    
+                                                                    // 判断是否过期
+                                                                    isExpired = endDateObj < today;
+                                                                    
                                                                     if (!isNaN(startDateObj.getTime()) && !isNaN(endDateObj.getTime())) {
                                                                         scheduleText = `${member.startDate.replace(/-/g, '.')} - ${member.endDate.replace(/-/g, '.')}`;
                                                                     } else {
@@ -559,7 +714,11 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                                                 return (
                                                                     <li key={member.userId} className="grid grid-cols-[1fr_auto] items-baseline gap-x-3">
                                                                         <span className="text-gray-700 dark:text-gray-200 text-right">{user?.name}</span>
-                                                                        <span className="text-xs text-gray-500 dark:text-gray-400 font-mono whitespace-nowrap">{scheduleText}</span>
+                                                                        <span className={`text-xs font-mono whitespace-nowrap ${
+                                                                            isExpired 
+                                                                                ? 'text-gray-300 dark:text-gray-600' 
+                                                                                : 'text-gray-500 dark:text-gray-400'
+                                                                        }`}>{scheduleText}</span>
                                                                     </li>
                                                                 );
                                                             })}
@@ -572,7 +731,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                     );
                                 })}
                             </div>
-                        </InfoBlock>
+                        </div>
                     </div>
                 </div>
             </div>

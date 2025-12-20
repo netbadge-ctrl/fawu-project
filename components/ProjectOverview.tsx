@@ -115,6 +115,11 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       useMultiSort: rules.length > 0
     });
   };
+  
+  // 处理滚动位置变更
+  const handleScrollPositionChange = useCallback((position: number) => {
+    updateProjectOverviewFilters({ scrollPosition: position });
+  }, [updateProjectOverviewFilters]);
 
   // 筛选和排序项目 - 使用高效的Set查找方式（参考看板和周会视图）
   const filteredAndSortedProjects = useMemo(() => {
@@ -588,6 +593,8 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           onCreateProject={onCreateProject}
           sortConfig={sortConfig}
           onSort={handleSort}
+          scrollPosition={filters.scrollPosition}
+          onScrollPositionChange={handleScrollPositionChange}
         />
       </div>
 

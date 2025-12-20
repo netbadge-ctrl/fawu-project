@@ -6,8 +6,13 @@ interface TeamScheduleTooltipProps {
   allUsers: User[];
 }
 
-// 获取成员的排期信息（支持多段排期）
-const getMemberSchedule = (member: any): string => {
+// 获取成员的排期信息（支持多段排期）,返回{ schedule: string, isExpired: boolean }
+const getMemberSchedule = (member: any): { schedule: string; isExpired: boolean } => {
+  // 获取当前日期(只比较日期,不比较时间)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let isExpired = false;
+  
   // 检查是否有timeSlots
   if (member.timeSlots && member.timeSlots.length > 0) {
     // 过滤出有效的时段（有开始和结束日期）
@@ -19,10 +24,10 @@ const getMemberSchedule = (member: any): string => {
       if (startOnlySlots.length > 0) {
         const startDateObj = new Date(startOnlySlots[0].startDate);
         if (!isNaN(startDateObj.getTime())) {
-          return startOnlySlots[0].startDate.replace(/-/g, '.') + ' 开始';
+          return { schedule: startOnlySlots[0].startDate.replace(/-/g, '.') + ' 开始', isExpired: false };
         }
       }
-      return '无排期';
+      return { schedule: '无排期', isExpired: false };
     }
     
     // 如果只有一个时段，直接返回该时段的日期范围
@@ -30,6 +35,9 @@ const getMemberSchedule = (member: any): string => {
       const slot = validSlots[0];
       const startDateObj = new Date(slot.startDate);
       const endDateObj = new Date(slot.endDate);
+      endDateObj.setHours(0, 0, 0, 0);
+      isExpired = endDateObj < today;
+      
       if (!isNaN(startDateObj.getTime()) && !isNaN(endDateObj.getTime())) {
         const startDate = startDateObj.toLocaleDateString('zh-CN', {
           month: '2-digit',
@@ -39,9 +47,9 @@ const getMemberSchedule = (member: any): string => {
           month: '2-digit',
           day: '2-digit'
         }).replace(/\//g, '.');
-        return `${startDate} - ${endDate}`;
+        return { schedule: `${startDate} - ${endDate}`, isExpired };
       }
-      return '无排期';
+      return { schedule: '无排期', isExpired: false };
     }
     
     // 多段排期：找到最早的开始日期和最晚的结束日期
@@ -56,6 +64,8 @@ const getMemberSchedule = (member: any): string => {
     }, validSlots[0].endDate);
     
     const lastEndDateObj = new Date(latestEndDate);
+    lastEndDateObj.setHours(0, 0, 0, 0);
+    isExpired = lastEndDateObj < today;
     
     if (!isNaN(firstStartDateObj.getTime()) && !isNaN(lastEndDateObj.getTime())) {
       const startDate = firstStartDateObj.toLocaleDateString('zh-CN', {
@@ -66,26 +76,29 @@ const getMemberSchedule = (member: any): string => {
         month: '2-digit',
         day: '2-digit'
       }).replace(/\//g, '.');
-      return `${startDate} - ${endDate}`;
+      return { schedule: `${startDate} - ${endDate}`, isExpired };
     }
-    return '无排期';
+    return { schedule: '无排期', isExpired: false };
   }
   
   // 兼容旧的startDate/endDate字段
   if (member.startDate && member.endDate) {
     const startDateObj = new Date(member.startDate);
     const endDateObj = new Date(member.endDate);
+    endDateObj.setHours(0, 0, 0, 0);
+    isExpired = endDateObj < today;
+    
     if (!isNaN(startDateObj.getTime()) && !isNaN(endDateObj.getTime())) {
-      return `${member.startDate.replace(/-/g, '.')} - ${member.endDate.replace(/-/g, '.')}`;
+      return { schedule: `${member.startDate.replace(/-/g, '.')} - ${member.endDate.replace(/-/g, '.')}`, isExpired };
     }
   } else if (member.startDate) {
     const startDateObj = new Date(member.startDate);
     if (!isNaN(startDateObj.getTime())) {
-      return `${member.startDate.replace(/-/g, '.')} 开始`;
+      return { schedule: `${member.startDate.replace(/-/g, '.')} 开始`, isExpired: false };
     }
   }
   
-  return '无排期';
+  return { schedule: '无排期', isExpired: false };
 };
 
 const RoleSection: React.FC<{ role: Role; roleName: string; allUsers: User[] }> = ({ role, roleName, allUsers }) => {
@@ -99,12 +112,16 @@ const RoleSection: React.FC<{ role: Role; roleName: string; allUsers: User[] }> 
           const user = allUsers.find(u => u.id === member.userId);
           if (!user) return null;
           
-          const schedule = getMemberSchedule(member);
+          const { schedule, isExpired } = getMemberSchedule(member);
           
           return (
             <li key={user.id} className="flex justify-between items-center gap-3">
               <span className="text-gray-200">{user.name}</span>
-              <span className="text-gray-400 font-mono">{schedule}</span>
+              <span className={`font-mono ${
+                isExpired
+                  ? 'text-gray-500 dark:text-gray-600'
+                  : 'text-gray-400'
+              }`}>{schedule}</span>
             </li>
           );
         })}

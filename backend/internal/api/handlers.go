@@ -768,7 +768,7 @@ func (h *Handler) PerformWeeklyRollover(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"updatedProjectIds": updatedProjectIds,
-		"message":          fmt.Sprintf("Successfully rolled over %d projects and cleared weekly updates", len(updatedProjectIds)),
+		"message":           fmt.Sprintf("Successfully rolled over %d projects and cleared weekly updates", len(updatedProjectIds)),
 	})
 }
 
@@ -1068,7 +1068,7 @@ func (h *Handler) OIDCTokenExchange(c *gin.Context) {
 // SyncEmployeeData 手动触发员工数据同步
 func (h *Handler) SyncEmployeeData(c *gin.Context) {
 	fmt.Println("Starting employee data sync...")
-	
+
 	// 调用员工数据同步函数
 	if err := h.syncEmployeeData(); err != nil {
 		fmt.Printf("Employee sync failed: %v\n", err)
@@ -1089,8 +1089,8 @@ func (h *Handler) SyncEmployeeData(c *gin.Context) {
 	fmt.Println("Employee data sync completed successfully")
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "Employee data sync completed successfully",
-		"totalUsers":  totalUsers,
-		"timestamp":   time.Now().Format(time.RFC3339),
+		"totalUsers": totalUsers,
+		"timestamp":  time.Now().Format(time.RFC3339),
 	})
 }
 
@@ -1182,7 +1182,7 @@ func (h *Handler) syncEmployeeData() error {
 		}
 	}
 
-	fmt.Printf("Sync completed - Inserted: %d, Updated: %d, Deleted: %d, Total: %d\n", 
+	fmt.Printf("Sync completed - Inserted: %d, Updated: %d, Deleted: %d, Total: %d\n",
 		insertedCount, updatedCount, deletedCount, len(employees))
 	return nil
 }

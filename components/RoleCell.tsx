@@ -22,8 +22,13 @@ const formatScheduleDate = (dateString: string | undefined): string => {
   }
 };
 
-// 获取成员的排期信息（支持多段排期）
-const getMemberSchedule = (member: any): string => {
+// 获取成员的排期信息（支持多段排期）,返回{ schedule: string, isExpired: boolean }
+const getMemberSchedule = (member: any): { schedule: string; isExpired: boolean } => {
+  // 获取当前日期(只比较日期,不比较时间)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let isExpired = false;
+  
   // 检查是否有timeSlots
   if (member.timeSlots && member.timeSlots.length > 0) {
     // 过滤出有效的时段（有开始和结束日期）
@@ -33,19 +38,23 @@ const getMemberSchedule = (member: any): string => {
       // 如果没有有效时段，检查是否有只有开始日期的时段
       const startOnlySlots = member.timeSlots.filter((slot: any) => slot.startDate && !slot.endDate);
       if (startOnlySlots.length > 0) {
-        return formatScheduleDate(startOnlySlots[0].startDate);
+        return { schedule: formatScheduleDate(startOnlySlots[0].startDate), isExpired: false };
       }
-      return '';
+      return { schedule: '', isExpired: false };
     }
     
     // 如果只有一个时段，直接返回该时段的日期范围
     if (validSlots.length === 1) {
+      const endDateObj = new Date(validSlots[0].endDate);
+      endDateObj.setHours(0, 0, 0, 0);
+      isExpired = endDateObj < today;
+      
       const startDate = formatScheduleDate(validSlots[0].startDate);
       const endDate = formatScheduleDate(validSlots[0].endDate);
       if (startDate && endDate) {
-        return `${startDate}至${endDate}`;
+        return { schedule: `${startDate}至${endDate}`, isExpired };
       }
-      return startDate || '';
+      return { schedule: startDate || '', isExpired };
     }
     
     // 多段排期：找到最早的开始日期和最晚的结束日期
@@ -59,48 +68,62 @@ const getMemberSchedule = (member: any): string => {
       return slotEndDate > latestDate ? slot.endDate : latest;
     }, validSlots[0].endDate);
     
+    const lastEndDateObj = new Date(latestEndDate);
+    lastEndDateObj.setHours(0, 0, 0, 0);
+    isExpired = lastEndDateObj < today;
+    
     const lastEndDate = formatScheduleDate(latestEndDate);
     
     if (firstStartDate && lastEndDate) {
-      return `${firstStartDate}至${lastEndDate}`;
+      return { schedule: `${firstStartDate}至${lastEndDate}`, isExpired };
     }
-    return firstStartDate || '';
+    return { schedule: firstStartDate || '', isExpired };
   }
   
   // 兼容旧的startDate/endDate字段
   if (member.startDate || member.endDate) {
+    if (member.endDate) {
+      const endDateObj = new Date(member.endDate);
+      endDateObj.setHours(0, 0, 0, 0);
+      isExpired = endDateObj < today;
+    }
+    
     const startDate = formatScheduleDate(member.startDate);
     const endDate = formatScheduleDate(member.endDate);
     if (startDate && endDate) {
-      return `${startDate}至${endDate}`;
+      return { schedule: `${startDate}至${endDate}`, isExpired };
     } else if (startDate) {
-      return startDate;
+      return { schedule: startDate, isExpired: false };
     }
   }
   
-  return '';
+  return { schedule: '', isExpired: false };
 };
 
 // 按排期分组成员
-const groupMembersBySchedule = (teamMembers: any[], allUsers: User[]): { schedule: string; members: { user: User; member: any }[] }[] => {
-  const scheduleGroups = new Map<string, { user: User; member: any }[]>();
+const groupMembersBySchedule = (teamMembers: any[], allUsers: User[]): { schedule: string; members: { user: User; member: any }[]; isExpired: boolean }[] => {
+  const scheduleGroups = new Map<string, { user: User; member: any; isExpired: boolean }[]>();
   
   teamMembers.forEach(member => {
     const user = allUsers.find(u => u.id === member.userId);
     if (!user) return;
     
-    const schedule = getMemberSchedule(member);
+    const { schedule, isExpired } = getMemberSchedule(member);
     const key = schedule || '无排期';
     
     if (!scheduleGroups.has(key)) {
       scheduleGroups.set(key, []);
     }
-    scheduleGroups.get(key)!.push({ user, member });
+    scheduleGroups.get(key)!.push({ user, member, isExpired });
   });
   
   // 转换为数组并排序（有排期的在前，无排期的在后）
   return Array.from(scheduleGroups.entries())
-    .map(([schedule, members]) => ({ schedule, members }))
+    .map(([schedule, members]) => ({ 
+      schedule, 
+      members, 
+      isExpired: members[0]?.isExpired || false 
+    }))
     .sort((a, b) => {
       if (a.schedule === '无排期') return 1;
       if (b.schedule === '无排期') return -1;
@@ -135,7 +158,11 @@ export const RoleCell: React.FC<RoleCellProps> = ({ team, allUsers, onClick }) =
             </div>
             {group.schedule !== '无排期' && (
               <div className="mt-1">
-                <span className="text-xs text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded">
+                <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                  group.isExpired
+                    ? 'text-gray-300 dark:text-gray-600 bg-gray-50 dark:bg-gray-900/10'
+                    : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                }`}>
                   {group.schedule}
                 </span>
               </div>

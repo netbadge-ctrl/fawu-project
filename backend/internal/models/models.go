@@ -68,8 +68,8 @@ type Document struct {
 // 注意：KR ID现在采用复合格式 "okrId::krSequence"，确保全局唯一性
 // 例如："o1::kr1", "o2::kr1" 等
 type KeyResult struct {
-	ID          string `json:"id"`          // 复合ID格式：okrId::krSequence
-	Sequence    string `json:"sequence"`    // 原始序列号，如 "kr1", "kr2"
+	ID          string `json:"id"`       // 复合ID格式：okrId::krSequence
+	Sequence    string `json:"sequence"` // 原始序列号，如 "kr1", "kr2"
 	Description string `json:"description"`
 }
 
@@ -89,21 +89,21 @@ type OkrSet struct {
 
 // MonthlyMeeting 产品月会模型
 type MonthlyWorkItem struct {
-	ID                      string  `json:"id" db:"id"`
-	Year                    int     `json:"year" db:"year"`
-	Month                   int     `json:"month" db:"month"`
-	WorkContent             string  `json:"workContent" db:"work_content"`
-	BusinessProblem         *string `json:"businessProblem" db:"business_problem"`
-	Direction               *string `json:"direction" db:"direction"`
-	ProductOwner            *string `json:"productOwner" db:"product_owner"`
-	ExpectedCompletionWeek  *string `json:"expectedCompletionWeek" db:"expected_completion_week"`
-	CurrentProgress         *string `json:"currentProgress" db:"current_progress"`
-	IsCompleted             bool    `json:"isCompleted" db:"is_completed"`
-	ProgressNotes           *string `json:"progressNotes" db:"progress_notes"`
-	CreatedAt               string  `json:"createdAt" db:"created_at"`
-	CreatedBy               *string `json:"createdBy" db:"created_by"`
-	UpdatedAt               string  `json:"updatedAt" db:"updated_at"`
-	UpdatedBy               *string `json:"updatedBy" db:"updated_by"`
+	ID                     string  `json:"id" db:"id"`
+	Year                   int     `json:"year" db:"year"`
+	Month                  int     `json:"month" db:"month"`
+	WorkContent            string  `json:"workContent" db:"work_content"`
+	BusinessProblem        *string `json:"businessProblem" db:"business_problem"`
+	Direction              *string `json:"direction" db:"direction"`
+	ProductOwner           *string `json:"productOwner" db:"product_owner"`
+	ExpectedCompletionWeek *string `json:"expectedCompletionWeek" db:"expected_completion_week"`
+	CurrentProgress        *string `json:"currentProgress" db:"current_progress"`
+	IsCompleted            bool    `json:"isCompleted" db:"is_completed"`
+	ProgressNotes          *string `json:"progressNotes" db:"progress_notes"`
+	CreatedAt              string  `json:"createdAt" db:"created_at"`
+	CreatedBy              *string `json:"createdBy" db:"created_by"`
+	UpdatedAt              string  `json:"updatedAt" db:"updated_at"`
+	UpdatedBy              *string `json:"updatedBy" db:"updated_by"`
 }
 
 // Project 项目模型

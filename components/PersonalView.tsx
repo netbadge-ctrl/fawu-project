@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Project, User, OKR, ProjectStatus, Comment } from '../types';
 import { ProjectCard } from './ProjectCard';
 import { ProjectDetailModal } from './ProjectDetailModal';
@@ -19,7 +19,7 @@ interface PersonalViewProps {
 
 export const PersonalView: React.FC<PersonalViewProps> = ({ projects, allUsers, activeOkrs, currentUser, onUpdateProject, onOpenModal, onToggleFollow, onReply }) => {
   
-  const handleMarkAsRead = async (projectId: string, commentId: string) => {
+  const handleMarkAsRead = useCallback(async (projectId: string, commentId: string) => {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -34,7 +34,8 @@ export const PersonalView: React.FC<PersonalViewProps> = ({ projects, allUsers, 
       );
       await onUpdateProject(projectId, 'comments', updatedComments);
     }
-  };
+  }, [projects, currentUser.id, onUpdateProject]);
+  
   const [detailModalProject, setDetailModalProject] = useState<Project | null>(null);
 
   useEffect(() => {
@@ -47,15 +48,22 @@ export const PersonalView: React.FC<PersonalViewProps> = ({ projects, allUsers, 
   }, [projects, detailModalProject]);
 
   const { myActiveProjects, followedProjects, activityFeed } = useMemo(() => {
+    // 早期返回，避免不必要的计算
+    if (!projects || projects.length === 0) {
+      return { myActiveProjects: [], followedProjects: [], activityFeed: [] };
+    }
+    
     const myActive: Project[] = [];
     const followed: Project[] = [];
+    const userId = currentUser.id;
 
-    projects?.forEach(p => {
+    // 优化：一次遍历完成所有分类
+    projects.forEach(p => {
       const isParticipant = (
-        (p.productManagers || []).some(m => m?.userId === currentUser.id) ||
-        (p.backendDevelopers || []).some(m => m?.userId === currentUser.id) ||
-        (p.frontendDevelopers || []).some(m => m?.userId === currentUser.id) ||
-        (p.qaTesters || []).some(m => m?.userId === currentUser.id)
+        (p.productManagers || []).some(m => m?.userId === userId) ||
+        (p.backendDevelopers || []).some(m => m?.userId === userId) ||
+        (p.frontendDevelopers || []).some(m => m?.userId === userId) ||
+        (p.qaTesters || []).some(m => m?.userId === userId)
       );
 
       // 显示我参与的除了"暂停"和"已完成"状态之外的所有项目
@@ -66,46 +74,46 @@ export const PersonalView: React.FC<PersonalViewProps> = ({ projects, allUsers, 
         myActive.push(p);
       }
 
-      if (p.followers && p.followers.includes(currentUser.id)) {
+      if (p.followers?.includes(userId)) {
         followed.push(p);
       }
     });
 
-    // 按优先级和项目状态排序
-    const priorityOrder = {
+    // 排序配置提取到外部，避免每次创建
+    const priorityOrder: Record<string, number> = {
       '部门OKR': 1,
       '个人OKR': 2,
       '临时重要需求': 3,
       '不重要的需求': 4
     };
 
-    const statusOrder = {
+    const statusOrder: Partial<Record<ProjectStatus, number>> = {
       [ProjectStatus.InProgress]: 1,
       [ProjectStatus.Testing]: 2,
-      [ProjectStatus.UnderReview]: 3,
-      [ProjectStatus.RequirementsComplete]: 4,
+      [ProjectStatus.ReviewDone]: 3,
+      [ProjectStatus.RequirementsDone]: 4,
       [ProjectStatus.ProductDesign]: 5,
-      [ProjectStatus.UnderDiscussion]: 6,
+      [ProjectStatus.Discussion]: 6,
       [ProjectStatus.LaunchedThisWeek]: 7,
       [ProjectStatus.NotStarted]: 8
     };
 
+    // 优化排序：使用单次排序
     myActive.sort((a, b) => {
-      // 首先按优先级排序
-      const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] || 999;
-      const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] || 999;
+      const priorityA = priorityOrder[a.priority] ?? 999;
+      const priorityB = priorityOrder[b.priority] ?? 999;
       
       if (priorityA !== priorityB) {
         return priorityA - priorityB;
       }
       
-      // 然后按项目状态排序
-      const statusA = statusOrder[a.status as keyof typeof statusOrder] || 999;
-      const statusB = statusOrder[b.status as keyof typeof statusOrder] || 999;
+      const statusA = statusOrder[a.status] ?? 999;
+      const statusB = statusOrder[b.status] ?? 999;
       
       return statusA - statusB;
     });
 
+    // 优化：使用 Set 提高查找性能
     const relevantProjectIds = new Set([
         ...myActive.map(p => p.id),
         ...followed.map(p => p.id),
@@ -113,29 +121,41 @@ export const PersonalView: React.FC<PersonalViewProps> = ({ projects, allUsers, 
 
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    const twoWeeksAgoTime = twoWeeksAgo.getTime();
 
     const allComments: { comment: Comment; project: Project }[] = [];
     const seenCommentIds = new Set<string>();
 
-    projects?.forEach(p => {
+    // 优化：减少重复的日期创建
+    projects.forEach(p => {
+        const pId = p.id;
+        const isRelevant = relevantProjectIds.has(pId);
+        
         (p.comments || []).forEach(c => {
-            const commentDate = new Date(c.createdAt);
-            const isRelevantProject = relevantProjectIds.has(p.id);
-            const isMentioned = c.mentions?.includes(currentUser.id) ?? false;
+            if (seenCommentIds.has(c.id)) return;
             
-            if (commentDate >= twoWeeksAgo && (isRelevantProject || isMentioned) && !seenCommentIds.has(c.id)) {
+            const commentTime = new Date(c.createdAt).getTime();
+            const isMentioned = c.mentions?.includes(userId) ?? false;
+            
+            if (commentTime >= twoWeeksAgoTime && (isRelevant || isMentioned)) {
                 allComments.push({ comment: c, project: p });
                 seenCommentIds.add(c.id);
             }
         });
     });
     
-    allComments.sort((a, b) => new Date(b.comment.createdAt).getTime() - new Date(a.comment.createdAt).getTime());
+    // 优化排序：直接比较时间戳
+    allComments.sort((a, b) => {
+      const timeA = new Date(a.comment.createdAt).getTime();
+      const timeB = new Date(b.comment.createdAt).getTime();
+      return timeB - timeA;
+    });
 
     return { myActiveProjects: myActive, followedProjects: followed, activityFeed: allComments };
   }, [projects, currentUser.id]);
 
-  const Section: React.FC<{ title: string; count: number; children: React.ReactNode }> = ({ title, count, children }) => (
+  // 使用 React.memo 优化 Section 组件
+  const Section = React.memo<{ title: string; count: number; children: React.ReactNode }>(({ title, count, children }) => (
     <section>
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
         {title} <span className="text-base font-normal text-gray-500 dark:text-gray-400">({count})</span>
@@ -150,7 +170,8 @@ export const PersonalView: React.FC<PersonalViewProps> = ({ projects, allUsers, 
           </div>
       )}
     </section>
-  );
+  ));
+  Section.displayName = 'Section';
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-gray-100 dark:bg-[#1f1f1f]">

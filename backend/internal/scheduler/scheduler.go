@@ -22,7 +22,7 @@ func Start(db *sql.DB) {
 		log.Printf("Failed to load Beijing timezone, using UTC: %v", err)
 		beijing = time.UTC
 	}
-	
+
 	c := cron.New(cron.WithLocation(beijing))
 
 	// 每天上午11:00执行员工数据同步

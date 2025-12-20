@@ -155,7 +155,8 @@ const formatMembersWithSchedule = (members: TeamMember[], allUsers: User[]): str
   }).join('; ');
 };
 
-export const ProjectCard: React.FC<ProjectCardProps> = ({ project, allUsers, onClick }) => {
+// 使用 React.memo 优化 ProjectCard,避免不必要的重新渲染
+export const ProjectCard: React.FC<ProjectCardProps> = React.memo(({ project, allUsers, onClick }) => {
   const cardClasses = "bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-xl p-4 flex flex-col gap-3 hover:border-[#6C63FF] transition-all duration-300";
   const clickableClasses = onClick ? "cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:shadow-indigo-500/10" : "";
 
@@ -197,4 +198,17 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, allUsers, onC
       </div>
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // 自定义比较函数，只在关键属性变化时重新渲染
+  return (
+    prevProps.project.id === nextProps.project.id &&
+    prevProps.project.name === nextProps.project.name &&
+    prevProps.project.status === nextProps.project.status &&
+    prevProps.project.priority === nextProps.project.priority &&
+    JSON.stringify(prevProps.project.productManagers) === JSON.stringify(nextProps.project.productManagers) &&
+    JSON.stringify(prevProps.project.backendDevelopers) === JSON.stringify(nextProps.project.backendDevelopers) &&
+    JSON.stringify(prevProps.project.frontendDevelopers) === JSON.stringify(nextProps.project.frontendDevelopers) &&
+    JSON.stringify(prevProps.project.qaTesters) === JSON.stringify(nextProps.project.qaTesters)
+  );
+});
+ProjectCard.displayName = 'ProjectCard';

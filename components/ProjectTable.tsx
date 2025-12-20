@@ -39,6 +39,8 @@ interface ProjectTableProps {
   onCreateProject: () => void;
   sortConfig?: SortConfig;
   onSort?: (field: SortField) => void;
+  scrollPosition?: number;
+  onScrollPositionChange?: (position: number) => void;
 }
 
 const tableHeaders = [
@@ -823,12 +825,13 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
 ProjectRow.displayName = 'ProjectRow';
 
 
-export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, activeOkrs, currentUser, editingId, onSaveNewProject, onUpdateProject, onDeleteProject, onCancelNewProject, onOpenModal, onToggleFollow, onCreateProject, sortConfig, onSort }) => {
+export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, activeOkrs, currentUser, editingId, onSaveNewProject, onUpdateProject, onDeleteProject, onCancelNewProject, onOpenModal, onToggleFollow, onCreateProject, sortConfig, onSort, scrollPosition = 0, onScrollPositionChange }) => {
   // 滚动性能优化：使用 RAF 和防抖
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   const rafRef = useRef<number>();
+  const isRestoringScroll = useRef(false);
 
   // 虚拟滚动相关状态 - 优化版本
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: Math.min(50, projects.length) });
@@ -838,6 +841,19 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, 
   
   // 添加滚动范围稳定性检查
   const [lastStableRange, setLastStableRange] = useState({ start: 0, end: Math.min(50, projects.length) });
+  
+  // 恢复滚动位置
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container && scrollPosition > 0) {
+      isRestoringScroll.current = true;
+      container.scrollTop = scrollPosition;
+      // 给一个短暂的延迟后重置标志，避免立即保存新位置
+      setTimeout(() => {
+        isRestoringScroll.current = false;
+      }, 100);
+    }
+  }, []); // 空依赖数组，只在组件挂载时执行一次
 
   const handleScroll = useCallback(() => {
     // 取消之前的 RAF
@@ -848,23 +864,32 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, 
     // 使用 RAF 确保在下一帧处理滚动
     rafRef.current = requestAnimationFrame(() => {
       const container = scrollContainerRef.current;
-      if (container && projects.length > 50) { // 只在大量数据时启用虚拟滚动
+      if (container) {
         const scrollTop = container.scrollTop;
-        const containerHeight = container.clientHeight;
         
-        // 计算可见范围 - 添加稳定性检查
-        const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_SIZE);
-        const endIndex = Math.min(
-          projects.length,
-          Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER_SIZE
-        );
+        // 保存滚动位置(仅当不是恢复滚动时)
+        if (!isRestoringScroll.current && onScrollPositionChange) {
+          onScrollPositionChange(scrollTop);
+        }
         
-        // 只有当范围变化足够大时才更新，避免微小抖动
-        const rangeDiff = Math.abs(startIndex - lastStableRange.start) + Math.abs(endIndex - lastStableRange.end);
-        if (rangeDiff >= 3) { // 只有当变化超过3行时才更新
-          const newRange = { start: startIndex, end: endIndex };
-          setVisibleRange(newRange);
-          setLastStableRange(newRange);
+        // 虚拟滚动逻辑
+        if (projects.length > 50) { // 只在大量数据时启用虚拟滚动
+          const containerHeight = container.clientHeight;
+          
+          // 计算可见范围 - 添加稳定性检查
+          const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_SIZE);
+          const endIndex = Math.min(
+            projects.length,
+            Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER_SIZE
+          );
+          
+          // 只有当范围变化足够大时才更新，避免微小抖动
+          const rangeDiff = Math.abs(startIndex - lastStableRange.start) + Math.abs(endIndex - lastStableRange.end);
+          if (rangeDiff >= 3) { // 只有当变化超过3行时才更新
+            const newRange = { start: startIndex, end: endIndex };
+            setVisibleRange(newRange);
+            setLastStableRange(newRange);
+          }
         }
       }
       
@@ -880,7 +905,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, 
         setIsScrolling(false);
       }, SCROLL_DEBOUNCE_MS);
     });
-  }, [isScrolling, projects.length, lastStableRange]);
+  }, [isScrolling, projects.length, lastStableRange, onScrollPositionChange]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;

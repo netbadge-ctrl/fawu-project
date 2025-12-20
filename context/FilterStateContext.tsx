@@ -54,6 +54,7 @@ export interface FilterState {
       direction: 'asc' | 'desc';
     }>;
     useMultiSort: boolean; // 是否启用多字段排序
+    scrollPosition: number; // 滚动位置
   };
   
   // OKR页面筛选条件
@@ -104,6 +105,7 @@ const defaultFilterState: FilterState = {
     sortDirection: 'desc',
     multiSortRules: [],
     useMultiSort: false,
+    scrollPosition: 0,
   },
   okrPage: {
     searchTerm: '',
