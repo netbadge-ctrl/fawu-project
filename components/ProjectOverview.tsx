@@ -7,6 +7,7 @@ import { ProjectTable } from './ProjectTable';
 import { debounce } from '../utils';
 import { MultiSortConfig, SortRule } from './MultiSortConfig';
 import * as XLSX from 'xlsx';
+import { SYSTEM_OPTIONS } from '../constants';
 
 type SortField = 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'launchDate';
 type SortDirection = 'asc' | 'desc';
@@ -83,6 +84,10 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   // 本地状态处理函数
   const setSelectedStatuses = (value: string[]) => updateProjectOverviewFilters({ selectedStatuses: value });
   const setSelectedPriorities = (value: string[]) => updateProjectOverviewFilters({ selectedPriorities: value });
+  const setSelectedSystems = (value: string[]) => {
+    console.log('🔄 setSelectedSystems被调用:', value);
+    updateProjectOverviewFilters({ selectedSystems: value });
+  };
   const setSelectedParticipants = (value: string[]) => updateProjectOverviewFilters({ selectedParticipants: value });
   const setSelectedKrs = (value: string[]) => updateProjectOverviewFilters({ selectedKrs: value });
 
@@ -90,8 +95,11 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   const searchTerm = filters.searchTerm;
   const selectedStatuses = filters.selectedStatuses || [];
   const selectedPriorities = filters.selectedPriorities || [];
+  const selectedSystems = filters.selectedSystems || [];
   const selectedParticipants = filters.selectedParticipants || [];
   const selectedKrs = filters.selectedKrs || [];
+  
+  console.log('📊 当前selectedSystems状态:', selectedSystems);
 
   // 排序状态 - 使用持久化状态
   const sortConfig = useMemo(() => ({
@@ -121,23 +129,31 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     updateProjectOverviewFilters({ scrollPosition: position });
   }, [updateProjectOverviewFilters]);
 
-  // 筛选和排序项目 - 使用高效的Set查找方式（参考看板和周会视图）
+  // 筛选和排序项目 - 使用高效的Set查找方式(参考看板和周会视图)
   const filteredAndSortedProjects = useMemo(() => {
-    // 确保项目数组存在且去重（防止重复key错误）
+    // 确保项目数组存在且去重(防止重复key错误)
     const uniqueProjects = Array.from(
       new Map((projects || []).map(p => [p.id, p])).values()
     ) as Project[];
     
-    // 预计算所有筛选集合，使用Set进行O(1)查找
+    // 预计算所有筛选集合,使用Set进行O(1)查找
     const statusSet = new Set(selectedStatuses);
     const prioritySet = new Set(selectedPriorities);
+    const systemSet = new Set(selectedSystems);
     const participantSet = new Set(selectedParticipants);
     const krSet = new Set(selectedKrs);
     const lowerSearchTerm = searchTerm.toLowerCase();
     
+    // 调试日志
+    if (systemSet.size > 0) {
+      console.log('系统筛选激活:', Array.from(systemSet));
+      const projectsWithSystem = uniqueProjects.filter(p => p.system);
+      console.log('有系统属性的项目:', projectsWithSystem.map(p => ({name: p.name, system: p.system})));
+    }
+    
     // 首先筛选项目
     const filtered = uniqueProjects.filter(project => {
-      // 新建的项目（处于编辑状态）始终显示，不受筛选条件影响
+      // 新建的项目(处于编辑状态)始终显示,不受筛选条件影响
       if ((editingId && project.id === editingId) || project.isNew) {
         return true;
       }
@@ -152,6 +168,17 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       // 优先级筛选 - 使用Set快速查找
       if (prioritySet.size > 0 && !prioritySet.has(project.priority)) {
         return false;
+      }
+      
+      // 系统筛选 - 使用Set快速查找
+      if (systemSet.size > 0) {
+        const hasSystem = project.system && systemSet.has(project.system);
+        if (!hasSystem) {
+          console.log('项目被系统筛选过滤:', project.name, '系统:', project.system, '要求:', Array.from(systemSet));
+          return false;
+        } else {
+          console.log('项目通过系统筛选:', project.name, '系统:', project.system);
+        }
       }
       
       // 参与人筛选 - 使用Set快速查找
@@ -347,7 +374,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       
       return sortConfig.direction === 'asc' ? -comparison : comparison;
     });
-  }, [projects, searchTerm, selectedStatuses, selectedPriorities, selectedParticipants, selectedKrs, editingId, sortConfig, filters.useMultiSort, filters.multiSortRules]);
+  }, [projects, searchTerm, selectedStatuses, selectedPriorities, selectedSystems, selectedParticipants, selectedKrs, editingId, sortConfig, filters.useMultiSort, filters.multiSortRules, allUsers]);
 
   // 导出Excel功能
   const handleExportExcel = useCallback(() => {
@@ -418,6 +445,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
           return {
             '项目名称': truncateText(project.name, 255),
+            '系统': project.system || '',
             '优先级': project.priority || '',
             '状态': project.status || '',
             '解决的业务问题': truncateText(project.businessProblem, 1000),
@@ -443,6 +471,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       // 设置列宽
       const colWidths = [
         { wch: 30 }, // 项目名称
+        { wch: 20 }, // 系统
         { wch: 10 }, // 优先级
         { wch: 12 }, // 状态
         { wch: 40 }, // 解决的业务问题
@@ -478,6 +507,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   // 准备筛选选项
   const statusOptions = Object.values(ProjectStatus).map(status => ({ value: status, label: status }));
   const priorityOptions = Object.values(Priority).map(priority => ({ value: priority, label: priority }));
+  const systemOptions = SYSTEM_OPTIONS.map(system => ({ value: system, label: system }));
   
   // 按部门分组参与人选项
   const participantGroupedOptions = useMemo(() => {
@@ -533,6 +563,12 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                 selectedValues={selectedPriorities}
                 onSelectionChange={setSelectedPriorities}
                 placeholder="优先级"
+              />
+              <MultiSelectDropdown
+                options={systemOptions}
+                selectedValues={selectedSystems}
+                onSelectionChange={setSelectedSystems}
+                placeholder="系统"
               />
               <MultiSelectDropdown
                 groupedOptions={participantGroupedOptions}

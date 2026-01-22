@@ -110,6 +110,7 @@ type MonthlyWorkItem struct {
 type Project struct {
 	ID                 string           `json:"id" db:"id"`
 	Name               string           `json:"name" db:"name"`
+	System             *string          `json:"system" db:"system"`
 	Priority           string           `json:"priority" db:"priority"`
 	BusinessProblem    *string          `json:"businessProblem" db:"business_problem"`
 	KeyResultIds       []string         `json:"keyResultIds" db:"key_result_ids"`

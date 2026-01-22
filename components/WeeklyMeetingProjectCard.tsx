@@ -597,7 +597,19 @@ export const WeeklyMeetingProjectCard: React.FC<WeeklyMeetingProjectCardProps> =
             </div>
 
             {/* Card Footer */}
-            <div className="p-3 border-t border-gray-200 dark:border-[#363636] bg-gray-50 dark:bg-[#2a2a2a]/50 rounded-b-xl flex justify-end">
+            <div className="p-3 border-t border-gray-200 dark:border-[#363636] bg-gray-50 dark:bg-[#2a2a2a]/50 rounded-b-xl flex justify-between items-center">
+                {/* 系统标签 */}
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {project.system ? (
+                        <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-700/50">
+                            {project.system}
+                        </span>
+                    ) : (
+                        <span className="text-gray-400 dark:text-gray-500 italic text-xs">未设置系统</span>
+                    )}
+                </div>
+                
+                {/* 评论按钮 */}
                 <button
                     onClick={onOpenCommentModal}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-[#3a3a3a] border border-gray-300 dark:border-[#4a4a4a] rounded-lg hover:bg-gray-100 dark:hover:bg-[#454545] transition-colors"

@@ -5,6 +5,7 @@ import { RichTextInput } from './RichTextInput';
 import { AutoResizeInput } from './AutoResizeInput';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
 import { DatePicker } from './DatePicker';
+import { SYSTEM_OPTIONS } from '../constants';
 
 const PriorityBadge: React.FC<{ priority: Priority }> = ({ priority }) => {
     const priorityStyles: Record<Priority, string> = {
@@ -145,6 +146,52 @@ const EditableStatusSelect: React.FC<{
                                 className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors flex items-center"
                             >
                                 <StatusBadge status={statusOption} />
+                            </button>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
+const EditableSystemSelect: React.FC<{ 
+    system: string | undefined; 
+    onSystemChange: (system: string) => void;
+}> = ({ system, onSystemChange }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleSystemSelect = (newSystem: string) => {
+        onSystemChange(newSystem);
+        setIsOpen(false);
+    };
+
+    return (
+        <div className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-[#4a4a4a] bg-white dark:bg-[#2a2a2a] hover:bg-gray-50 dark:hover:bg-[#2d2d2d] transition-colors group"
+            >
+                <span className="text-gray-700 dark:text-gray-300">
+                    {system || '选择系统'}
+                </span>
+                <IconChevronDown className="w-3 h-3 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+            </button>
+            
+            {isOpen && (
+                <>
+                    <div 
+                        className="fixed inset-0 z-10" 
+                        onClick={() => setIsOpen(false)}
+                    />
+                    <div className="absolute top-full left-0 mt-1 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#4a4a4a] rounded-lg shadow-lg z-20 min-w-[180px] max-h-60 overflow-y-auto">
+                        {SYSTEM_OPTIONS.map((systemOption) => (
+                            <button
+                                key={systemOption}
+                                onClick={() => handleSystemSelect(systemOption)}
+                                className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors text-sm text-gray-700 dark:text-gray-300"
+                            >
+                                {systemOption}
                             </button>
                         ))}
                     </div>
@@ -388,6 +435,10 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
         }
     };
 
+    const handleSystemChange = (newSystem: string) => {
+        onUpdateProject(project.id, 'system', newSystem);
+    };
+
     const handleBusinessProblemSave = (newBusinessProblem: string) => {
         if (newBusinessProblem.trim() !== (project.businessProblem || '').trim()) {
             onUpdateProject(project.id, 'businessProblem', newBusinessProblem.trim());
@@ -418,12 +469,16 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
             <div className="bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-xl w-full max-w-7xl text-gray-900 dark:text-white shadow-lg flex flex-col max-h-[85vh]">
                 {/* Header */}
                 <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 dark:border-[#363636]">
-                    <div className="flex-1 mr-4">
+                    <div className="flex-1 mr-4 flex items-center gap-3">
                         <EditableText
                             value={project.name}
                             onSave={handleProjectNameSave}
                             placeholder="输入项目名称..."
                             className="text-xl font-bold"
+                        />
+                        <EditableSystemSelect 
+                            system={project.system}
+                            onSystemChange={handleSystemChange}
                         />
                     </div>
                     <div className="flex items-center gap-4">

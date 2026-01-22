@@ -2,6 +2,7 @@ import React from 'react';
 import { User, ProjectStatus, OKR, Priority } from '../types';
 import { MultiSelectDropdown } from './MultiSelectDropdown';
 import { KRFilterButton } from './KRFilterButton';
+import { SYSTEM_OPTIONS } from '../constants';
 
 interface WeeklyMeetingFilterBarProps {
     allUsers: User[];
@@ -9,6 +10,9 @@ interface WeeklyMeetingFilterBarProps {
     
     selectedPriorities: string[];
     setSelectedPriorities: (values: string[]) => void;
+    
+    selectedSystems: string[];
+    setSelectedSystems: (values: string[]) => void;
     
     selectedKrIds: string[];
     setSelectedKrIds: (values: string[]) => void;
@@ -25,6 +29,8 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
     activeOkrs,
     selectedPriorities,
     setSelectedPriorities,
+    selectedSystems,
+    setSelectedSystems,
     selectedKrIds,
     setSelectedKrIds,
     selectedParticipantIds,
@@ -34,6 +40,7 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
 }) => {
     
     const priorityOptions = Object.values(Priority).map(p => ({ value: p, label: p }));
+    const systemOptions = SYSTEM_OPTIONS.map(s => ({ value: s, label: s }));
     
     // 按部门分组参与人选项
     const participantGroupedOptions = React.useMemo(() => {
@@ -82,6 +89,12 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
                 selectedValues={selectedPriorities}
                 onSelectionChange={setSelectedPriorities}
                 placeholder="优先级"
+            />
+            <MultiSelectDropdown
+                options={systemOptions}
+                selectedValues={selectedSystems}
+                onSelectionChange={setSelectedSystems}
+                placeholder="系统"
             />
             <KRFilterButton
                 activeOkrs={activeOkrs}

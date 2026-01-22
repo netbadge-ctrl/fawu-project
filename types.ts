@@ -99,6 +99,7 @@ export interface Document {
 export interface Project {
   id: string;
   name: string;
+  system?: string; // 系统属性
   priority: Priority;
   businessProblem: string;
   keyResultIds: string[];

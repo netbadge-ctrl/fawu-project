@@ -4,8 +4,8 @@ import { api } from '../api.ts';
 import { IconChevronLeft, IconChevronRight, IconPlus, IconTrash, IconCheck, IconX } from './Icons';
 import { MultiSelectDropdown } from './MultiSelectDropdown';
 
-// 产品管理部ID
-const PRODUCT_DEPT_ID = '28508729';
+// 产品组部门ID
+const PRODUCT_DEPT_IDS = ['28508729', '28509115']; // 业务平台产品组、基础平台产品组
 
 interface MonthlyMeetingViewProps {
   currentUser: User;
@@ -159,10 +159,10 @@ export const MonthlyMeetingView: React.FC<MonthlyMeetingViewProps> = ({ currentU
     return now.getFullYear() === year && now.getMonth() + 1 === month;
   }, [year, month]);
 
-  // 从员工数据中过滤出产品管理部的员工
+  // 从员工数据中过滤出产品组的员工
   const productDeptEmployees = useMemo(() => {
     return allUsers
-      .filter(user => user.deptId === PRODUCT_DEPT_ID)
+      .filter(user => PRODUCT_DEPT_IDS.includes(user.deptId))
       .map(user => user.name)
       .sort((a, b) => a.localeCompare(b, 'zh-CN'));
   }, [allUsers]);

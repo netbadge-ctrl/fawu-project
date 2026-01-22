@@ -157,11 +157,13 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
     }, [isOpen, calculatePosition]);
 
     const handleToggleOption = useCallback((value: string) => {
+        console.log('🎯 MultiSelectDropdown handleToggleOption:', { value, placeholder, currentSelected: selectedValues });
         const newSelectedValues = selectedValues.includes(value)
             ? selectedValues.filter(v => v !== value)
             : [...selectedValues, value];
+        console.log('📤 MultiSelectDropdown calling onSelectionChange with:', newSelectedValues);
         onSelectionChange(newSelectedValues);
-    }, [selectedValues, onSelectionChange]);
+    }, [selectedValues, onSelectionChange, placeholder]);
 
     const displayLabel = selectedValues.length > 0 
         ? `${placeholder} (${selectedValues.length})`
@@ -345,7 +347,10 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                             全部选择
                         </button>
                         <button
-                            onClick={() => onSelectionChange([])}
+                            onClick={() => {
+                                console.log('❌ MultiSelectDropdown 取消选择被点击:', placeholder);
+                                onSelectionChange([]);
+                            }}
                             disabled={selectedValues.length === 0}
                             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#2d2d2d] border border-gray-300 dark:border-[#4a4a4a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#3a3a3a] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >

@@ -178,7 +178,9 @@ func getDepartmentName(deptID int) string {
 	case 28508728:
 		return "技术部"
 	case 28508729:
-		return "产品管理部"
+		return "业务平台产品组"
+	case 28509115:
+		return "基础平台产品组"
 	case 28508731:
 		return "业务平台研发部"
 	case 28508815:

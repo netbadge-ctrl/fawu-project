@@ -29,7 +29,7 @@ func NewHandler(db *sql.DB) *Handler {
 // GetProjects 获取所有项目
 func (h *Handler) GetProjects(c *gin.Context) {
 	query := `
-		SELECT id, name, priority, business_problem, key_result_ids, weekly_update, 
+		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update, 
 		       last_week_update, status, product_managers, backend_developers, 
 		       frontend_developers, qa_testers, proposal_date, launch_date, 
 		       created_at, followers, comments, change_log, documents
@@ -55,7 +55,7 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		var comments, changeLog, documents []byte
 
 		err := rows.Scan(
-			&p.ID, &p.Name, &p.Priority, &p.BusinessProblem, &keyResultIds,
+			&p.ID, &p.Name, &p.System, &p.Priority, &p.BusinessProblem, &keyResultIds,
 			&p.WeeklyUpdate, &p.LastWeekUpdate, &p.Status, &productManagers,
 			&backendDevelopers, &frontendDevelopers, &qaTesters,
 			&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followers, &comments, &changeLog, &documents,
@@ -337,14 +337,14 @@ func (h *Handler) CreateProject(c *gin.Context) {
 	// 插入项目基本信息
 	query := `
 		INSERT INTO projects (
-			id, name, priority, business_problem, key_result_ids, weekly_update, 
+			id, name, system, priority, business_problem, key_result_ids, weekly_update, 
 			last_week_update, status, product_managers, backend_developers, 
 			frontend_developers, qa_testers, proposal_date, launch_date, 
 			created_at, followers, comments, change_log, documents
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`
 
 	_, err = tx.Exec(query,
-		project.ID, project.Name, project.Priority, project.BusinessProblem,
+		project.ID, project.Name, project.System, project.Priority, project.BusinessProblem,
 		pq.Array(project.KeyResultIds), project.WeeklyUpdate, project.LastWeekUpdate,
 		project.Status, productManagersJSON, backendDevelopersJSON,
 		frontendDevelopersJSON, qaTestersJSON, project.ProposalDate, project.LaunchDate,
@@ -415,7 +415,7 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	// 首先获取现有项目
 	var existing models.Project
 	query := `
-		SELECT id, name, priority, business_problem, key_result_ids, weekly_update, 
+		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update, 
 		       last_week_update, status, product_managers, backend_developers, 
 		       frontend_developers, qa_testers, proposal_date, launch_date, 
 		       created_at, followers, comments, change_log, documents
@@ -428,7 +428,7 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	var comments, changeLog, documents []byte
 
 	err := h.db.QueryRow(query, projectID).Scan(
-		&existing.ID, &existing.Name, &existing.Priority, &existing.BusinessProblem, &keyResultIds,
+		&existing.ID, &existing.Name, &existing.System, &existing.Priority, &existing.BusinessProblem, &keyResultIds,
 		&existing.WeeklyUpdate, &existing.LastWeekUpdate, &existing.Status, &productManagers,
 		&backendDevelopers, &frontendDevelopers, &qaTesters,
 		&existing.ProposalDate, &existing.LaunchDate, &existing.CreatedAt, &followers, &comments, &changeLog, &documents,
@@ -457,6 +457,9 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	// 合并更新
 	if updates.Name != "" {
 		existing.Name = updates.Name
+	}
+	if updates.System != nil {
+		existing.System = updates.System
 	}
 	if updates.Priority != "" {
 		existing.Priority = updates.Priority
@@ -530,17 +533,17 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	// 更新项目基本信息
 	updateQuery := `
 		UPDATE projects SET 
-			name = $2, priority = $3, business_problem = $4, key_result_ids = $5, 
-			weekly_update = $6, last_week_update = $7, status = $8, 
-			product_managers = $9, backend_developers = $10, 
-			frontend_developers = $11, qa_testers = $12, 
-			proposal_date = $13, launch_date = $14, followers = $15, 
-			comments = $16, change_log = $17, created_at = $18, documents = $19
+			name = $2, system = $3, priority = $4, business_problem = $5, key_result_ids = $6, 
+			weekly_update = $7, last_week_update = $8, status = $9, 
+			product_managers = $10, backend_developers = $11, 
+			frontend_developers = $12, qa_testers = $13, 
+			proposal_date = $14, launch_date = $15, followers = $16, 
+			comments = $17, change_log = $18, created_at = $19, documents = $20
 		WHERE id = $1
 	`
 
 	_, err = tx.Exec(updateQuery,
-		projectID, existing.Name, existing.Priority, existing.BusinessProblem,
+		projectID, existing.Name, existing.System, existing.Priority, existing.BusinessProblem,
 		pq.Array(existing.KeyResultIds), existing.WeeklyUpdate, existing.LastWeekUpdate,
 		existing.Status, productManagersJSON, backendDevelopersJSON,
 		frontendDevelopersJSON, qaTestersJSON, existing.ProposalDate, existing.LaunchDate,

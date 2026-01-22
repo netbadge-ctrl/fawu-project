@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
 import React, { useMemo } from 'react';
 import { Project, User, ProjectStatus, Priority, OKR } from '../types';
 import { WeeklyMeetingProjectCard } from './WeeklyMeetingProjectCard';
 import { WeeklyMeetingFilterBar } from './WeeklyMeetingFilterBar';
 import { useFilterState } from '../context/FilterStateContext';
+import { SYSTEM_OPTIONS } from '../constants';
 
 interface WeeklyMeetingViewProps {
     projects: Project[];
@@ -20,15 +20,17 @@ export const WeeklyMeetingView: React.FC<WeeklyMeetingViewProps> = ({ projects, 
 
     // 本地状态处理函数
     const setSelectedPriorities = (value: string[]) => updateWeeklyMeetingFilters({ selectedPriorities: value });
+    const setSelectedSystems = (value: string[]) => updateWeeklyMeetingFilters({ selectedSystems: value });
     const setSelectedKrIds = (value: string[]) => updateWeeklyMeetingFilters({ selectedKrIds: value });
     const setSelectedParticipantIds = (value: string[]) => updateWeeklyMeetingFilters({ selectedParticipantIds: value });
     const setSelectedStatuses = (value: string[]) => updateWeeklyMeetingFilters({ selectedStatuses: value });
 
-    // 从状态中获取当前值
-    const selectedPriorities = filters.selectedPriorities;
-    const selectedKrIds = filters.selectedKrIds;
-    const selectedParticipantIds = filters.selectedParticipantIds;
-    const selectedStatuses = filters.selectedStatuses;
+    // 从状态中获取当前值,添加默认值保护
+    const selectedPriorities = filters.selectedPriorities || [];
+    const selectedSystems = filters.selectedSystems || [];
+    const selectedKrIds = filters.selectedKrIds || [];
+    const selectedParticipantIds = filters.selectedParticipantIds || [];
+    const selectedStatuses = filters.selectedStatuses || [];
 
     const keyResultToOkrMap = useMemo(() => {
         const map = new Map<string, string>();
@@ -54,6 +56,9 @@ export const WeeklyMeetingView: React.FC<WeeklyMeetingViewProps> = ({ projects, 
                 return false;
             }
             if (selectedStatuses.length > 0 && !selectedStatuses.includes(project.status)) {
+                return false;
+            }
+            if (selectedSystems.length > 0 && (!project.system || !selectedSystems.includes(project.system))) {
                 return false;
             }
             if (selectedParticipantIds.length > 0) {
@@ -91,7 +96,14 @@ export const WeeklyMeetingView: React.FC<WeeklyMeetingViewProps> = ({ projects, 
                 return priorityA - priorityB;
             }
 
-            // 2. Sort by Product Manager name
+            // 2. Sort by System (系统属性)
+            const systemA = a.system || 'zzz未分类';
+            const systemB = b.system || 'zzz未分类';
+            if (systemA.localeCompare(systemB, 'zh-CN') !== 0) {
+                return systemA.localeCompare(systemB, 'zh-CN');
+            }
+
+            // 3. Sort by Product Manager name
             const getPmName = (project: Project) => {
                 const productManagers = project.productManagers || [];
                 if (productManagers.length > 0) {
@@ -102,11 +114,11 @@ export const WeeklyMeetingView: React.FC<WeeklyMeetingViewProps> = ({ projects, 
             };
             const pmA = getPmName(a);
             const pmB = getPmName(b);
-            if (pmA.localeCompare(pmB) !== 0) {
-                return pmA.localeCompare(pmB);
+            if (pmA.localeCompare(pmB, 'zh-CN') !== 0) {
+                return pmA.localeCompare(pmB, 'zh-CN');
             }
 
-            // 3. Sort by OKR ID
+            // 4. Sort by OKR ID
             const getOkrId = (project: Project) => {
                 const keyResultIds = project.keyResultIds || [];
                 if (keyResultIds.length > 0) {
@@ -121,7 +133,7 @@ export const WeeklyMeetingView: React.FC<WeeklyMeetingViewProps> = ({ projects, 
                 return okrA.localeCompare(okrB);
             }
 
-            // 4. Sort by Status
+            // 5. Sort by Status
             const statusOrder: Record<ProjectStatus, number> = {
                 [ProjectStatus.NotStarted]: 0,
                 [ProjectStatus.Discussion]: 1,
@@ -143,10 +155,10 @@ export const WeeklyMeetingView: React.FC<WeeklyMeetingViewProps> = ({ projects, 
                 return statusA - statusB;
             }
 
-            // 5. Fallback sort by proposed date
+            // 6. Fallback sort by proposed date
             return new Date(b.proposedDate).getTime() - new Date(a.proposedDate).getTime();
         });
-    }, [projects, allUsers, keyResultToOkrMap, selectedPriorities, selectedKrIds, selectedParticipantIds, selectedStatuses]);
+    }, [projects, allUsers, keyResultToOkrMap, selectedPriorities, selectedSystems, selectedKrIds, selectedParticipantIds, selectedStatuses]);
 
     return (
         <main className="flex-1 flex flex-col overflow-hidden">
@@ -156,6 +168,8 @@ export const WeeklyMeetingView: React.FC<WeeklyMeetingViewProps> = ({ projects, 
                     activeOkrs={activeOkrs}
                     selectedPriorities={selectedPriorities}
                     setSelectedPriorities={setSelectedPriorities}
+                    selectedSystems={selectedSystems}
+                    setSelectedSystems={setSelectedSystems}
                     selectedKrIds={selectedKrIds}
                     setSelectedKrIds={setSelectedKrIds}
                     selectedParticipantIds={selectedParticipantIds}

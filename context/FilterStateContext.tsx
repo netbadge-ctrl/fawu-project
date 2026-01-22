@@ -33,6 +33,7 @@ export interface FilterState {
     selectedStatuses: string[];
     selectedOwners: string[];
     selectedPriorities: string[];
+    selectedSystems: string[];
     selectedKrIds: string[];
     selectedParticipantIds: string[];
     showCompleted: boolean;
@@ -43,6 +44,7 @@ export interface FilterState {
     searchTerm: string;
     selectedStatuses: string[];
     selectedPriorities: string[];
+    selectedSystems: string[];
     selectedParticipants: string[];
     selectedKrs: string[];
     sortField: 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'launchDate';
@@ -91,6 +93,7 @@ const defaultFilterState: FilterState = {
     selectedStatuses: [],
     selectedOwners: [],
     selectedPriorities: [],
+    selectedSystems: [],
     selectedKrIds: [],
     selectedParticipantIds: [],
     showCompleted: false,
@@ -99,6 +102,7 @@ const defaultFilterState: FilterState = {
     searchTerm: '',
     selectedStatuses: [],
     selectedPriorities: [],
+    selectedSystems: [],
     selectedParticipants: [],
     selectedKrs: [],
     sortField: 'createdAt',
@@ -209,9 +213,15 @@ const loadFromStorage = (): FilterState | null => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // 验证数据结构完整性
+      // 验证数据结构完整性 - 深度合并以确保新字段有默认值
       if (parsed && typeof parsed === 'object') {
-        return { ...defaultFilterState, ...parsed };
+        return {
+          projectList: { ...defaultFilterState.projectList, ...parsed.projectList },
+          kanbanView: { ...defaultFilterState.kanbanView, ...parsed.kanbanView },
+          weeklyMeeting: { ...defaultFilterState.weeklyMeeting, ...parsed.weeklyMeeting },
+          projectOverview: { ...defaultFilterState.projectOverview, ...parsed.projectOverview },
+          okrPage: { ...defaultFilterState.okrPage, ...parsed.okrPage },
+        };
       }
     }
   } catch (error) {

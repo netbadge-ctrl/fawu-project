@@ -15,6 +15,7 @@ import { TeamScheduleTooltip } from './TeamScheduleTooltip';
 import { useDropdownPosition } from '../hooks/useDropdownPosition';
 import KRSelectionModal from './KRSelectionModal';
 import { formatDateOnly, debounce } from '../utils';
+import { SYSTEM_OPTIONS } from '../constants';
 
 type SortField = 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'launchDate';
 type SortDirection = 'asc' | 'desc';
@@ -45,6 +46,7 @@ interface ProjectTableProps {
 
 const tableHeaders = [
     { key: 'name', label: '项目名称', width: '200px' },
+    { key: 'system', label: '系统', width: '150px' },
     { key: 'businessProblem', label: '解决的业务问题', width: '300px' },
     { key: 'status', label: '状态', width: '120px' },
     { key: 'priority', label: '优先级', width: '150px' },
@@ -757,12 +759,13 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
       }}
     >
         <td style={getTdStyle(0)} className={getTdClassName(0)} onMouseEnter={(e) => onCellMouseEnter(e, project)} onMouseLeave={onCellMouseLeave}><EditableCell value={project.name} onSave={(val) => handleUpdateField('name', val)} /></td>
-        <td style={getTdStyle(1)} className={getTdClassName(1)} onMouseEnter={(e) => onCellMouseEnter(e, project)} onMouseLeave={onCellMouseLeave}><EditableCell value={project.businessProblem} onSave={(val) => handleUpdateField('businessProblem', val)} type="textarea" /></td>
-        <td style={getTdStyle(2)} className={getTdClassName(2)}><EditableCell value={project.status} onSave={(val) => handleUpdateField('status', val)} type="select" selectType="status" /></td>
-        <td style={getTdStyle(3)} className={getTdClassName(3)}><EditableCell value={project.priority} onSave={(val) => handleUpdateField('priority', val)} type="select" selectType="priority" /></td>
-        <td style={getTdStyle(4)} className={getTdClassName(4)}><OkrMultiSelectCell selectedKrIds={project.keyResultIds} allOkrs={activeOkrs} onSave={(newKrIds) => handleUpdateField('keyResultIds', newKrIds)} isInvalid={isKrInvalid} /></td>
-        <td style={getTdStyle(5)} className={getTdClassName(5)}><RichTextEditableCell html={project.weeklyUpdate} onSave={(val) => handleUpdateField('weeklyUpdate', val)} /></td>
-        <td style={getTdStyle(6)} className={getTdClassName(6)}>
+        <td style={getTdStyle(1)} className={getTdClassName(1)}><EditableCell value={project.system || ''} onSave={(val) => handleUpdateField('system', val)} type="select" options={SYSTEM_OPTIONS.map(s => ({ value: s, label: s }))} /></td>
+        <td style={getTdStyle(2)} className={getTdClassName(2)} onMouseEnter={(e) => onCellMouseEnter(e, project)} onMouseLeave={onCellMouseLeave}><EditableCell value={project.businessProblem} onSave={(val) => handleUpdateField('businessProblem', val)} type="textarea" /></td>
+        <td style={getTdStyle(3)} className={getTdClassName(3)}><EditableCell value={project.status} onSave={(val) => handleUpdateField('status', val)} type="select" selectType="status" /></td>
+        <td style={getTdStyle(4)} className={getTdClassName(4)}><EditableCell value={project.priority} onSave={(val) => handleUpdateField('priority', val)} type="select" selectType="priority" /></td>
+        <td style={getTdStyle(5)} className={getTdClassName(5)}><OkrMultiSelectCell selectedKrIds={project.keyResultIds} allOkrs={activeOkrs} onSave={(newKrIds) => handleUpdateField('keyResultIds', newKrIds)} isInvalid={isKrInvalid} /></td>
+        <td style={getTdStyle(6)} className={getTdClassName(6)}><RichTextEditableCell html={project.weeklyUpdate} onSave={(val) => handleUpdateField('weeklyUpdate', val)} /></td>
+        <td style={getTdStyle(7)} className={getTdClassName(7)}>
             <div className="w-full h-full p-1.5 -m-1.5 cursor-pointer rounded-md hover:bg-gray-200/50 dark:hover:bg-[#3a3a3a] transition-colors duration-200 flex items-center">
                 {project.lastWeekUpdate ? (
                     <TruncatedText 
@@ -778,14 +781,14 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
         </td>
 
         {roleInfo.map(({ key, name }, index) => (
-            <td key={key} style={getTdStyle(7 + index)} className={getTdClassName(7 + index)}>
+            <td key={key} style={getTdStyle(8 + index)} className={getTdClassName(8 + index)}>
                 <RoleCell team={project[key] as Role} allUsers={allUsers} onClick={() => handleOpenRoleModal(key, name)} />
             </td>
         ))}
 
-        <td style={getTdStyle(11)} className={getTdClassName(11)}><DatePicker selectedDate={project.proposedDate} onSelectDate={(val) => handleUpdateField('proposedDate', val)} /></td>
-        <td style={getTdStyle(12)} className={getTdClassName(12)}><DatePicker selectedDate={project.launchDate} onSelectDate={(val) => handleUpdateField('launchDate', val)} align="right" /></td>
-        <td style={getTdStyle(13)} className={getTdClassName(13)}>
+        <td style={getTdStyle(12)} className={getTdClassName(12)}><DatePicker selectedDate={project.proposedDate} onSelectDate={(val) => handleUpdateField('proposedDate', val)} /></td>
+        <td style={getTdStyle(13)} className={getTdClassName(13)}><DatePicker selectedDate={project.launchDate} onSelectDate={(val) => handleUpdateField('launchDate', val)} align="right" /></td>
+        <td style={getTdStyle(14)} className={getTdClassName(14)}>
           <div>
             <ActionsCell 
               project={project}
@@ -803,6 +806,7 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
   return (
     prevProps.project.id === nextProps.project.id &&
     prevProps.project.name === nextProps.project.name &&
+    prevProps.project.system === nextProps.project.system &&
     prevProps.project.status === nextProps.project.status &&
     prevProps.project.priority === nextProps.project.priority &&
     prevProps.project.businessProblem === nextProps.project.businessProblem &&

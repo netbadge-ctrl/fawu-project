@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { User, ProjectStatus, Priority, OKR } from '../types';
 import { IconSearch } from './Icons';
 import { MultiSelectDropdown } from './MultiSelectDropdown';
+import { SYSTEM_OPTIONS } from '../constants';
 
 interface FilterBarProps {
     allUsers: User[];
@@ -12,6 +13,8 @@ interface FilterBarProps {
     setSelectedStatuses: (statuses: string[]) => void;
     selectedPriorities: string[];
     setSelectedPriorities: (priorities: string[]) => void;
+    selectedSystems: string[];
+    setSelectedSystems: (systems: string[]) => void;
     selectedPMs: string[];
     setSelectedPMs: (pmIds: string[]) => void;
     selectedBEs: string[];
@@ -33,6 +36,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     setSelectedStatuses,
     selectedPriorities,
     setSelectedPriorities,
+    selectedSystems,
+    setSelectedSystems,
     selectedPMs,
     setSelectedPMs,
     selectedBEs,
@@ -55,11 +60,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         ProjectStatus.DevDone,
         ProjectStatus.Testing,
         ProjectStatus.TestDone,
-        ProjectStatus.Launched,
+        ProjectStatus.LaunchedThisWeek,
         ProjectStatus.Paused,
         ProjectStatus.ProjectInProgress,
     ].map(s => ({ value: s, label: s }));
     const priorityOptions = Object.values(Priority).map(p => ({ value: p, label: p }));
+    const systemOptions = SYSTEM_OPTIONS.map(s => ({ value: s, label: s }));
     
     // 按部门分组用户选项
     const userGroupedOptions = useMemo(() => {
@@ -131,6 +137,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     </div>
                     <div className="relative">
                         <MultiSelectDropdown
+                            options={systemOptions}
+                            selectedValues={selectedSystems}
+                            onSelectionChange={setSelectedSystems}
+                            placeholder="系统"
+                        />
+                    </div>
+                    <div className="relative">
+                        <MultiSelectDropdown
                             groupedOptions={userGroupedOptions}
                             selectedValues={selectedPMs}
                             onSelectionChange={setSelectedPMs}
@@ -172,13 +186,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 </div>
                 
                 {/* 清除按钮 */}
-                {(selectedStatuses.length > 0 || selectedPriorities.length > 0 || selectedPMs.length > 0 || selectedBEs.length > 0 || 
+                {(selectedStatuses.length > 0 || selectedPriorities.length > 0 || selectedSystems.length > 0 || selectedPMs.length > 0 || selectedBEs.length > 0 || 
                   selectedFEs.length > 0 || selectedQAs.length > 0 || selectedKrs.length > 0 || searchTerm.trim()) && (
                     <button
                         onClick={() => {
                             setSearchTerm('');
                             setSelectedStatuses([]);
                             setSelectedPriorities([]);
+                            setSelectedSystems([]);
                             setSelectedPMs([]);
                             setSelectedBEs([]);
                             setSelectedFEs([]);
