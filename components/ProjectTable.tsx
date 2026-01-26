@@ -706,6 +706,14 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
           />
         </td>
         <td style={getTdStyle(1)} className={getTdClassName(1, true)}>
+          <InlineSelect 
+            value={localProject.system || ''} 
+            onSave={(v) => handleUpdateField('system', v)} 
+            options={SYSTEM_OPTIONS.map(s => ({value: s, label: s}))} 
+            placeholder="选择系统" 
+          />
+        </td>
+        <td style={getTdStyle(2)} className={getTdClassName(2, true)}>
           <AutoResizeTextarea
             value={localProject.businessProblem}
             onChange={(val) => handleUpdateField('businessProblem', val)}
@@ -715,21 +723,21 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
             maxRows={8}
           />
         </td>
-        <td style={getTdStyle(2)} className={getTdClassName(2, true)}><InlineSelect value={localProject.status} onSave={(v) => handleUpdateField('status', v)} options={Object.values(ProjectStatus).map(s => ({value: s, label: s}))} placeholder="选择状态" /></td>
-        <td style={getTdStyle(3)} className={getTdClassName(3, true)}><InlineSelect value={localProject.priority} onSave={(v) => handleUpdateField('priority', v)} options={Object.values(Priority).map(p => ({value: p, label: p}))} placeholder="选择优先级" /></td>
-        <td style={getTdStyle(4)} className={getTdClassName(4, true)}><OkrMultiSelectCell selectedKrIds={localProject.keyResultIds} allOkrs={activeOkrs} onSave={(newKrIds) => handleUpdateField('keyResultIds', newKrIds)} isInvalid={isKrInvalid} /></td>
-        <td style={getTdStyle(5)} className={getTdClassName(5, true)}><RichTextInput html={localProject.weeklyUpdate} onChange={(val) => handleUpdateField('weeklyUpdate', val)} placeholder="本周进展/问题" /></td>
-        <td style={getTdStyle(6)} className={getTdClassName(6, true)}><div className="p-1.5 text-gray-400 dark:text-gray-500">上周无记录</div></td>
+        <td style={getTdStyle(3)} className={getTdClassName(3, true)}><InlineSelect value={localProject.status} onSave={(v) => handleUpdateField('status', v)} options={Object.values(ProjectStatus).map(s => ({value: s, label: s}))} placeholder="选择状态" /></td>
+        <td style={getTdStyle(4)} className={getTdClassName(4, true)}><InlineSelect value={localProject.priority} onSave={(v) => handleUpdateField('priority', v)} options={Object.values(Priority).map(p => ({value: p, label: p}))} placeholder="选择优先级" /></td>
+        <td style={getTdStyle(5)} className={getTdClassName(5, true)}><OkrMultiSelectCell selectedKrIds={localProject.keyResultIds} allOkrs={activeOkrs} onSave={(newKrIds) => handleUpdateField('keyResultIds', newKrIds)} isInvalid={isKrInvalid} /></td>
+        <td style={getTdStyle(6)} className={getTdClassName(6, true)}><RichTextInput html={localProject.weeklyUpdate} onChange={(val) => handleUpdateField('weeklyUpdate', val)} placeholder="本周进展/问题" /></td>
+        <td style={getTdStyle(7)} className={getTdClassName(7, true)}><div className="p-1.5 text-gray-400 dark:text-gray-500">上周无记录</div></td>
         
         {roleInfo.map(({ key, name }, index) => (
-          <td key={key} style={getTdStyle(7 + index)} className={getTdClassName(7 + index, true)}>
+          <td key={key} style={getTdStyle(8 + index)} className={getTdClassName(8 + index, true)}>
              <RoleCell team={localProject[key] as Role} allUsers={allUsers} onClick={() => handleOpenRoleModal(key, name)} />
           </td>
         ))}
 
-        <td style={getTdStyle(11)} className={getTdClassName(11, true)}><DatePicker selectedDate={localProject.proposedDate} onSelectDate={(val) => handleUpdateField('proposedDate', val)} /></td>
-        <td style={getTdStyle(12)} className={getTdClassName(12, true)}><DatePicker selectedDate={localProject.launchDate} onSelectDate={(val) => handleUpdateField('launchDate', val)} align="right" /></td>
-        <td style={getTdStyle(13)} className={getTdClassName(13, true)}>
+        <td style={getTdStyle(12)} className={getTdClassName(12, true)}><DatePicker selectedDate={localProject.proposedDate} onSelectDate={(val) => handleUpdateField('proposedDate', val)} /></td>
+        <td style={getTdStyle(13)} className={getTdClassName(13, true)}><DatePicker selectedDate={localProject.launchDate} onSelectDate={(val) => handleUpdateField('launchDate', val)} align="right" /></td>
+        <td style={getTdStyle(14)} className={getTdClassName(14, true)}>
           <div className="flex items-center justify-center gap-2">
             <button 
               onClick={handleSaveNewProject} 
