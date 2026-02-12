@@ -26,13 +26,12 @@ func NewHandler(db *sql.DB) *Handler {
 	return &Handler{db: db}
 }
 
-// GetProjects 获取所有项目
+// GetProjects 获取所有项目（轻量级版本，用于列表展示）
 func (h *Handler) GetProjects(c *gin.Context) {
+	// 使用简化的查询，只获取列表展示需要的字段
 	query := `
 		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update, 
-		       last_week_update, status, product_managers, backend_developers, 
-		       frontend_developers, qa_testers, proposal_date, launch_date, 
-		       created_at, followers, comments, change_log, documents
+		       last_week_update, status, proposal_date, launch_date, created_at, followers
 		FROM projects
 		ORDER BY created_at DESC
 	`
@@ -45,20 +44,16 @@ func (h *Handler) GetProjects(c *gin.Context) {
 	defer rows.Close()
 
 	var projects []models.Project
-	var projectIDs []string
 
 	for rows.Next() {
 		var p models.Project
 		var keyResultIds pq.StringArray
 		var followers pq.StringArray
-		var productManagers, backendDevelopers, frontendDevelopers, qaTesters []byte
-		var comments, changeLog, documents []byte
 
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.System, &p.Priority, &p.BusinessProblem, &keyResultIds,
-			&p.WeeklyUpdate, &p.LastWeekUpdate, &p.Status, &productManagers,
-			&backendDevelopers, &frontendDevelopers, &qaTesters,
-			&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followers, &comments, &changeLog, &documents,
+			&p.WeeklyUpdate, &p.LastWeekUpdate, &p.Status,
+			&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followers,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -68,33 +63,81 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		// 转换数组类型
 		p.KeyResultIds = []string(keyResultIds)
 		p.Followers = []string(followers)
-
-		// 解析JSONB字段
-		json.Unmarshal(productManagers, &p.ProductManagers)
-		json.Unmarshal(backendDevelopers, &p.BackendDevelopers)
-		json.Unmarshal(frontendDevelopers, &p.FrontendDevelopers)
-		json.Unmarshal(qaTesters, &p.QaTesters)
-		json.Unmarshal(comments, &p.Comments)
-		json.Unmarshal(changeLog, &p.ChangeLog)
-		json.Unmarshal(documents, &p.Documents)
-
-		// 初始化空的TimeSlots
-		h.initializeEmptyTimeSlots(&p)
+		
+		// 初始化空数组（避免前端null检查）
+		p.ProductManagers = []models.TeamMember{}
+		p.BackendDevelopers = []models.TeamMember{}
+		p.FrontendDevelopers = []models.TeamMember{}
+		p.QaTesters = []models.TeamMember{}
+		p.Comments = []models.Comment{}
+		p.ChangeLog = []models.ChangeLogEntry{}
+		p.Documents = []models.Document{}
 
 		projects = append(projects, p)
-		projectIDs = append(projectIDs, p.ID)
-	}
-
-	// 批量加载所有项目的时段数据（优化N+1查询问题）
-	if len(projectIDs) > 0 {
-		err = h.loadAllTimeSlots(projects, projectIDs)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load time slots: " + err.Error()})
-			return
-		}
 	}
 
 	c.JSON(http.StatusOK, projects)
+}
+
+// GetProjectDetail 获取项目详情（包含所有字段和time slots）
+func (h *Handler) GetProjectDetail(c *gin.Context) {
+	projectID := c.Param("projectId")
+	
+	query := `
+		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update, 
+		       last_week_update, status, product_managers, backend_developers, 
+		       frontend_developers, qa_testers, proposal_date, launch_date, 
+		       created_at, followers, comments, change_log, documents
+		FROM projects
+		WHERE id = $1
+	`
+
+	var p models.Project
+	var keyResultIds pq.StringArray
+	var followers pq.StringArray
+	var productManagers, backendDevelopers, frontendDevelopers, qaTesters []byte
+	var comments, changeLog, documents []byte
+
+	err := h.db.QueryRow(query, projectID).Scan(
+		&p.ID, &p.Name, &p.System, &p.Priority, &p.BusinessProblem, &keyResultIds,
+		&p.WeeklyUpdate, &p.LastWeekUpdate, &p.Status, &productManagers,
+		&backendDevelopers, &frontendDevelopers, &qaTesters,
+		&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followers, &comments, &changeLog, &documents,
+	)
+	
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 转换数组类型
+	p.KeyResultIds = []string(keyResultIds)
+	p.Followers = []string(followers)
+
+	// 解析JSONB字段
+	json.Unmarshal(productManagers, &p.ProductManagers)
+	json.Unmarshal(backendDevelopers, &p.BackendDevelopers)
+	json.Unmarshal(frontendDevelopers, &p.FrontendDevelopers)
+	json.Unmarshal(qaTesters, &p.QaTesters)
+	json.Unmarshal(comments, &p.Comments)
+	json.Unmarshal(changeLog, &p.ChangeLog)
+	json.Unmarshal(documents, &p.Documents)
+
+	// 初始化空的TimeSlots
+	h.initializeEmptyTimeSlots(&p)
+
+	// 加载时段数据
+	err = h.loadAllTimeSlots([]models.Project{p}, []string{p.ID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load time slots: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, p)
 }
 
 // loadTimeSlots 加载项目的多时段数据

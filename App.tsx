@@ -106,11 +106,10 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
         
         setOkrSets(fetchedOkrSets);
         
-        if (fetchedOkrSets.length > 0) {
-            if (!currentOkrPeriodId || !(fetchedOkrSets || []).find(s => s.periodId === currentOkrPeriodId)) {
-                const currentPeriod = getCurrentOkrPeriod(fetchedOkrSets);
-                setCurrentOkrPeriodId(currentPeriod.periodId);
-            }
+        // 设置默认 OKR 周期（仅在初始化时）
+        if (fetchedOkrSets.length > 0 && !currentOkrPeriodId) {
+            const currentPeriod = getCurrentOkrPeriod(fetchedOkrSets);
+            setCurrentOkrPeriodId(currentPeriod.periodId);
         }
 
         setAllUsers(fetchedUsers);
@@ -121,7 +120,7 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
         setIsLoading(false);
         setIsLoadingSecondary(false);
     }
-  }, [currentOkrPeriodId]);
+  }, []); // 移除 currentOkrPeriodId 依赖，避免重复加载
 
   useEffect(() => {
     fetchData();

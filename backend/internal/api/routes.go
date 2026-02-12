@@ -59,7 +59,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 			public.POST("/dev/smart-migrate-kr-data", handler.SmartMigrateKrData)           // 智能KR数据迁移，保留现有项目的KR关联
 			public.POST("/dev/add-sample-kr-associations", handler.AddSampleKrAssociations) // 为示例项目添加KR关联
 			// 月会相关端点（开发模式）
-			public.GET("/dev/monthly-work-items", handler.GetDevMonthlyWorkItems)                      // 获取所有月度工作条目
+			public.GET("/dev/monthly-work-items", handler.GetDevMonthlyWorkItems)                     // 获取所有月度工作条目
 			public.GET("/dev/monthly-work-items/:year/:month", handler.GetDevMonthlyWorkItemsByMonth) // 获取指定月份工作条目
 			public.POST("/dev/monthly-work-items", handler.CreateDevMonthlyWorkItem)                  // 创建月度工作条目
 			public.PATCH("/dev/monthly-work-items/:itemId", handler.UpdateDevMonthlyWorkItem)         // 更新月度工作条目
