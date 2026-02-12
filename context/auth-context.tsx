@@ -55,8 +55,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const initAuth = async () => {
             setIsLoading(true);
             
+            // 调试信息
+            console.log('🔍 Auth init - isDevelopment:', isDevelopment, 'enableOIDC:', appConfig.enableOIDC, 'env:', appConfig.env);
+            
             // 开发模式：跳过OIDC认证，使用模拟用户
-            if (isDevelopment && !appConfig.enableOIDC) {
+            // 注意：使用宽松判断，确保开发模式能正确识别
+            const isDevMode = isDevelopment || appConfig.env === 'development';
+            const isOIDCEnabled = appConfig.enableOIDC === true;
+            
+            if (isDevMode && !isOIDCEnabled) {
+                console.log('🔧 Development mode: Using mock authentication (isDevMode:', isDevMode, ', isOIDCEnabled:', isOIDCEnabled, ')');
                 console.log('🔧 Development mode: Using mock authentication');
                 try {
                     // 开发模式下调用不需要认证的模拟用户端点
@@ -291,6 +299,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 // 暴露登录方法到全局
 export const startOIDCLogin = () => {
+    // 开发模式下不跳转 OIDC 登录
+    if (isDevelopment && !appConfig.enableOIDC) {
+        console.log('🔧 Development mode: Skipping OIDC login redirect');
+        return;
+    }
     window.location.href = generateOIDCLoginUrl();
 };
 

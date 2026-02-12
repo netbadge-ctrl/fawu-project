@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -25,6 +26,14 @@ func Initialize(databaseURL string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
+
+	// 配置连接池（优化性能）
+	// 最大打开连接数
+	db.SetMaxOpenConns(25)
+	// 最大空闲连接数
+	db.SetMaxIdleConns(10)
+	// 连接最大生命周期
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)

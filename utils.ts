@@ -15,28 +15,22 @@ export const debounce = <T extends (...args: any[]) => any>(
 
 // 缓存拼音转换结果以提升性能
 const pinyinCache = new Map<string, { full: string; initials: string; continuous: string; initialsContinuous: string }>();
+const MAX_CACHE_SIZE = 1000;
 
-// 拼音库预热标志
-let pinyinWarmedUp = false;
-
-// 预热拼音库，避免第一次使用时的延迟
-const warmUpPinyin = () => {
-    if (pinyinWarmedUp) return;
-    
-    try {
-        // 使用常见的中文字符预热拼音库
-        pinyin('测试', { toneType: 'none' });
-        pinyin('用户', { pattern: 'initial' });
-        pinyinWarmedUp = true;
-    } catch (e) {
-        console.warn('Pinyin warmup failed:', e);
-    }
-};
-
-// 页面加载时预热拼音库
+// 拼音库预热 - 使用 requestIdleCallback 避免阻塞
 if (typeof window !== 'undefined') {
-    // 延迟预热，避免阻塞页面初始化
-    setTimeout(warmUpPinyin, 100);
+    const warmUp = () => {
+        try {
+            pinyin('测试', { toneType: 'none' });
+            pinyin('用户', { pattern: 'initial' });
+        } catch { /* ignore warmup errors */ }
+    };
+    
+    if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(warmUp, { timeout: 1000 });
+    } else {
+        setTimeout(warmUp, 100);
+    }
 }
 
 export const fuzzySearch = (searchText: string, targetText: string): boolean => {
@@ -75,11 +69,6 @@ export const fuzzySearch = (searchText: string, targetText: string): boolean => 
 
     // 3. 拼音搜索（主要用于英文搜索词）
     if (!hasChinese || search.length > 2) {
-        // 确保拼音库已预热
-        if (!pinyinWarmedUp) {
-            warmUpPinyin();
-        }
-        
         try {
             // 使用缓存避免重复的拼音转换
             let pinyinData = pinyinCache.get(targetText);
@@ -95,7 +84,7 @@ export const fuzzySearch = (searchText: string, targetText: string): boolean => 
                 };
                 
                 // 限制缓存大小，避免内存泄漏
-                if (pinyinCache.size > 1000) {
+                if (pinyinCache.size > MAX_CACHE_SIZE) {
                     const firstKey = pinyinCache.keys().next().value;
                     pinyinCache.delete(firstKey);
                 }
@@ -121,9 +110,8 @@ export const fuzzySearch = (searchText: string, targetText: string): boolean => 
                     }
                 }
             }
-        } catch (e) {
-            // 拼音转换失败时的降级处理
-            console.warn("Pinyin conversion failed", e);
+        } catch {
+            // 拼音转换失败时的降级处理 - 静默失败
         }
     }
     

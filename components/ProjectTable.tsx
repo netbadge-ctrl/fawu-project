@@ -283,7 +283,7 @@ const OkrMultiSelectCell: React.FC<{
   onSave: (newKrIds: string[]) => void;
   isInvalid?: boolean;
 }> = ({ selectedKrIds, allOkrs, onSave, isInvalid = false }) => {
-  console.log('🔧 OkrMultiSelectCell render:', { selectedKrIds, allOkrs: allOkrs?.length });
+  // Debug removed
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -292,10 +292,10 @@ const OkrMultiSelectCell: React.FC<{
   // 构建 KR 映射，支持简单ID和复合ID
   const { allKrsMap } = useMemo(() => {
     const krMap = new Map<string, { description: string; oNumber: number; krNumber: number; objective: string; okrId: string }>();
-    console.log('🔧 OkrMultiSelectCell building KR map from OKRs:', allOkrs);
+    // Debug removed
     
     (allOkrs || []).forEach((okr, okrIndex) => {
-      console.log('🔧 Processing OKR:', { okrIndex, okr });
+      // Debug removed
       (okr.keyResults || []).forEach((kr, krIndex) => {
         const krData = {
           description: kr.description,
@@ -304,7 +304,7 @@ const OkrMultiSelectCell: React.FC<{
           objective: okr.objective,
           okrId: okr.id
         };
-        console.log('🔧 Adding KR to map:', { krId: kr.id, krData });
+        // Debug removed
         
         // 为简单ID创建映射（向后兼容）
         krMap.set(kr.id, krData);
@@ -315,7 +315,7 @@ const OkrMultiSelectCell: React.FC<{
       });
     });
     
-    console.log('🔧 Final KR map:', krMap);
+    // Debug removed
     return { allKrsMap: krMap };
   }, [allOkrs]);
 
@@ -328,10 +328,7 @@ const OkrMultiSelectCell: React.FC<{
   };
 
   const handleSave = (newKrIds: string[]) => {
-    console.log('🔧 OkrMultiSelectCell - handleSave called with:', newKrIds);
-    console.log('🔧 OkrMultiSelectCell - Current selectedKrIds:', selectedKrIds);
-    console.log('🔧 OkrMultiSelectCell - Changes detected:', JSON.stringify(selectedKrIds) !== JSON.stringify(newKrIds));
-    console.log('🔧 OkrMultiSelectCell - Calling onSave with:', newKrIds);
+    // Save handler
     onSave(newKrIds);
   };
 
@@ -380,15 +377,14 @@ const OkrMultiSelectCell: React.FC<{
                 if (krId.includes('::')) {
                   // 复合ID格式，直接查找
                   krDetails = allKrsMap.get(krId);
-                  console.log('🔧 Tooltip - 复合ID查找:', { krId, found: !!krDetails });
+                  // Composite ID lookup
                 } else {
                   // 简单ID格式，可能是OKR ID或KR ID
                   // 先尝试直接查找
                   krDetails = allKrsMap.get(krId);
                   
                   if (!krDetails) {
-                    // 如果找不到，可能是OKR ID，查找该OKR下的所有KR
-                    console.log('🔧 Tooltip - 简单ID未直接匹配，尝试匹配OKR:', krId);
+                    // If not found, try matching OKR ID
                     const matchingKrs: Array<{description: string; oNumber: number; krNumber: number; objective: string; okrId: string}> = [];
                     
                     // 遍历所有KR，查找匹配的OKR
@@ -400,7 +396,7 @@ const OkrMultiSelectCell: React.FC<{
                     
                     if (matchingKrs.length > 0) {
                       // 找到匹配的KR，显示所有匹配的KR
-                      console.log('🔧 Tooltip - 找到匹配的OKR:', { krId, count: matchingKrs.length });
+                      // Found matching OKR
                       return (
                         <li key={krId}>
                           <strong className="text-gray-300 block mb-1">关联 OKR: {krId}</strong>
@@ -416,7 +412,7 @@ const OkrMultiSelectCell: React.FC<{
                   }
                 }
                 
-                console.log('🔧 Tooltip KR Details:', { krId, krDetails });
+                // KR details lookup
                 
                 if (!krDetails) {
                   console.warn('🚨 未找到KR详情:', krId);
@@ -643,12 +639,12 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
 
   // 使用 useCallback 优化回调函数
   const handleUpdateField = useCallback((field: keyof Project, value: any) => {
-    console.log('🔧 ProjectTable - handleUpdateField called:', { field, value, isNew: project.isNew });
+    // Handle field update
     
     if (project.isNew) {
       // 新建项目：更新本地状态，同时同步到全局状态
       const updatedProject = { ...localProject, [field]: value };
-      console.log('🔧 ProjectTable - Updating new project local state:', updatedProject);
+      // Update new project local state
       setLocalProject(updatedProject);
       // 同步到全局状态，确保保存时能获取到最新数据
       onUpdateProject(project.id, field, value);

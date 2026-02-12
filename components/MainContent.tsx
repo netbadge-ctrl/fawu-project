@@ -161,7 +161,7 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
         [Priority.LowPriority]: 3,
     };
 
-    const statusOrder: Record<ProjectStatus, number> = {
+    const statusOrder: Partial<Record<ProjectStatus, number>> = {
         [ProjectStatus.NotStarted]: 0,
         [ProjectStatus.Discussion]: 1,
         [ProjectStatus.RequirementsDone]: 2,
@@ -171,9 +171,10 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
         [ProjectStatus.DevDone]: 6,
         [ProjectStatus.Testing]: 7,
         [ProjectStatus.TestDone]: 8,
-        [ProjectStatus.Launched]: 9,
-        [ProjectStatus.Paused]: 10,
-        [ProjectStatus.ProjectInProgress]: 11,
+        [ProjectStatus.LaunchedThisWeek]: 9,
+        [ProjectStatus.Completed]: 10,
+        [ProjectStatus.Paused]: 11,
+        [ProjectStatus.ProjectInProgress]: 12,
     };
     
     return filtered.sort((a, b) => {

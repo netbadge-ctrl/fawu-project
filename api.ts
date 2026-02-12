@@ -5,6 +5,53 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9000
 // 检查是否为开发模式
 const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === 'development';
 
+// 简单的内存缓存
+interface CacheItem<T> {
+  data: T;
+  timestamp: number;
+}
+
+class APICache {
+  private cache = new Map<string, CacheItem<unknown>>();
+  private readonly TTL = 5 * 60 * 1000; // 5分钟缓存
+
+  get<T>(key: string): T | null {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    
+    // 检查是否过期
+    if (Date.now() - item.timestamp > this.TTL) {
+      this.cache.delete(key);
+      return null;
+    }
+    return item.data as T;
+  }
+
+  set<T>(key: string, data: T): void {
+    this.cache.set(key, { data, timestamp: Date.now() });
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  // 清除特定前缀的缓存
+  clearPrefix(prefix: string): void {
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(prefix)) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  // 删除特定缓存
+  delete(key: string): void {
+    this.cache.delete(key);
+  }
+}
+
+export const apiCache = new APICache();
+
 // 获取JWT token
 const getJWTToken = () => {
   return localStorage.getItem('jwt_token');
@@ -61,48 +108,99 @@ export const api = {
     return makeRequest('/user');
   },
 
-  // 获取用户列表
-  async fetchUsers() {
+  // 获取用户列表（带缓存）
+  async fetchUsers(useCache = true) {
+    const cacheKey = 'users';
+    
+    // 尝试从缓存获取
+    if (useCache) {
+      const cached = apiCache.get<unknown[]>(cacheKey);
+      if (cached) {
+        console.log('📦 Using cached users data');
+        return cached;
+      }
+    }
+    
     // 开发模式下使用不需要认证的端点
     const endpoint = isDevelopment ? '/dev/users' : '/users';
-    return makeRequest(endpoint);
+    const data = await makeRequest(endpoint);
+    
+    // 存入缓存
+    apiCache.set(cacheKey, data);
+    return data;
   },
 
-  // 获取项目列表
-  async getProjects() {
+  // 获取项目列表（带缓存）
+  async getProjects(useCache = true) {
+    const cacheKey = 'projects';
+    
+    // 尝试从缓存获取
+    if (useCache) {
+      const cached = apiCache.get<unknown[]>(cacheKey);
+      if (cached) {
+        console.log('📦 Using cached projects data');
+        return cached;
+      }
+    }
+    
     // 开发模式下使用不需要认证的端点
     const endpoint = isDevelopment ? '/dev/projects' : '/projects';
-    return makeRequest(endpoint);
+    const data = await makeRequest(endpoint);
+    
+    // 存入缓存
+    apiCache.set(cacheKey, data);
+    return data;
   },
 
   // 获取项目列表（别名）
-  async fetchProjects() {
-    return this.getProjects();
+  async fetchProjects(useCache = true) {
+    return this.getProjects(useCache);
   },
 
-  // 获取OKR集合
-  async fetchOkrSets() {
+  // 获取OKR集合（带缓存）
+  async fetchOkrSets(useCache = true) {
+    const cacheKey = 'okrSets';
+    
+    // 尝试从缓存获取
+    if (useCache) {
+      const cached = apiCache.get<unknown[]>(cacheKey);
+      if (cached) {
+        console.log('📦 Using cached OKR sets data');
+        return cached;
+      }
+    }
+    
     // 开发模式下使用不需要认证的端点
     const endpoint = isDevelopment ? '/dev/okr-sets' : '/okr-sets';
-    return makeRequest(endpoint);
+    const data = await makeRequest(endpoint);
+    
+    // 存入缓存
+    apiCache.set(cacheKey, data);
+    return data;
   },
 
   // 创建OKR集合
   async createOkrSet(okrSet: any) {
     const endpoint = isDevelopment ? '/dev/okr-sets' : '/okr-sets';
-    return makeRequest(endpoint, {
+    const result = await makeRequest(endpoint, {
       method: 'POST',
       body: JSON.stringify(okrSet),
     });
+    // 清除缓存
+    apiCache.delete('okrSets');
+    return result;
   },
 
   // 更新OKR集合
   async updateOkrSet(periodId: string, okrSet: any) {
     const endpoint = isDevelopment ? `/dev/okr-sets/${periodId}` : `/okr-sets/${periodId}`;
-    return makeRequest(endpoint, {
+    const result = await makeRequest(endpoint, {
       method: 'PUT',
       body: JSON.stringify(okrSet),
     });
+    // 清除缓存
+    apiCache.delete('okrSets');
+    return result;
   },
 
   // 执行周度滚动

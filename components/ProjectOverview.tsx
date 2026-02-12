@@ -85,7 +85,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   const setSelectedStatuses = (value: string[]) => updateProjectOverviewFilters({ selectedStatuses: value });
   const setSelectedPriorities = (value: string[]) => updateProjectOverviewFilters({ selectedPriorities: value });
   const setSelectedSystems = (value: string[]) => {
-    console.log('🔄 setSelectedSystems被调用:', value);
+    // Update selected systems
     updateProjectOverviewFilters({ selectedSystems: value });
   };
   const setSelectedParticipants = (value: string[]) => updateProjectOverviewFilters({ selectedParticipants: value });
@@ -99,7 +99,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   const selectedParticipants = filters.selectedParticipants || [];
   const selectedKrs = filters.selectedKrs || [];
   
-  console.log('📊 当前selectedSystems状态:', selectedSystems);
+  // Current systems state
 
   // 排序状态 - 使用持久化状态
   const sortConfig = useMemo(() => ({
@@ -145,11 +145,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     const lowerSearchTerm = searchTerm.toLowerCase();
     
     // 调试日志
-    if (systemSet.size > 0) {
-      console.log('系统筛选激活:', Array.from(systemSet));
-      const projectsWithSystem = uniqueProjects.filter(p => p.system);
-      console.log('有系统属性的项目:', projectsWithSystem.map(p => ({name: p.name, system: p.system})));
-    }
+    // System filter active check
     
     // 首先筛选项目
     const filtered = uniqueProjects.filter(project => {
@@ -174,10 +170,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       if (systemSet.size > 0) {
         const hasSystem = project.system && systemSet.has(project.system);
         if (!hasSystem) {
-          console.log('项目被系统筛选过滤:', project.name, '系统:', project.system, '要求:', Array.from(systemSet));
           return false;
-        } else {
-          console.log('项目通过系统筛选:', project.name, '系统:', project.system);
         }
       }
       
@@ -379,8 +372,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   // 导出Excel功能
   const handleExportExcel = useCallback(() => {
     try {
-      console.log('开始导出Excel...');
-      console.log('filteredAndSortedProjects:', filteredAndSortedProjects);
+      // Export Excel started
       
       // Excel单元格最大字符数限制
       const MAX_CELL_LENGTH = 32767;
@@ -461,7 +453,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           };
         });
 
-      console.log('导出数据条数:', exportData.length);
+      // Export data count
 
       // 创建工作簿
       const ws = XLSX.utils.json_to_sheet(exportData);
@@ -492,7 +484,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
       const fileName = `项目列表_${dateStr}.xlsx`;
 
-      console.log('准备下载文件:', fileName);
+      // Prepare download
       
       // 导出文件
       XLSX.writeFile(wb, fileName);

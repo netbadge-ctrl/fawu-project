@@ -1,4 +1,4 @@
-import { useState, useLayoutEffect, RefObject } from 'react';
+import { useState, useLayoutEffect, RefObject, CSSProperties } from 'react';
 
 interface DropdownPositionOptions {
     triggerRef: RefObject<HTMLElement>;
@@ -17,7 +17,7 @@ export const useDropdownPosition = ({
     align = 'start',
     preferredPosition = 'bottom'
 }: DropdownPositionOptions) => {
-    const [style, setStyle] = useState<React.CSSProperties>({
+    const [style, setStyle] = useState<CSSProperties>({
         position: 'fixed',
         opacity: 0,
         pointerEvents: 'none',

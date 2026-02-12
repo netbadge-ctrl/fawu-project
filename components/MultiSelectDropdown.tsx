@@ -157,11 +157,9 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
     }, [isOpen, calculatePosition]);
 
     const handleToggleOption = useCallback((value: string) => {
-        console.log('🎯 MultiSelectDropdown handleToggleOption:', { value, placeholder, currentSelected: selectedValues });
         const newSelectedValues = selectedValues.includes(value)
             ? selectedValues.filter(v => v !== value)
             : [...selectedValues, value];
-        console.log('📤 MultiSelectDropdown calling onSelectionChange with:', newSelectedValues);
         onSelectionChange(newSelectedValues);
     }, [selectedValues, onSelectionChange, placeholder]);
 

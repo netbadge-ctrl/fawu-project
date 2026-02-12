@@ -77,20 +77,33 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
   const [currentOkrPeriodId, setCurrentOkrPeriodId] = useState<string | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingSecondary, setIsLoadingSecondary] = useState(false); // 次要数据加载状态
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false });
 
+  // 分阶段加载：先加载核心数据（项目），再加载次要数据（OKR、用户）
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-        const [fetchedProjects, fetchedOkrSets, fetchedUsers] = await Promise.all([
-            api.fetchProjects(),
+        // 第一阶段：优先加载项目数据（个人视图和项目总览需要）
+        console.log('🚀 Phase 1: Loading core data (projects)...');
+        const fetchedProjects = await api.fetchProjects();
+        setProjects(fetchedProjects);
+        
+        // 核心数据加载完成，先让页面可交互
+        setIsLoading(false);
+        console.log('✅ Phase 1 complete: Projects loaded');
+        
+        // 第二阶段：后台加载次要数据（OKR、用户）
+        setIsLoadingSecondary(true);
+        console.log('🚀 Phase 2: Loading secondary data (OKR, users)...');
+        
+        const [fetchedOkrSets, fetchedUsers] = await Promise.all([
             api.fetchOkrSets(),
             api.fetchUsers()
         ]);
         
-        setProjects(fetchedProjects);
         setOkrSets(fetchedOkrSets);
         
         if (fetchedOkrSets.length > 0) {
@@ -101,11 +114,12 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
         }
 
         setAllUsers(fetchedUsers);
+        console.log('✅ Phase 2 complete: All data loaded');
     } catch (error) {
         console.error("Failed to fetch initial data", error);
-        // Here you could set an error state and show a message to the user
     } finally {
         setIsLoading(false);
+        setIsLoadingSecondary(false);
     }
   }, [currentOkrPeriodId]);
 
@@ -648,6 +662,15 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-[#1A1A1A] text-gray-800 dark:text-gray-300 font-sans">
       <Sidebar view={view} setView={setView} currentUser={currentUser} />
+      
+      {/* 次要数据加载指示器 */}
+      {isLoadingSecondary && (
+        <div className="fixed top-4 right-4 z-50 bg-blue-500 text-white px-3 py-1 rounded-full text-sm shadow-lg flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          加载中...
+        </div>
+      )}
+      
       {renderView()}
       {modalState.isOpen && modalState.type === 'role' && currentProjectForModal && modalState.roleKey && modalState.roleName && (
         <RoleEditModal
