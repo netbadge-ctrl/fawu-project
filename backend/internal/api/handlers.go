@@ -66,13 +66,13 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		// 转换数组类型
 		p.KeyResultIds = []string(keyResultIds)
 		p.Followers = []string(followers)
-		
+
 		// 解析JSONB字段
 		json.Unmarshal(productManagers, &p.ProductManagers)
 		json.Unmarshal(backendDevelopers, &p.BackendDevelopers)
 		json.Unmarshal(frontendDevelopers, &p.FrontendDevelopers)
 		json.Unmarshal(qaTesters, &p.QaTesters)
-		
+
 		// 初始化空数组（避免前端null检查）
 		if p.ProductManagers == nil {
 			p.ProductManagers = []models.TeamMember{}
@@ -99,7 +99,7 @@ func (h *Handler) GetProjects(c *gin.Context) {
 // GetProjectDetail 获取项目详情（包含所有字段和time slots）
 func (h *Handler) GetProjectDetail(c *gin.Context) {
 	projectID := c.Param("projectId")
-	
+
 	query := `
 		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update, 
 		       last_week_update, status, product_managers, backend_developers, 
@@ -121,7 +121,7 @@ func (h *Handler) GetProjectDetail(c *gin.Context) {
 		&backendDevelopers, &frontendDevelopers, &qaTesters,
 		&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followers, &comments, &changeLog, &documents,
 	)
-	
+
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		return
