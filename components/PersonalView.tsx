@@ -15,9 +15,22 @@ interface PersonalViewProps {
   onOpenModal: (type: 'role' | 'comments' | 'changelog', projectId: string, details?: any) => void;
   onToggleFollow: (projectId: string) => void;
   onReply: (project: Project, user: User) => void;
+  isLoadingUsers?: boolean; // 用户数据加载中状态
+  isLoadingOkrs?: boolean;  // OKR数据加载中状态
 }
 
-export const PersonalView: React.FC<PersonalViewProps> = ({ projects, allUsers, activeOkrs, currentUser, onUpdateProject, onOpenModal, onToggleFollow, onReply }) => {
+export const PersonalView: React.FC<PersonalViewProps> = ({ 
+  projects, 
+  allUsers, 
+  activeOkrs, 
+  currentUser, 
+  onUpdateProject, 
+  onOpenModal, 
+  onToggleFollow, 
+  onReply,
+  isLoadingUsers = false,
+  isLoadingOkrs = false
+}) => {
   
   const handleMarkAsRead = useCallback(async (projectId: string, commentId: string) => {
     const project = projects.find(p => p.id === projectId);
@@ -176,6 +189,13 @@ export const PersonalView: React.FC<PersonalViewProps> = ({ projects, allUsers, 
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-gray-100 dark:bg-[#1f1f1f]">
       <div className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
+        {/* 次要数据加载指示器 */}
+        {(isLoadingUsers || isLoadingOkrs) && (
+          <div className="mb-4 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-lg px-3 py-2 w-fit">
+            <div className="w-3 h-3 border-2 border-gray-300 dark:border-gray-600 border-t-indigo-500 rounded-full animate-spin" />
+            <span>{isLoadingOkrs ? '正在加载 OKR 数据...' : '正在加载用户数据...'}</span>
+          </div>
+        )}
         <AnnualStats projects={projects} currentUser={currentUser} activeOkrs={activeOkrs} />
         
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">

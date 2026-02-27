@@ -14,7 +14,7 @@ import { RoleEditModal } from './components/RoleEditModal';
 import { CommentModal } from './components/CommentModal';
 import { ChangeLogModal } from './components/ChangeLogModal';
 import { DocumentModal } from './components/DocumentModal';
-import { api } from './api.ts';
+import { api, apiCache } from './api.ts';
 import { Project, ProjectStatus, Role, User, ProjectRoleKey, OKR, Priority, Comment, ChangeLogEntry, OkrSet, Document } from './types';
 
 export type ViewType = 'overview' | 'okr' | 'kanban' | 'personal' | 'weekly' | 'monthly';
@@ -421,15 +421,23 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
     const currentSet = (okrSets || []).find(s => s.periodId === currentOkrPeriodId);
     if (!currentSet) return;
 
-    setIsLoading(true);
+    const updatedSet = { ...currentSet, okrs: updatedOkrs };
+
+    // 乐观更新：先更新本地状态，让UI立即响应
+    setOkrSets(prevSets =>
+        prevSets.map(s => s.periodId === currentOkrPeriodId ? updatedSet : s)
+    );
+
+    // 异步保存到服务器，不阻塞UI
     try {
-        const updatedSet = { ...currentSet, okrs: updatedOkrs };
         await api.updateOkrSet(currentOkrPeriodId, updatedSet);
-        await fetchData();
+        // 清除OKR缓存，确保下次获取数据时是最新的
+        apiCache.delete('okrSets');
     } catch (error) {
         console.error("Failed to update OKR set", error);
-    } finally {
-        setIsLoading(false);
+        // 保存失败时提示用户并恢复数据
+        alert('OKR保存失败，正在恢复数据...');
+        await fetchData();
     }
   };
 
@@ -551,6 +559,24 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
   const currentProjectForModal = (projects || []).find(p => p.id === modalState.projectId);
 
   const renderView = () => {
+    // 个人视图：只要有项目数据就立即渲染，支持分阶段加载
+    if (view === 'personal' && projects.length > 0) {
+      return (
+        <PersonalView
+          projects={projects}
+          allUsers={allUsers}
+          activeOkrs={activeOkrs}
+          currentUser={currentUser}
+          onUpdateProject={handleUpdateProject}
+          onOpenModal={handleOpenModal}
+          onToggleFollow={handleToggleFollow}
+          onReply={handleReply}
+          isLoadingUsers={isLoadingSecondary && allUsers.length === 0}
+          isLoadingOkrs={isLoadingSecondary && activeOkrs.length === 0}
+        />
+      );
+    }
+
     // 显示骨架屏而不是loading spinner
     if (isLoading) {
       switch (view) {
@@ -579,6 +605,8 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
             onOpenModal={handleOpenModal}
             onToggleFollow={handleToggleFollow}
             onReply={handleReply}
+            isLoadingUsers={isLoadingSecondary && allUsers.length === 0}
+            isLoadingOkrs={isLoadingSecondary && activeOkrs.length === 0}
           />
         );
       case 'okr':

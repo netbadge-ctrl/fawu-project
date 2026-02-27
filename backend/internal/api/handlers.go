@@ -28,10 +28,11 @@ func NewHandler(db *sql.DB) *Handler {
 
 // GetProjects 获取所有项目（轻量级版本，用于列表展示）
 func (h *Handler) GetProjects(c *gin.Context) {
-	// 使用简化的查询，只获取列表展示需要的字段
+	// 查询项目列表，包含团队成员字段（个人视图需要）
 	query := `
 		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update, 
-		       last_week_update, status, proposal_date, launch_date, created_at, followers
+		       last_week_update, status, proposal_date, launch_date, created_at, followers,
+		       product_managers, backend_developers, frontend_developers, qa_testers
 		FROM projects
 		ORDER BY created_at DESC
 	`
@@ -49,11 +50,13 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		var p models.Project
 		var keyResultIds pq.StringArray
 		var followers pq.StringArray
+		var productManagers, backendDevelopers, frontendDevelopers, qaTesters []byte
 
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.System, &p.Priority, &p.BusinessProblem, &keyResultIds,
 			&p.WeeklyUpdate, &p.LastWeekUpdate, &p.Status,
 			&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followers,
+			&productManagers, &backendDevelopers, &frontendDevelopers, &qaTesters,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -64,11 +67,25 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		p.KeyResultIds = []string(keyResultIds)
 		p.Followers = []string(followers)
 		
+		// 解析JSONB字段
+		json.Unmarshal(productManagers, &p.ProductManagers)
+		json.Unmarshal(backendDevelopers, &p.BackendDevelopers)
+		json.Unmarshal(frontendDevelopers, &p.FrontendDevelopers)
+		json.Unmarshal(qaTesters, &p.QaTesters)
+		
 		// 初始化空数组（避免前端null检查）
-		p.ProductManagers = []models.TeamMember{}
-		p.BackendDevelopers = []models.TeamMember{}
-		p.FrontendDevelopers = []models.TeamMember{}
-		p.QaTesters = []models.TeamMember{}
+		if p.ProductManagers == nil {
+			p.ProductManagers = []models.TeamMember{}
+		}
+		if p.BackendDevelopers == nil {
+			p.BackendDevelopers = []models.TeamMember{}
+		}
+		if p.FrontendDevelopers == nil {
+			p.FrontendDevelopers = []models.TeamMember{}
+		}
+		if p.QaTesters == nil {
+			p.QaTesters = []models.TeamMember{}
+		}
 		p.Comments = []models.Comment{}
 		p.ChangeLog = []models.ChangeLogEntry{}
 		p.Documents = []models.Document{}
