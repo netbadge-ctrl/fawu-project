@@ -62,7 +62,7 @@ func (h *Handler) migrateUsers() error {
 		{ID: "24533", Name: "张伟", Email: "zhangwei@kingsoft.com", AvatarURL: "https://picsum.photos/seed/24533/40/40"},
 		{ID: "14670", Name: "刘洋", Email: "liuyang@kingsoft.com", AvatarURL: "https://picsum.photos/seed/14670/40/40"},
 		{ID: "22231", Name: "赵敏", Email: "zhaomin@kingsoft.com", AvatarURL: "https://picsum.photos/seed/22231/40/40"},
-		{ID: "10001", Name: "陈楠", Email: "chennan@kingsoft.com", AvatarURL: "https://picsum.photos/seed/10001/40/40"},
+		{ID: "10001", Name: "陈楠", Email: "chennan1@kingsoft.com", AvatarURL: "https://picsum.photos/seed/10001/40/40"},
 	}
 
 	for _, user := range users {

@@ -693,6 +693,12 @@ func (h *Handler) DeleteProject(c *gin.Context) {
 }
 
 // GetUsers 获取所有用户
+// userIDMapping 将数据库用户ID映射到项目成员使用的ID
+// 这是为了兼容历史数据，不修改数据库的情况下解决ID不匹配问题
+var userIDMapping = map[string]string{
+	"10001": "22231", // 陈楠: 数据库ID -> 项目成员ID
+}
+
 func (h *Handler) GetUsers(c *gin.Context) {
 	rows, err := h.db.Query("SELECT id, name, email, avatar_url, dept_id, dept_name FROM users ORDER BY dept_name, name")
 	if err != nil {
@@ -708,6 +714,10 @@ func (h *Handler) GetUsers(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
+		}
+		// 应用ID映射，兼容历史数据
+		if mappedID, exists := userIDMapping[user.ID]; exists {
+			user.ID = mappedID
 		}
 		users = append(users, user)
 	}
