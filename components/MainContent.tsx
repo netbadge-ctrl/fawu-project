@@ -12,13 +12,10 @@ interface MainContentProps {
   allUsers: User[];
   activeOkrs: OKR[];
   currentUser: User;
-  editingId: string | null;
   onCreateProject: () => void;
-  onSaveNewProject: (project: Project) => void;
   onUpdateProject: (projectId: string, field: keyof Project, value: any) => void;
   onDeleteProject: (id: string) => void;
-  onCancelNewProject: (id: string) => void;
-  onOpenModal: (type: 'role' | 'comments' | 'changelog', projectId: string, details?: any) => void;
+  onOpenModal: (type: 'role' | 'comments' | 'changelog' | 'edit', projectId: string, details?: any) => void;
   onToggleFollow: (projectId: string) => void;
   onAddComment: (projectId: string, text: string) => void;
 }
@@ -26,8 +23,8 @@ interface MainContentProps {
 
 export const MainContent: React.FC<MainContentProps> = (props) => {
   const {
-    projects: originalProjects, allUsers, activeOkrs, currentUser, editingId, onCreateProject, onSaveNewProject,
-    onUpdateProject, onDeleteProject, onCancelNewProject, onOpenModal, onToggleFollow, onAddComment
+    projects: originalProjects, allUsers, activeOkrs, currentUser, onCreateProject,
+    onUpdateProject, onDeleteProject, onOpenModal, onToggleFollow, onAddComment
   } = props;
 
   // 使用本地模拟数据，避免网络请求错误
@@ -239,11 +236,8 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
           allUsers={allUsers}
           activeOkrs={activeOkrs}
           currentUser={currentUser}
-          editingId={editingId}
-          onSaveNewProject={onSaveNewProject}
           onUpdateProject={onUpdateProject}
           onDeleteProject={onDeleteProject}
-          onCancelNewProject={onCancelNewProject}
           onOpenModal={onOpenModal}
           onToggleFollow={onToggleFollow}
           onCreateProject={onCreateProject}

@@ -1,41 +1,47 @@
 {
-  "version": "3.1.1",
-  "name": "修复新建项目字段错乱及系统选择缺失",
-  "releaseDate": "2026-01-26",
-  "buildTime": "2026-01-26T11:15:00+08:00",
+  "version": "4.0.6",
+  "name": "项目总览弹窗编辑模式统一",
+  "releaseDate": "2026-02-27",
+  "buildTime": "2026-02-27T12:00:00+08:00",
   "features": [
-    "修复新建项目行字段对齐错乱问题",
-    "新增新建项目行缺失的系统选择字段"
+    "项目总览新建/编辑项目统一为弹窗模式",
+    "项目详情弹窗支持OKR关联选择",
+    "项目详情弹窗支持文档编辑",
+    "优化本周进展HTML样式渲染"
   ],
   "compatibility": {
-    "backward": "v3.0.5",
+    "backward": "v4.0.5",
     "browsers": ["Chrome 60+", "Firefox 55+", "Safari 12+", "Edge 79+"],
     "mobile": true
   },
   "changelog": {
     "added": [
-      "MultiSelectDropdown.tsx: 新增部门全选功能（handleToggleDepartment）",
-      "MultiSelectDropdown.tsx: 每个部门右侧添加圆形全选按钮",
-      "ProjectDetailModal.tsx: 项目详情卡片新增文档展示区块",
-      "DocumentModal.tsx: 文档链接可点击，新窗口打开"
+      "ProjectDetailModal.tsx: 新增OKR关联选择功能",
+      "ProjectDetailModal.tsx: 新增项目文档编辑功能",
+      "ProjectDetailModal.tsx: 新建项目保存机制",
+      "ProjectTable.tsx: 点击行打开编辑弹窗",
+      "ActionsCell: 新增编辑菜单项"
     ],
     "updated": [
-      "MultiSelectDropdown.tsx: 部门列表布局优化，支持全选按钮显示",
-      "MultiSelectDropdown.tsx: 全选按钮状态颜色（紫色/灰色）",
-      "ProjectDetailModal.tsx: 文档列表展示（名称、链接、添加人）"
+      "App.tsx: 新建项目使用弹窗模式",
+      "ProjectOverview.tsx: 移除行内编辑，统一为弹窗",
+      "ProjectTable.tsx: 单元格改为只读显示",
+      "ProjectTable.tsx: 本周进展支持HTML样式渲染"
     ],
     "fixed": [
-      "优化部门全选交互逻辑，支持智能切换"
+      "修复新建项目弹窗中点击团队角色弹窗消失问题",
+      "修复项目名称输入框压缩系统下拉框问题",
+      "修复本周进展/问题样式丢失问题"
     ]
   },
   "metrics": {
     "filesAdded": 0,
-    "filesUpdated": 2,
-    "linesOfCode": 80,
+    "filesUpdated": 6,
+    "linesOfCode": 300,
     "testCoverage": "98%",
-    "bugsFixed": 0,
+    "bugsFixed": 3,
     "securityImprovements": 0,
-    "performanceImprovements": 1,
+    "performanceImprovements": 0,
     "databaseMigrations": 0
   }
 }

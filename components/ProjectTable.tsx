@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useLayoutEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Project, User, ProjectStatus, ProjectRoleKey, OKR, Priority, Role } from '../types';
-import { IconTrash, IconCheck, IconX, IconMoreHorizontal, IconStar, IconMessageCircle, IconHistory, IconChevronDown, IconPlus, IconFileText } from './Icons';
+import { IconTrash, IconCheck, IconX, IconMoreHorizontal, IconStar, IconMessageCircle, IconHistory, IconChevronDown, IconPlus, IconFileText, IconPencil } from './Icons';
 import { RoleCell } from './RoleCell';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DatePicker } from './DatePicker';
@@ -30,12 +30,9 @@ interface ProjectTableProps {
   allUsers: User[];
   activeOkrs: OKR[];
   currentUser: User;
-  editingId: string | null;
-  onSaveNewProject: (project: Project) => void;
   onUpdateProject: (projectId: string, field: keyof Project, value: any) => void;
   onDeleteProject: (id: string) => void;
-  onCancelNewProject: (id: string) => void;
-  onOpenModal: (type: 'role' | 'comments' | 'changelog' | 'documents', projectId: string, details?: any) => void;
+  onOpenModal: (type: 'role' | 'comments' | 'changelog' | 'documents' | 'edit', projectId?: string, details?: any) => void;
   onToggleFollow: (projectId: string) => void;
   onCreateProject: () => void;
   sortConfig?: SortConfig;
@@ -277,6 +274,24 @@ const EditableCell = ({ value, onSave, type = 'text', className = '', options, d
 };
 
 
+// 只读显示的 KR 单元格
+const KrDisplayCell: React.FC<{
+  selectedKrIds: string[];
+  allOkrs: OKR[];
+}> = ({ selectedKrIds, allOkrs }) => {
+  const krCount = selectedKrIds?.length || 0;
+  
+  if (krCount === 0) {
+    return <span className="text-gray-400 dark:text-gray-500">-</span>;
+  }
+  
+  return (
+    <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+      {krCount} 个KR
+    </span>
+  );
+};
+
 const OkrMultiSelectCell: React.FC<{
   selectedKrIds: string[];
   allOkrs: OKR[];
@@ -444,7 +459,7 @@ const ActionsCell: React.FC<{
   currentUser: User;
   onDelete: () => void;
   onToggleFollow: () => void;
-  onOpenModal: (type: 'comments' | 'changelog') => void;
+  onOpenModal: (type: 'comments' | 'changelog' | 'edit') => void;
 }> = ({ project, currentUser, onDelete, onToggleFollow, onOpenModal }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -492,6 +507,7 @@ const ActionsCell: React.FC<{
     const menuContent = (
         <div ref={menuRef} style={menuStyle} className="w-40 bg-white dark:bg-[#2d2d2d] border border-gray-200 dark:border-[#4a4a4a] rounded-lg shadow-xl py-1">
             <ul>
+                <li><button onClick={() => handleAction(() => onOpenModal('edit'))} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]"><IconPencil className="w-4 h-4" /><span>编辑</span></button></li>
                 <li><button onClick={() => handleAction(onToggleFollow)} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]"><IconStar className={`w-4 h-4 ${isFollowing ? 'text-yellow-400 fill-yellow-400' : ''}`} /><span>{isFollowing ? '取消关注' : '关注'}</span></button></li>
                 <li><button onClick={() => handleAction(() => onOpenModal('comments'))} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]"><IconMessageCircle className="w-4 h-4" /><span>评论</span></button></li>
                 <li><button onClick={() => handleAction(() => onOpenModal('documents'))} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#3a3a3a]"><IconFileText className="w-4 h-4" /><span>文档</span></button></li>
@@ -583,11 +599,9 @@ interface ProjectRowProps {
     allUsers: User[];
     activeOkrs: OKR[];
     currentUser: User;
-    onSave: (project: Project) => void;
     onUpdateProject: (projectId: string, field: keyof Project, value: any) => void;
     onDelete: (id: string) => void;
-    onCancel: (id: string) => void;
-    onOpenModal: (type: 'role' | 'comments' | 'changelog' | 'documents', projectId: string, details?: any) => void;
+    onOpenModal: (type: 'role' | 'comments' | 'changelog' | 'documents' | 'edit', projectId: string, details?: any) => void;
     onToggleFollow: (projectId: string) => void;
     columnStyles: React.CSSProperties[];
     getTdClassName: (index: number, isNew?: boolean) => string;
@@ -595,77 +609,13 @@ interface ProjectRowProps {
     onCellMouseLeave: () => void;
 }
 
-const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, activeOkrs, currentUser, onSave, onUpdateProject, onDelete, onCancel, onOpenModal, onToggleFollow, columnStyles, getTdClassName, onCellMouseEnter, onCellMouseLeave }) => {
-
-  // 新建项目的本地状态
-  const [localProject, setLocalProject] = useState<Project>(project);
-  // 防重复保存状态
-  const [isSaving, setIsSaving] = useState(false);
-
-  // 当项目prop变化时更新本地状态 - 优化依赖
-  useEffect(() => {
-    if (project.isNew) {
-      // 对于新项目，只在初始化时设置，之后保留本地状态避免重置用户输入
-      setLocalProject(prev => {
-        // 如果是第一次初始化（prev的id与project的id不同），则使用project数据
-        if (prev.id !== project.id) {
-          return project;
-        }
-        // 否则保留本地状态，但要同步团队成员数据的变化
-        // 检查团队成员数据是否有变化，如果有变化则更新
-        const hasRoleChanges = 
-          JSON.stringify(prev.productManagers) !== JSON.stringify(project.productManagers) ||
-          JSON.stringify(prev.backendDevelopers) !== JSON.stringify(project.backendDevelopers) ||
-          JSON.stringify(prev.frontendDevelopers) !== JSON.stringify(project.frontendDevelopers) ||
-          JSON.stringify(prev.qaTesters) !== JSON.stringify(project.qaTesters);
-        
-        if (hasRoleChanges) {
-          return {
-            ...prev,
-            productManagers: project.productManagers,
-            backendDevelopers: project.backendDevelopers,
-            frontendDevelopers: project.frontendDevelopers,
-            qaTesters: project.qaTesters,
-          };
-        }
-        
-        return prev;
-      });
-    } else {
-      // 对于现有项目，直接使用新的项目数据
-      setLocalProject(project);
-    }
-  }, [project.id, project.isNew, project.productManagers, project.backendDevelopers, project.frontendDevelopers, project.qaTesters]); // 添加团队成员字段到依赖
+const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, activeOkrs, currentUser, onUpdateProject, onDelete, onOpenModal, onToggleFollow, columnStyles, getTdClassName, onCellMouseEnter, onCellMouseLeave }) => {
 
   // 使用 useCallback 优化回调函数
   const handleUpdateField = useCallback((field: keyof Project, value: any) => {
-    // Handle field update
-    
-    if (project.isNew) {
-      // 新建项目：更新本地状态，同时同步到全局状态
-      const updatedProject = { ...localProject, [field]: value };
-      // Update new project local state
-      setLocalProject(updatedProject);
-      // 同步到全局状态，确保保存时能获取到最新数据
-      onUpdateProject(project.id, field, value);
-    } else {
-      // 现有项目：立即保存
-      console.log('🔧 ProjectTable - Updating existing project:', { projectId: project.id, field, value });
-      onUpdateProject(project.id, field, value);
-    }
-  }, [project.isNew, project.id, localProject, onUpdateProject]);
-
-  const handleSaveNewProject = useCallback(async () => {
-    if (isSaving) return; // 防止重复点击
-    
-    setIsSaving(true);
-    try {
-      // 保存时使用本地状态的数据
-      await onSave(localProject);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [localProject, onSave, isSaving]);
+    console.log('🔧 ProjectTable - Updating existing project:', { projectId: project.id, field, value });
+    onUpdateProject(project.id, field, value);
+  }, [project.id, onUpdateProject]);
 
   // 使用 useMemo 缓存静态数据
   const roleInfo = useMemo(() => [
@@ -688,100 +638,82 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
       return style;
   };
 
+  // 新建项目不再在表格中显示，而是通过弹窗编辑
   if (project.isNew) {
-    return (
-      <tr className="bg-indigo-50 dark:bg-[#2a2a2a]/50 relative">
-        <td style={getTdStyle(0)} className={getTdClassName(0, true)}>
-          <AutoResizeInput
-            value={localProject.name}
-            onChange={(val) => handleUpdateField('name', val)}
-            placeholder="新项目名称"
-            className={editInputClass}
-            minRows={1}
-            maxRows={3}
-          />
-        </td>
-        <td style={getTdStyle(1)} className={getTdClassName(1, true)}>
-          <InlineSelect 
-            value={localProject.system || ''} 
-            onSave={(v) => handleUpdateField('system', v)} 
-            options={SYSTEM_OPTIONS.map(s => ({value: s, label: s}))} 
-            placeholder="选择系统" 
-          />
-        </td>
-        <td style={getTdStyle(2)} className={getTdClassName(2, true)}>
-          <AutoResizeTextarea
-            value={localProject.businessProblem}
-            onChange={(val) => handleUpdateField('businessProblem', val)}
-            placeholder="解决的核心业务问题"
-            className={editInputClass}
-            minRows={2}
-            maxRows={8}
-          />
-        </td>
-        <td style={getTdStyle(3)} className={getTdClassName(3, true)}><InlineSelect value={localProject.status} onSave={(v) => handleUpdateField('status', v)} options={Object.values(ProjectStatus).map(s => ({value: s, label: s}))} placeholder="选择状态" /></td>
-        <td style={getTdStyle(4)} className={getTdClassName(4, true)}><InlineSelect value={localProject.priority} onSave={(v) => handleUpdateField('priority', v)} options={Object.values(Priority).map(p => ({value: p, label: p}))} placeholder="选择优先级" /></td>
-        <td style={getTdStyle(5)} className={getTdClassName(5, true)}><OkrMultiSelectCell selectedKrIds={localProject.keyResultIds} allOkrs={activeOkrs} onSave={(newKrIds) => handleUpdateField('keyResultIds', newKrIds)} isInvalid={isKrInvalid} /></td>
-        <td style={getTdStyle(6)} className={getTdClassName(6, true)}><RichTextInput html={localProject.weeklyUpdate} onChange={(val) => handleUpdateField('weeklyUpdate', val)} placeholder="本周进展/问题" /></td>
-        <td style={getTdStyle(7)} className={getTdClassName(7, true)}><div className="p-1.5 text-gray-400 dark:text-gray-500">上周无记录</div></td>
-        
-        {roleInfo.map(({ key, name }, index) => (
-          <td key={key} style={getTdStyle(8 + index)} className={getTdClassName(8 + index, true)}>
-             <RoleCell team={localProject[key] as Role} allUsers={allUsers} onClick={() => handleOpenRoleModal(key, name)} />
-          </td>
-        ))}
-
-        <td style={getTdStyle(12)} className={getTdClassName(12, true)}><DatePicker selectedDate={localProject.proposedDate} onSelectDate={(val) => handleUpdateField('proposedDate', val)} /></td>
-        <td style={getTdStyle(13)} className={getTdClassName(13, true)}><DatePicker selectedDate={localProject.launchDate} onSelectDate={(val) => handleUpdateField('launchDate', val)} align="right" /></td>
-        <td style={getTdStyle(14)} className={getTdClassName(14, true)}>
-          <div className="flex items-center justify-center gap-2">
-            <button 
-              onClick={handleSaveNewProject} 
-              disabled={isSaving}
-              className={`p-1 ${isSaving ? 'text-gray-400 cursor-not-allowed' : 'text-green-500 hover:text-green-400'}`}
-            >
-              {isSaving ? (
-                <div className="w-5 h-5 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin"></div>
-              ) : (
-                <IconCheck className="w-5 h-5"/>
-              )}
-            </button>
-            <button onClick={() => onCancel(project.id)} className="p-1 text-red-500 hover:text-red-400"><IconX className="w-5 h-5"/></button>
-          </div>
-        </td>
-      </tr>
-    );
+    return null;
   }
+
+  // 点击行打开编辑弹窗
+  const handleRowClick = (e: React.MouseEvent) => {
+    // 如果点击的是操作按钮或下拉菜单，不打开弹窗
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[role="menu"]') || target.closest('.react-datepicker')) {
+      return;
+    }
+    onOpenModal('edit', project.id);
+  };
 
   return (
     <tr 
-      className="hover:bg-gray-50 dark:hover:bg-[#2a2a2a] group transition-colors duration-200 relative"
+      className="hover:bg-gray-50 dark:hover:bg-[#2a2a2a] group transition-colors duration-200 relative cursor-pointer"
+      onClick={handleRowClick}
       style={{ 
         transform: 'translate3d(0, 0, 0)', // 硬件加速
         backfaceVisibility: 'hidden',
         contain: 'layout style paint' // 限制重排重绘范围
       }}
     >
-        <td style={getTdStyle(0)} className={getTdClassName(0)} onMouseEnter={(e) => onCellMouseEnter(e, project)} onMouseLeave={onCellMouseLeave}><EditableCell value={project.name} onSave={(val) => handleUpdateField('name', val)} /></td>
-        <td style={getTdStyle(1)} className={getTdClassName(1)}><EditableCell value={project.system || ''} onSave={(val) => handleUpdateField('system', val)} type="select" options={SYSTEM_OPTIONS.map(s => ({ value: s, label: s }))} /></td>
-        <td style={getTdStyle(2)} className={getTdClassName(2)} onMouseEnter={(e) => onCellMouseEnter(e, project)} onMouseLeave={onCellMouseLeave}><EditableCell value={project.businessProblem} onSave={(val) => handleUpdateField('businessProblem', val)} type="textarea" /></td>
-        <td style={getTdStyle(3)} className={getTdClassName(3)}><EditableCell value={project.status} onSave={(val) => handleUpdateField('status', val)} type="select" selectType="status" /></td>
-        <td style={getTdStyle(4)} className={getTdClassName(4)}><EditableCell value={project.priority} onSave={(val) => handleUpdateField('priority', val)} type="select" selectType="priority" /></td>
-        <td style={getTdStyle(5)} className={getTdClassName(5)}><OkrMultiSelectCell selectedKrIds={project.keyResultIds} allOkrs={activeOkrs} onSave={(newKrIds) => handleUpdateField('keyResultIds', newKrIds)} isInvalid={isKrInvalid} /></td>
-        <td style={getTdStyle(6)} className={getTdClassName(6)}><RichTextEditableCell html={project.weeklyUpdate} onSave={(val) => handleUpdateField('weeklyUpdate', val)} /></td>
+        <td style={getTdStyle(0)} className={getTdClassName(0)} onMouseEnter={(e) => onCellMouseEnter(e, project)} onMouseLeave={onCellMouseLeave}>
+          <TruncatedText text={project.name} maxLines={2} className="font-medium text-gray-900 dark:text-gray-100" />
+        </td>
+        <td style={getTdStyle(1)} className={getTdClassName(1)}>
+          <span className="text-sm text-gray-700 dark:text-gray-300">{project.system || '-'}</span>
+        </td>
+        <td style={getTdStyle(2)} className={getTdClassName(2)} onMouseEnter={(e) => onCellMouseEnter(e, project)} onMouseLeave={onCellMouseLeave}>
+          <TruncatedText text={project.businessProblem || '-'} maxLines={3} className="text-gray-600 dark:text-gray-400" />
+        </td>
+        <td style={getTdStyle(3)} className={getTdClassName(3)}>
+          <StatusBadge status={project.status} />
+        </td>
+        <td style={getTdStyle(4)} className={getTdClassName(4)}>
+          <PriorityBadge priority={project.priority} />
+        </td>
+        <td style={getTdStyle(5)} className={getTdClassName(5)}>
+          <KrDisplayCell selectedKrIds={project.keyResultIds} allOkrs={activeOkrs} />
+        </td>
+        <td style={getTdStyle(6)} className={getTdClassName(6)}>
+          <div className="w-full h-full p-1.5 -m-1.5">
+            {project.weeklyUpdate ? (
+              <div 
+                dangerouslySetInnerHTML={{ __html: project.weeklyUpdate }}
+                className="text-sm text-gray-600 dark:text-gray-400 line-clamp-5 overflow-hidden"
+                style={{ 
+                  wordWrap: 'break-word',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'anywhere'
+                }}
+              />
+            ) : (
+              <span className="text-gray-400 dark:text-gray-500">-</span>
+            )}
+          </div>
+        </td>
         <td style={getTdStyle(7)} className={getTdClassName(7)}>
-            <div className="w-full h-full p-1.5 -m-1.5 cursor-pointer rounded-md hover:bg-gray-200/50 dark:hover:bg-[#3a3a3a] transition-colors duration-200 flex items-center">
-                {project.lastWeekUpdate ? (
-                    <TruncatedText 
-                        text={project.lastWeekUpdate.replace(/<[^>]*>/g, '')} 
-                        maxLines={5} 
-                        className="whitespace-pre-wrap table-cell-content w-full text-gray-500 dark:text-gray-400"
-                        showTooltip={true}
-                    />
-                ) : (
-                    <span className="text-gray-400 dark:text-gray-500">-</span>
-                )}
-            </div>
+          <div className="w-full h-full p-1.5 -m-1.5">
+            {project.lastWeekUpdate ? (
+              <div 
+                dangerouslySetInnerHTML={{ __html: project.lastWeekUpdate }}
+                className="text-sm text-gray-500 dark:text-gray-400 line-clamp-5 overflow-hidden"
+                style={{ 
+                  wordWrap: 'break-word',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'anywhere'
+                }}
+              />
+            ) : (
+              <span className="text-gray-400 dark:text-gray-500">-</span>
+            )}
+          </div>
         </td>
 
         {roleInfo.map(({ key, name }, index) => (
@@ -790,9 +722,13 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
             </td>
         ))}
 
-        <td style={getTdStyle(12)} className={getTdClassName(12)}><DatePicker selectedDate={project.proposedDate} onSelectDate={(val) => handleUpdateField('proposedDate', val)} /></td>
-        <td style={getTdStyle(13)} className={getTdClassName(13)}><DatePicker selectedDate={project.launchDate} onSelectDate={(val) => handleUpdateField('launchDate', val)} align="right" /></td>
-        <td style={getTdStyle(14)} className={getTdClassName(14)}>
+        <td style={getTdStyle(12)} className={getTdClassName(12)}>
+          <span className="text-sm text-gray-600 dark:text-gray-400">{project.proposedDate || '-'}</span>
+        </td>
+        <td style={getTdStyle(13)} className={getTdClassName(13)}>
+          <span className="text-sm text-gray-600 dark:text-gray-400">{project.launchDate || '-'}</span>
+        </td>
+        <td style={getTdStyle(14)} className={getTdClassName(14)} onClick={(e) => e.stopPropagation()}>
           <div>
             <ActionsCell 
               project={project}
@@ -825,7 +761,6 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
     JSON.stringify(prevProps.project.frontendDevelopers) === JSON.stringify(nextProps.project.frontendDevelopers) &&
     JSON.stringify(prevProps.project.qaTesters) === JSON.stringify(nextProps.project.qaTesters) &&
     prevProps.currentUser?.id === nextProps.currentUser?.id &&
-    prevProps.editingId === nextProps.editingId &&
     prevProps.allUsers.length === nextProps.allUsers.length &&
     prevProps.activeOkrs.length === nextProps.activeOkrs.length
   );
@@ -833,7 +768,7 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
 ProjectRow.displayName = 'ProjectRow';
 
 
-export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, activeOkrs, currentUser, editingId, onSaveNewProject, onUpdateProject, onDeleteProject, onCancelNewProject, onOpenModal, onToggleFollow, onCreateProject, sortConfig, onSort, scrollPosition = 0, onScrollPositionChange }) => {
+export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, activeOkrs, currentUser, onUpdateProject, onDeleteProject, onOpenModal, onToggleFollow, onCreateProject, sortConfig, onSort, scrollPosition = 0, onScrollPositionChange }) => {
   // 滚动性能优化：使用 RAF 和防抖
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -1166,10 +1101,8 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, 
                 allUsers={allUsers}
                 activeOkrs={activeOkrs}
                 currentUser={currentUser}
-                onSave={onSaveNewProject}
                 onUpdateProject={onUpdateProject}
                 onDelete={onDeleteProject}
-                onCancel={onCancelNewProject}
                 onOpenModal={onOpenModal}
                 onToggleFollow={onToggleFollow}
                 columnStyles={columnStyles}

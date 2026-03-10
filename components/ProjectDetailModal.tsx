@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
-import { Project, User, OKR, ProjectRoleKey, Priority, ProjectStatus, Role } from '../types';
-import { IconX, IconStar, IconPencil, IconChevronDown, IconFileText, IconClipboard } from './Icons';
+import React, { useState, useMemo, useRef } from 'react';
+import { Project, User, OKR, ProjectRoleKey, Priority, ProjectStatus, Role, Document } from '../types';
+import { IconX, IconStar, IconPencil, IconChevronDown, IconFileText, IconClipboard, IconPlus, IconTrash } from './Icons';
 import { RichTextInput } from './RichTextInput';
 import { AutoResizeInput } from './AutoResizeInput';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
 import { DatePicker } from './DatePicker';
 import { SYSTEM_OPTIONS } from '../constants';
+import KRSelectionModal from './KRSelectionModal';
+
+// 本周进展默认模板标题 - 这四个标题加粗展示，且不允许用户删除
+const WEEKLY_UPDATE_HEADERS = ['产品进展:', '后端进展:', '前端进展:', '测试进展:'];
 
 const PriorityBadge: React.FC<{ priority: Priority }> = ({ priority }) => {
     const priorityStyles: Record<Priority, string> = {
@@ -246,7 +250,7 @@ const EditableText: React.FC<{
 
     if (isEditing) {
         return (
-            <div className="w-full">
+            <div className="w-full min-w-0">
                 {multiline ? (
                     <AutoResizeTextarea
                         value={editValue}
@@ -296,14 +300,24 @@ interface ProjectDetailModalProps {
     onUpdateProject: (projectId: string, field: keyof Project, value: any) => void;
     onOpenRoleModal: (roleKey: ProjectRoleKey, roleName: string) => void;
     onToggleFollow: (projectId: string) => void;
+    isNewProject?: boolean;
+    onSave?: (project: Project) => void;
 }
 
 export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
-    project, allUsers, activeOkrs, currentUser, onClose, onUpdateProject, onOpenRoleModal, onToggleFollow
+    project, allUsers, activeOkrs, currentUser, onClose, onUpdateProject, onOpenRoleModal, onToggleFollow,
+    isNewProject = false, onSave
 }) => {
     
     const [weeklyUpdateHtml, setWeeklyUpdateHtml] = useState(project.weeklyUpdate);
     const [copySuccess, setCopySuccess] = useState(false);
+    const [isKrModalOpen, setIsKrModalOpen] = useState(false);
+    const krTriggerRef = useRef<HTMLDivElement>(null);
+    
+    // 文档编辑状态
+    const [documents, setDocuments] = useState<Document[]>(project.documents || []);
+    const [newDocName, setNewDocName] = useState('');
+    const [newDocUrl, setNewDocUrl] = useState('');
 
     // 复制排期到剪贴板
     const handleCopySchedule = async (e: React.MouseEvent) => {
@@ -451,6 +465,46 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
         }
     };
 
+    // OKR 选择处理
+    const handleKrSave = (newKrIds: string[]) => {
+        onUpdateProject(project.id, 'keyResultIds', newKrIds);
+        setIsKrModalOpen(false);
+    };
+
+    // 文档处理函数
+    const handleAddDocument = () => {
+        if (!newDocName.trim() || !newDocUrl.trim()) return;
+        const newDoc: Document = {
+            id: `doc_${Date.now()}`,
+            name: newDocName.trim(),
+            url: newDocUrl.trim(),
+            createdAt: new Date().toISOString(),
+            createdBy: currentUser.id
+        };
+        const updatedDocs = [...documents, newDoc];
+        setDocuments(updatedDocs);
+        onUpdateProject(project.id, 'documents', updatedDocs);
+        setNewDocName('');
+        setNewDocUrl('');
+    };
+
+    const handleDeleteDocument = (docId: string) => {
+        const updatedDocs = documents.filter(d => d.id !== docId);
+        setDocuments(updatedDocs);
+        onUpdateProject(project.id, 'documents', updatedDocs);
+    };
+
+    // 保存新建项目
+    const handleSaveNewProject = () => {
+        if (!project.name.trim()) {
+            alert('请输入项目名称');
+            return;
+        }
+        if (onSave) {
+            onSave(project);
+        }
+    };
+
     const roleInfo: { key: ProjectRoleKey, name: string }[] = [
         { key: 'productManagers', name: '产品经理' },
         { key: 'backendDevelopers', name: '后端研发' },
@@ -469,17 +523,21 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
             <div className="bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-xl w-full max-w-7xl text-gray-900 dark:text-white shadow-lg flex flex-col max-h-[85vh]">
                 {/* Header */}
                 <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 dark:border-[#363636]">
-                    <div className="flex-1 mr-4 flex items-center gap-3">
-                        <EditableText
-                            value={project.name}
-                            onSave={handleProjectNameSave}
-                            placeholder="输入项目名称..."
-                            className="text-xl font-bold"
-                        />
-                        <EditableSystemSelect 
-                            system={project.system}
-                            onSystemChange={handleSystemChange}
-                        />
+                    <div className="flex-1 min-w-0 mr-4 flex items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                            <EditableText
+                                value={project.name}
+                                onSave={handleProjectNameSave}
+                                placeholder="输入项目名称..."
+                                className="text-xl font-bold"
+                            />
+                        </div>
+                        <div className="flex-shrink-0">
+                            <EditableSystemSelect 
+                                system={project.system}
+                                onSystemChange={handleSystemChange}
+                            />
+                        </div>
                     </div>
                     <div className="flex items-center gap-4">
                         <button 
@@ -533,29 +591,40 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                             </InfoBlock>
                         </div>
                         <InfoBlock label="关联的 OKR">
-                            {projectOkrs.length > 0 ? (
-                                <ul className="space-y-1">
-                                    {(() => {
-                                        // 去重处理，确保每个KR只显示一次
-                                        const uniqueKrs = new Map();
-                                        projectOkrs.forEach(okr => {
-                                            okr.keyResults
-                                                .filter(kr => project.keyResultIds.includes(kr.id))
-                                                .forEach(kr => {
-                                                    if (!uniqueKrs.has(kr.id)) {
-                                                        uniqueKrs.set(kr.id, kr);
-                                                    }
-                                                });
-                                        });
-                                        
-                                        return Array.from(uniqueKrs.values()).map((kr, index) => (
-                                            <li key={kr.id} className="text-xs text-gray-700 dark:text-gray-300">
-                                                KR: {kr.description}
-                                            </li>
-                                        ));
-                                    })()}
-                                </ul>
-                            ) : "未关联"}
+                            <div className="space-y-2">
+                                {projectOkrs.length > 0 ? (
+                                    <ul className="space-y-1">
+                                        {(() => {
+                                            // 去重处理，确保每个KR只显示一次
+                                            const uniqueKrs = new Map();
+                                            projectOkrs.forEach(okr => {
+                                                okr.keyResults
+                                                    .filter(kr => project.keyResultIds.includes(kr.id))
+                                                    .forEach(kr => {
+                                                        if (!uniqueKrs.has(kr.id)) {
+                                                            uniqueKrs.set(kr.id, kr);
+                                                        }
+                                                    });
+                                            });
+                                            
+                                            return Array.from(uniqueKrs.values()).map((kr) => (
+                                                <li key={kr.id} className="text-xs text-gray-700 dark:text-gray-300">
+                                                    KR: {kr.description}
+                                                </li>
+                                            ));
+                                        })()}
+                                    </ul>
+                                ) : (
+                                    <span className="text-sm text-gray-400 dark:text-gray-500">未关联</span>
+                                )}
+                                <button
+                                    onClick={() => setIsKrModalOpen(true)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                                >
+                                    <IconPencil className="w-3 h-3" />
+                                    {project.keyResultIds?.length ? '修改关联' : '选择关联'}
+                                </button>
+                            </div>
                         </InfoBlock>
                         <InfoBlock label="上周进展/问题">
                              <div 
@@ -569,41 +638,75 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                             />
                         </InfoBlock>
                         <InfoBlock label="项目文档">
-                            {project.documents && project.documents.length > 0 ? (
-                                <div className="space-y-2">
-                                    {project.documents.map(doc => {
-                                        const creator = allUsers.find(u => u.id === doc.createdBy);
-                                        return (
-                                            <div 
-                                                key={doc.id}
-                                                className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#2d2d2d] rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors group"
-                                            >
-                                                <IconFileText className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                                                <div className="flex-1 min-w-0 flex items-center gap-2">
-                                                    <span className="font-medium text-sm text-gray-900 dark:text-gray-100 flex-shrink-0">
-                                                        {doc.name}
+                            <div className="space-y-3">
+                                {/* 文档列表 */}
+                                {documents.length > 0 && (
+                                    <div className="space-y-2">
+                                        {documents.map(doc => {
+                                            const creator = allUsers.find(u => u.id === doc.createdBy);
+                                            return (
+                                                <div 
+                                                    key={doc.id}
+                                                    className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#2d2d2d] rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors group"
+                                                >
+                                                    <IconFileText className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                                                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                                                        <span className="font-medium text-sm text-gray-900 dark:text-gray-100 flex-shrink-0">
+                                                            {doc.name}
+                                                        </span>
+                                                        <span className="text-gray-400 dark:text-gray-500 flex-shrink-0">-</span>
+                                                        <a 
+                                                            href={doc.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-600 dark:text-blue-400 hover:underline text-sm truncate flex-1 min-w-0"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            {doc.url}
+                                                        </a>
+                                                    </div>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                                        {creator?.name || '未知'}
                                                     </span>
-                                                    <span className="text-gray-400 dark:text-gray-500 flex-shrink-0">-</span>
-                                                    <a 
-                                                        href={doc.url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-blue-600 dark:text-blue-400 hover:underline text-sm truncate flex-1 min-w-0"
-                                                        onClick={(e) => e.stopPropagation()}
+                                                    <button
+                                                        onClick={() => handleDeleteDocument(doc.id)}
+                                                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors opacity-0 group-hover:opacity-100"
+                                                        title="删除文档"
                                                     >
-                                                        {doc.url}
-                                                    </a>
+                                                        <IconTrash className="w-3.5 h-3.5" />
+                                                    </button>
                                                 </div>
-                                                <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                                                    {creator?.name || '未知'}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                
+                                {/* 添加新文档表单 */}
+                                <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#2d2d2d] rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
+                                    <input
+                                        type="text"
+                                        placeholder="文档名称"
+                                        value={newDocName}
+                                        onChange={(e) => setNewDocName(e.target.value)}
+                                        className="flex-1 min-w-0 px-2 py-1 text-sm bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#4a4a4a] rounded text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="文档链接"
+                                        value={newDocUrl}
+                                        onChange={(e) => setNewDocUrl(e.target.value)}
+                                        className="flex-[2] min-w-0 px-2 py-1 text-sm bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#4a4a4a] rounded text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <button
+                                        onClick={handleAddDocument}
+                                        disabled={!newDocName.trim() || !newDocUrl.trim()}
+                                        className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <IconPlus className="w-3 h-3" />
+                                        添加
+                                    </button>
                                 </div>
-                            ) : (
-                                <span className="text-sm text-gray-400 dark:text-gray-500">暂无文档</span>
-                            )}
+                            </div>
                         </InfoBlock>
                     </div>
                     {/* Right Column (Editable) */}
@@ -616,6 +719,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                     placeholder="输入本周进展/问题..."
                                     minRows={6}
                                     maxRows={15}
+                                    protectedHeaders={WEEKLY_UPDATE_HEADERS}
                                 />
                             </div>
                         </InfoBlock>
@@ -789,7 +893,34 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                         </div>
                     </div>
                 </div>
+                
+                {/* Footer - 新建项目显示保存按钮 */}
+                {isNewProject && (
+                    <div className="flex-shrink-0 flex justify-end items-center gap-3 p-4 border-t border-gray-200 dark:border-[#363636] bg-gray-50 dark:bg-[#1e1e1e] rounded-b-xl">
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                        >
+                            取消
+                        </button>
+                        <button
+                            onClick={handleSaveNewProject}
+                            className="px-6 py-2 text-sm font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
+                        >
+                            保存项目
+                        </button>
+                    </div>
+                )}
             </div>
+            
+            {/* KR 选择弹窗 */}
+            <KRSelectionModal
+                isOpen={isKrModalOpen}
+                onClose={() => setIsKrModalOpen(false)}
+                selectedKrIds={project.keyResultIds || []}
+                allOkrs={activeOkrs}
+                onSave={handleKrSave}
+            />
         </div>
     );
 };

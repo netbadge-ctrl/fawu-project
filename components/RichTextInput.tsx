@@ -8,6 +8,7 @@ interface RichTextInputProps {
     className?: string;
     minRows?: number;
     maxRows?: number;
+    protectedHeaders?: string[]; // 受保护的标题列表，不允许删除
 }
 
 export const RichTextInput: React.FC<RichTextInputProps> = ({ 
@@ -17,7 +18,8 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
     placeholder, 
     className = '', 
     minRows = 3,
-    maxRows = 15 
+    maxRows = 15,
+    protectedHeaders = []
 }) => {
     const contentRef = useRef<HTMLDivElement>(null);
     const [isBoldActive, setIsBoldActive] = useState(false);
@@ -44,14 +46,42 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
         element.style.overflowX = 'hidden';
     }, [minRows, maxRows]);
 
+    // 生成默认模板内容
+    const generateDefaultTemplate = useCallback(() => {
+        if (protectedHeaders.length === 0) return html || '';
+        
+        // 如果已有内容且包含所有标题，则使用现有内容
+        if (html && protectedHeaders.every(h => html.includes(h))) {
+            return html;
+        }
+        
+        // 生成带加粗标题的模板
+        const templateLines = protectedHeaders.map(header => 
+            `<p><strong>${header}</strong> </p>`
+        ).join('');
+        
+        return templateLines;
+    }, [html, protectedHeaders]);
+
+    // 检查内容是否包含所有受保护标题
+    const hasAllHeaders = useCallback((content: string) => {
+        if (protectedHeaders.length === 0) return true;
+        return protectedHeaders.every(h => content.includes(h));
+    }, [protectedHeaders]);
+
     // 初始化内容
     useEffect(() => {
         if (contentRef.current && !isInitializedRef.current) {
-            contentRef.current.innerHTML = html || '';
+            const initialContent = generateDefaultTemplate();
+            contentRef.current.innerHTML = initialContent;
             isInitializedRef.current = true;
             adjustHeight();
+            // 如果有模板内容，触发onChange通知父组件
+            if (initialContent !== html) {
+                onChange(initialContent);
+            }
         }
-    }, [html, adjustHeight]);
+    }, [html, adjustHeight, generateDefaultTemplate, onChange]);
 
     // 更新按钮状态
     const updateButtonStates = useCallback(() => {
@@ -69,15 +99,53 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
         }
     }, []);
 
+    // 恢复被删除的受保护标题
+    const restoreProtectedHeaders = useCallback((content: string): string => {
+        if (protectedHeaders.length === 0) return content;
+        
+        let restoredContent = content;
+        let hasMissingHeader = false;
+        
+        protectedHeaders.forEach(header => {
+            if (!restoredContent.includes(header)) {
+                hasMissingHeader = true;
+                // 在内容末尾添加缺失的标题
+                const headerHtml = `<p><strong>${header}</strong> </p>`;
+                restoredContent = restoredContent + headerHtml;
+            }
+        });
+        
+        return restoredContent;
+    }, [protectedHeaders]);
+
     // 直接处理输入
     const handleInput = useCallback(() => {
         if (!contentRef.current) return;
         
-        const newHtml = contentRef.current.innerHTML;
+        let newHtml = contentRef.current.innerHTML;
+        
+        // 检查并恢复被删除的受保护标题
+        if (protectedHeaders.length > 0) {
+            const restoredHtml = restoreProtectedHeaders(newHtml);
+            if (restoredHtml !== newHtml) {
+                newHtml = restoredHtml;
+                contentRef.current.innerHTML = newHtml;
+                // 将光标移到最后
+                const range = document.createRange();
+                const sel = window.getSelection();
+                if (contentRef.current.lastChild) {
+                    range.selectNodeContents(contentRef.current.lastChild);
+                    range.collapse(false);
+                    sel?.removeAllRanges();
+                    sel?.addRange(range);
+                }
+            }
+        }
+        
         adjustHeight();
         onChange(newHtml);
         updateButtonStates();
-    }, [onChange, adjustHeight, updateButtonStates]);
+    }, [onChange, adjustHeight, updateButtonStates, protectedHeaders, restoreProtectedHeaders]);
 
     // 处理按键
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {

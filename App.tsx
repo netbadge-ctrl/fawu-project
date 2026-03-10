@@ -14,6 +14,7 @@ import { RoleEditModal } from './components/RoleEditModal';
 import { CommentModal } from './components/CommentModal';
 import { ChangeLogModal } from './components/ChangeLogModal';
 import { DocumentModal } from './components/DocumentModal';
+import { ProjectDetailModal } from './components/ProjectDetailModal';
 import { api, apiCache } from './api.ts';
 import { Project, ProjectStatus, Role, User, ProjectRoleKey, OKR, Priority, Comment, ChangeLogEntry, OkrSet, Document } from './types';
 
@@ -56,7 +57,7 @@ const getCurrentOkrPeriod = (okrSets: OkrSet[]): OkrSet => {
   return sortedSets[0];
 };
 
-type ModalType = 'role' | 'comments' | 'changelog' | 'documents';
+type ModalType = 'role' | 'comments' | 'changelog' | 'documents' | 'edit';
 type ModalState = {
   isOpen: boolean;
   type?: ModalType;
@@ -81,6 +82,7 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false });
+  const [newProjectDraft, setNewProjectDraft] = useState<Project | null>(null); // 新建项目草稿
 
   // 分阶段加载：先加载核心数据（项目），再加载次要数据（OKR、用户）
   const fetchData = useCallback(async () => {
@@ -162,22 +164,9 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
       isNew: true,
     };
     
-    // 清除之前的新项目，确保只有一个新项目
-    setProjects(prev => {
-      const existingProjects = prev.filter(p => !p.isNew);
-      return [newProject, ...existingProjects];
-    });
-    setEditingId(newProject.id);
-    
-    // 立即滚动到表格顶部，确保新建项目可见
-    requestAnimationFrame(() => {
-      const tableContainer = document.querySelector('[data-table-container]');
-      if (tableContainer) {
-        tableContainer.scrollTo({ top: 0, behavior: 'auto' });
-      } else {
-        window.scrollTo({ top: 0, behavior: 'auto' });
-      }
-    });
+    // 设置为草稿项目并打开编辑弹窗
+    setNewProjectDraft(newProject);
+    setModalState({ isOpen: true, type: 'edit', projectId: newProject.id });
   }, []);
 
   const handleUpdateProject = useCallback(async (projectId: string, field: keyof Project, value: any) => {
@@ -217,10 +206,17 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
     // 移除KR关联校验限制
 
 
-    // For new projects, just update local state.
+    // For new projects (in draft mode), update the draft state.
     if (projectToUpdate.isNew) {
-        const updatedProject = { ...projectToUpdate, [field]: value };
-        setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
+        // Check if this is the draft project
+        if (newProjectDraft && newProjectDraft.id === projectId) {
+            const updatedDraft = { ...newProjectDraft, [field]: value };
+            setNewProjectDraft(updatedDraft);
+        } else {
+            // Fallback: update in projects array
+            const updatedProject = { ...projectToUpdate, [field]: value };
+            setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
+        }
         return;
     }
 
@@ -338,9 +334,8 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
 
     setIsLoading(true);
     try {
-        // 获取当前本地状态中的项目数据，确保包含所有用户修改
-        const currentProjectState = projects.find(p => p.id === projectToSave.id);
-        const finalProjectData = currentProjectState || projectToSave;
+        // 优先使用草稿状态中的数据，确保包含所有用户修改
+        const finalProjectData = newProjectDraft || projectToSave;
 
         const creationLogEntry: ChangeLogEntry = {
             id: `cl_${Date.now()}`,
@@ -358,21 +353,27 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
 
         await api.createProject(projectWithLog);
         await fetchData();
-        // 确保在数据刷新后清除编辑状态
+        // 清除草稿状态
+        setNewProjectDraft(null);
         setEditingId(null);
+        handleCloseModal();
     } catch (error) {
         console.error("Failed to save new project", error);
-        // 如果保存失败，也要清除编辑状态
-        setEditingId(null);
+        // 保存失败不清除状态，允许用户重试
     } finally {
         setIsLoading(false);
     }
-  }, [fetchData, currentUser, projects]);
+  }, [fetchData, currentUser, newProjectDraft]);
   
   const handleCancelNewProject = useCallback((projectId: string) => {
+    // 清除草稿状态
+    if (newProjectDraft && newProjectDraft.id === projectId) {
+        setNewProjectDraft(null);
+    }
     setProjects(prev => prev.filter(p => p.id !== projectId));
     setEditingId(null);
-  }, []);
+    handleCloseModal();
+  }, [newProjectDraft]);
 
   const handleDeleteProject = useCallback(async (projectId: string) => {
     setIsLoading(true);
@@ -391,30 +392,33 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
     handleOpenModal('edit', project.id);
   }, []);
 
-  const handleOpenModal = useCallback((type: ModalType, projectId: string, details: Omit<ModalState, 'isOpen' | 'type' | 'projectId'> = {}) => {
-    setModalState({ isOpen: true, type, projectId, ...details });
+  const handleOpenModal = useCallback((type: ModalType, projectId?: string, details: Omit<ModalState, 'isOpen' | 'type' | 'projectId'> = {}) => {
+    setModalState({ isOpen: true, type, projectId: projectId || '', ...details });
   }, []);
 
-  const handleCloseModal = useCallback(() => {
+  const handleCloseModal = useCallback((forceClose?: boolean) => {
+    // 如果有草稿项目且不是强制关闭，则返回编辑弹窗
+    if (newProjectDraft && !forceClose) {
+      setModalState({ isOpen: true, type: 'edit', projectId: newProjectDraft.id });
+      return;
+    }
     setModalState({ isOpen: false });
-  }, []);
+  }, [newProjectDraft]);
   
   const handleSaveRole = useCallback(async (projectId: string, roleKey: ProjectRoleKey, newRole: Role) => {
-     handleCloseModal();
-     
-     // 检查是否为新项目
-     const projectToUpdate = (projects || []).find(p => p.id === projectId);
-     if (projectToUpdate?.isNew) {
-       // 对于新项目，只更新本地状态，不调用 API
-       setProjects(prev => prev.map(p => 
-         p.id === projectId ? { ...p, [roleKey]: newRole } : p
-       ));
+     // 检查是否为新项目（草稿模式）
+     if (newProjectDraft && newProjectDraft.id === projectId) {
+       // 对于草稿项目，更新草稿状态，返回编辑弹窗
+       setNewProjectDraft(prev => prev ? { ...prev, [roleKey]: newRole } : prev);
+       setModalState({ isOpen: true, type: 'edit', projectId: newProjectDraft.id });
        return;
      }
      
+     handleCloseModal();
+     
      // 对于现有项目，正常调用 handleUpdateProject
      await handleUpdateProject(projectId, roleKey, newRole);
-  }, [handleUpdateProject, handleCloseModal, projects]);
+  }, [handleUpdateProject, handleCloseModal, newProjectDraft]);
 
   const handleUpdateCurrentOkrSet = async (updatedOkrs: OKR[]) => {
     if (!currentOkrPeriodId) return;
@@ -653,12 +657,9 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
             activeOkrs={activeOkrs}
             allUsers={allUsers}
             currentUser={currentUser}
-            editingId={editingId}
             onCreateProject={handleCreateProject}
-            onSaveNewProject={handleSaveNewProject}
             onUpdateProject={handleUpdateProject}
             onDeleteProject={handleDeleteProject}
-            onCancelNewProject={handleCancelNewProject}
             onOpenModal={handleOpenModal}
             onToggleFollow={handleToggleFollow}
             onAddComment={handleAddComment}
@@ -672,12 +673,9 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
             allUsers={allUsers}
             activeOkrs={activeOkrs}
             currentUser={currentUser}
-            editingId={editingId}
             onCreateProject={handleCreateProject}
-            onSaveNewProject={handleSaveNewProject}
             onUpdateProject={handleUpdateProject}
             onDeleteProject={handleDeleteProject}
-            onCancelNewProject={handleCancelNewProject}
             onOpenModal={handleOpenModal}
             onToggleFollow={handleToggleFollow}
             onAddComment={handleAddComment}
@@ -699,9 +697,9 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
       )}
       
       {renderView()}
-      {modalState.isOpen && modalState.type === 'role' && currentProjectForModal && modalState.roleKey && modalState.roleName && (
+      {modalState.isOpen && modalState.type === 'role' && (currentProjectForModal || newProjectDraft) && modalState.roleKey && modalState.roleName && (
         <RoleEditModal
-            project={currentProjectForModal}
+            project={(newProjectDraft || currentProjectForModal)!}
             roleKey={modalState.roleKey}
             roleName={modalState.roleName}
             allUsers={allUsers}
@@ -735,6 +733,53 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
           onDeleteDocument={(docId) => handleDeleteDocument(currentProjectForModal.id, docId)}
           projectName={currentProjectForModal.name}
           allUsers={allUsers}
+        />
+      )}
+      {modalState.isOpen && modalState.type === 'edit' && (currentProjectForModal || newProjectDraft) && (
+        <ProjectDetailModal
+          project={(newProjectDraft || currentProjectForModal)!}
+          allUsers={allUsers}
+          activeOkrs={activeOkrs}
+          currentUser={currentUser}
+          isNewProject={!!newProjectDraft}
+          onSave={newProjectDraft ? handleSaveNewProject : undefined}
+          onClose={() => {
+            // 如果是新项目草稿，取消时清除草稿（强制关闭）
+            if (newProjectDraft) {
+              handleCancelNewProject(newProjectDraft.id);
+            } else {
+              handleCloseModal(true);
+            }
+          }}
+          onUpdateProject={(projectId, field, value) => {
+            if (newProjectDraft && newProjectDraft.id === projectId) {
+              // 更新草稿状态
+              setNewProjectDraft(prev => prev ? { ...prev, [field]: value } : prev);
+            } else {
+              // 更新现有项目
+              handleUpdateProject(projectId, field, value);
+            }
+          }}
+          onOpenRoleModal={(roleKey, roleName) => {
+            // 使用 newProjectDraft 或 modalState.projectId 对应的项目
+            const targetProject = newProjectDraft || currentProjectForModal;
+            if (targetProject) {
+              // 保持编辑弹窗打开，同时打开角色弹窗
+              setModalState(prev => ({ 
+                ...prev, 
+                type: 'role', 
+                roleKey, 
+                roleName 
+              }));
+            }
+          }}
+          onToggleFollow={(projectId) => {
+            if (newProjectDraft && newProjectDraft.id === projectId) {
+              // 草稿项目不支持关注功能
+              return;
+            }
+            handleToggleFollow(projectId);
+          }}
         />
       )}
     </div>

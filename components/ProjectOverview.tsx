@@ -22,13 +22,10 @@ interface ProjectOverviewProps {
   activeOkrs: OKR[];
   allUsers: any[];
   currentUser: any;
-  editingId: string | null;
   onCreateProject: () => void;
-  onSaveNewProject: (project: Project) => void;
   onUpdateProject: (projectId: string, field: keyof Project, value: any) => void;
   onDeleteProject: (id: string) => void;
-  onCancelNewProject: (id: string) => void;
-  onOpenModal: (type: 'role' | 'comments' | 'changelog' | 'edit', projectId: string, details?: any) => void;
+  onOpenModal: (type: 'role' | 'comments' | 'changelog' | 'edit', projectId?: string, details?: any) => void;
   onToggleFollow: (projectId: string) => void;
   onAddComment: (projectId: string, text: string) => void;
   onEditProject?: (project: Project) => void;
@@ -39,12 +36,9 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   activeOkrs, 
   allUsers, 
   currentUser, 
-  editingId,
   onCreateProject,
-  onSaveNewProject,
   onUpdateProject,
   onDeleteProject,
-  onCancelNewProject,
   onOpenModal,
   onToggleFollow,
   onAddComment,
@@ -149,9 +143,9 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     
     // 首先筛选项目
     const filtered = uniqueProjects.filter(project => {
-      // 新建的项目(处于编辑状态)始终显示,不受筛选条件影响
-      if ((editingId && project.id === editingId) || project.isNew) {
-        return true;
+      // 新建的项目(草稿模式在弹窗中处理，不显示在列表中)
+      if (project.isNew) {
+        return false;
       }
       
 
@@ -215,12 +209,6 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
     // 然后排序项目
     return filtered.sort((a, b) => {
-      // 新项目或正在编辑的项目始终排在最前面
-      const aIsNew = (editingId && a.id === editingId) || a.isNew;
-      const bIsNew = (editingId && b.id === editingId) || b.isNew;
-      
-      if (aIsNew && !bIsNew) return -1;
-      if (!aIsNew && bIsNew) return 1;
       
       // 如果启用了多字段排序且有排序规则
       if (filters.useMultiSort && filters.multiSortRules && filters.multiSortRules.length > 0) {
@@ -367,7 +355,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       
       return sortConfig.direction === 'asc' ? -comparison : comparison;
     });
-  }, [projects, searchTerm, selectedStatuses, selectedPriorities, selectedSystems, selectedParticipants, selectedKrs, editingId, sortConfig, filters.useMultiSort, filters.multiSortRules, allUsers]);
+  }, [projects, searchTerm, selectedStatuses, selectedPriorities, selectedSystems, selectedParticipants, selectedKrs, sortConfig, filters.useMultiSort, filters.multiSortRules, allUsers]);
 
   // 导出Excel功能
   const handleExportExcel = useCallback(() => {
@@ -611,11 +599,8 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           allUsers={allUsers}
           activeOkrs={activeOkrs}
           currentUser={currentUser}
-          editingId={editingId}
-          onSaveNewProject={onSaveNewProject}
           onUpdateProject={onUpdateProject}
           onDeleteProject={onDeleteProject}
-          onCancelNewProject={onCancelNewProject}
           onOpenModal={onOpenModal}
           onToggleFollow={onToggleFollow}
           onCreateProject={onCreateProject}
