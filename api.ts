@@ -2,8 +2,8 @@
 // 使用环境变量，如果未设置则使用本地默认值
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9000/api';
 
-// 检查是否为开发模式
-const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === 'development';
+// 检查是否为开发模式（使用 VITE_APP_ENV 更可靠）
+const isDevelopment = import.meta.env.VITE_APP_ENV === 'development' || import.meta.env.DEV || import.meta.env.NODE_ENV === 'development';
 
 // 简单的内存缓存
 interface CacheItem<T> {

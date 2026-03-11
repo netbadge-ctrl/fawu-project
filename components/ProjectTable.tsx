@@ -723,10 +723,10 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
         ))}
 
         <td style={getTdStyle(12)} className={getTdClassName(12)}>
-          <span className="text-sm text-gray-600 dark:text-gray-400">{project.proposedDate || '-'}</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">{project.proposedDate ? project.proposedDate.split('T')[0] : '-'}</span>
         </td>
         <td style={getTdStyle(13)} className={getTdClassName(13)}>
-          <span className="text-sm text-gray-600 dark:text-gray-400">{project.launchDate || '-'}</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">{project.launchDate ? project.launchDate.split('T')[0] : '-'}</span>
         </td>
         <td style={getTdStyle(14)} className={getTdClassName(14)} onClick={(e) => e.stopPropagation()}>
           <div>

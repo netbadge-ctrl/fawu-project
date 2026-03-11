@@ -22,6 +22,7 @@ const getEnvVar = (key: string, defaultValue: string = ''): string => {
 // 获取布尔类型环境变量
 const getBoolEnvVar = (key: string, defaultValue: boolean = false): boolean => {
   const value = getEnvVar(key);
+  if (value === '') return defaultValue;
   return value === 'true' || value === '1';
 };
 
