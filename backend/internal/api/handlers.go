@@ -28,11 +28,12 @@ func NewHandler(db *sql.DB) *Handler {
 
 // GetProjects 获取所有项目（轻量级版本，用于列表展示）
 func (h *Handler) GetProjects(c *gin.Context) {
-	// 查询项目列表，包含团队成员字段（个人视图需要）
+	// 查询项目列表，只包含必要字段（优化性能）
 	query := `
 		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update, 
 		       last_week_update, status, proposal_date, launch_date, created_at, followers,
-		       product_managers, backend_developers, frontend_developers, qa_testers
+		       product_managers, backend_developers, frontend_developers, qa_testers,
+		       documents
 		FROM projects
 		ORDER BY created_at DESC
 	`
@@ -51,12 +52,14 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		var keyResultIds pq.StringArray
 		var followers pq.StringArray
 		var productManagers, backendDevelopers, frontendDevelopers, qaTesters []byte
+		var documents []byte
 
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.System, &p.Priority, &p.BusinessProblem, &keyResultIds,
 			&p.WeeklyUpdate, &p.LastWeekUpdate, &p.Status,
 			&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followers,
 			&productManagers, &backendDevelopers, &frontendDevelopers, &qaTesters,
+			&documents,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -72,6 +75,7 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		json.Unmarshal(backendDevelopers, &p.BackendDevelopers)
 		json.Unmarshal(frontendDevelopers, &p.FrontendDevelopers)
 		json.Unmarshal(qaTesters, &p.QaTesters)
+		json.Unmarshal(documents, &p.Documents)
 
 		// 初始化空数组（避免前端null检查）
 		if p.ProductManagers == nil {
@@ -88,7 +92,9 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		}
 		p.Comments = []models.Comment{}
 		p.ChangeLog = []models.ChangeLogEntry{}
-		p.Documents = []models.Document{}
+		if p.Documents == nil {
+			p.Documents = []models.Document{}
+		}
 
 		projects = append(projects, p)
 	}

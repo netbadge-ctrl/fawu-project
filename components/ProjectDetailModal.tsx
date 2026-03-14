@@ -650,19 +650,16 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                                     className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#2d2d2d] rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors group"
                                                 >
                                                     <IconFileText className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                                                    <div className="flex-1 min-w-0 flex items-center gap-2">
-                                                        <span className="font-medium text-sm text-gray-900 dark:text-gray-100 flex-shrink-0">
-                                                            {doc.name}
-                                                        </span>
-                                                        <span className="text-gray-400 dark:text-gray-500 flex-shrink-0">-</span>
+                                                    <div className="flex-1 min-w-0 flex items-center gap-3">
+                                                        {/* 文档标题链接 */}
                                                         <a 
                                                             href={doc.url}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-blue-600 dark:text-blue-400 hover:underline text-sm truncate flex-1 min-w-0"
-                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="font-medium text-sm text-blue-600 dark:text-blue-400 hover:underline truncate flex-1 min-w-0"
+                                                            title={doc.name}
                                                         >
-                                                            {doc.url}
+                                                            {doc.name}
                                                         </a>
                                                     </div>
                                                     <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">

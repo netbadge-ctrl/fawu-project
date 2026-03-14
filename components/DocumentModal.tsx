@@ -55,7 +55,7 @@ export const DocumentModal: React.FC<DocumentModalProps> = ({
       />
       
       {/* 弹窗内容 */}
-      <div className="relative bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-xl w-full max-w-2xl text-gray-900 dark:text-white shadow-lg flex flex-col max-h-[80vh]">
+      <div className="relative bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-xl w-full max-w-5xl text-gray-900 dark:text-white shadow-lg flex flex-col max-h-[80vh]">
         {/* 头部 */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-[#363636]">
           <h2 className="text-xl font-semibold">{projectName} 项目文档</h2>
@@ -85,24 +85,16 @@ export const DocumentModal: React.FC<DocumentModalProps> = ({
                     key={doc.id}
                     className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#2d2d2d] rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors group"
                   >
-                    <div className="flex-1 min-w-0 flex items-center gap-3">
-                      {/* 文档名称 */}
-                      <span className="font-medium text-gray-900 dark:text-gray-100 flex-shrink-0">
-                        {doc.name}
-                      </span>
-                      
-                      {/* 分隔符 */}
-                      <span className="text-gray-400 dark:text-gray-500 flex-shrink-0">-</span>
-                      
-                      {/* 文档链接 */}
+                    <div className="flex-1 min-w-0 flex items-center gap-4">
+                      {/* 文档标题链接 */}
                       <a 
                         href={doc.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:underline truncate flex-1 min-w-0"
-                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium text-blue-600 dark:text-blue-400 hover:underline truncate flex-1 min-w-0"
+                        title={doc.name}
                       >
-                        {doc.url}
+                        {doc.name}
                       </a>
                       
                       {/* 编辑人 */}
