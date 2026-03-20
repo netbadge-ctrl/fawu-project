@@ -83,6 +83,7 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [modalState, setModalState] = useState<ModalState>({ isOpen: false });
   const [newProjectDraft, setNewProjectDraft] = useState<Project | null>(null); // 新建项目草稿
+  const [projectDetail, setProjectDetail] = useState<Project | null>(null); // 项目详情（包含变更记录等）
 
   // 分阶段加载：先加载核心数据（项目），再加载次要数据（OKR、用户）
   const fetchData = useCallback(async () => {
@@ -351,7 +352,11 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
             isNew: undefined // 移除 isNew 标记
         };
 
-        await api.createProject(projectWithLog);
+        console.log('🚀 Creating project:', projectWithLog.name);
+        const result = await api.createProject(projectWithLog);
+        console.log('✅ Project created:', result);
+        // 清除项目缓存，确保获取最新数据
+        apiCache.delete('projects');
         await fetchData();
         // 清除草稿状态
         setNewProjectDraft(null);
@@ -379,6 +384,8 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
     setIsLoading(true);
     try {
         await api.deleteProject(projectId);
+        // 清除项目缓存，确保获取最新数据
+        apiCache.delete('projects');
         await fetchData();
     } catch(error) {
         console.error("Failed to delete project", error);
@@ -392,7 +399,16 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
     handleOpenModal('edit', project.id);
   }, []);
 
-  const handleOpenModal = useCallback((type: ModalType, projectId?: string, details: Omit<ModalState, 'isOpen' | 'type' | 'projectId'> = {}) => {
+  const handleOpenModal = useCallback(async (type: ModalType, projectId?: string, details: Omit<ModalState, 'isOpen' | 'type' | 'projectId'> = {}) => {
+    // 如果是变更记录弹窗，先获取项目详情（包含变更记录）
+    if (type === 'changelog' && projectId) {
+      try {
+        const detail = await api.getProjectDetail(projectId);
+        setProjectDetail(detail);
+      } catch (error) {
+        console.error('Failed to fetch project detail:', error);
+      }
+    }
     setModalState({ isOpen: true, type, projectId: projectId || '', ...details });
   }, []);
 
@@ -719,7 +735,7 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
       )}
       {modalState.isOpen && modalState.type === 'changelog' && currentProjectForModal && (
           <ChangeLogModal
-            project={currentProjectForModal}
+            project={projectDetail && projectDetail.id === currentProjectForModal.id ? projectDetail : currentProjectForModal}
             allUsers={allUsers}
             onClose={handleCloseModal}
           />

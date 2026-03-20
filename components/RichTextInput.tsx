@@ -50,9 +50,20 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
     const generateDefaultTemplate = useCallback(() => {
         if (protectedHeaders.length === 0) return html || '';
         
-        // 如果已有内容且包含所有标题，则使用现有内容
+        // 如果已有内容且包含所有标题，检查并修复格式
         if (html && protectedHeaders.every(h => html.includes(h))) {
-            return html;
+            // 确保每个标题都在单独的 <p> 标签中
+            let formattedHtml = html;
+            protectedHeaders.forEach(header => {
+                // 如果标题不在 <p> 标签中，添加 <p> 标签
+                if (!formattedHtml.includes(`<p><strong>${header}</strong>`) && 
+                    !formattedHtml.includes(`<p><b>${header}</b>`)) {
+                    // 查找标题位置并包裹在 <p> 标签中
+                    const headerRegex = new RegExp(`(<strong>|<b>)?${header.replace(':', '\\:')}(</strong>|</b>)?`, 'g');
+                    formattedHtml = formattedHtml.replace(headerRegex, `<p><strong>${header}</strong> </p>`);
+                }
+            });
+            return formattedHtml;
         }
         
         // 生成带加粗标题的模板
@@ -99,53 +110,16 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
         }
     }, []);
 
-    // 恢复被删除的受保护标题
-    const restoreProtectedHeaders = useCallback((content: string): string => {
-        if (protectedHeaders.length === 0) return content;
-        
-        let restoredContent = content;
-        let hasMissingHeader = false;
-        
-        protectedHeaders.forEach(header => {
-            if (!restoredContent.includes(header)) {
-                hasMissingHeader = true;
-                // 在内容末尾添加缺失的标题
-                const headerHtml = `<p><strong>${header}</strong> </p>`;
-                restoredContent = restoredContent + headerHtml;
-            }
-        });
-        
-        return restoredContent;
-    }, [protectedHeaders]);
-
     // 直接处理输入
     const handleInput = useCallback(() => {
         if (!contentRef.current) return;
         
-        let newHtml = contentRef.current.innerHTML;
-        
-        // 检查并恢复被删除的受保护标题
-        if (protectedHeaders.length > 0) {
-            const restoredHtml = restoreProtectedHeaders(newHtml);
-            if (restoredHtml !== newHtml) {
-                newHtml = restoredHtml;
-                contentRef.current.innerHTML = newHtml;
-                // 将光标移到最后
-                const range = document.createRange();
-                const sel = window.getSelection();
-                if (contentRef.current.lastChild) {
-                    range.selectNodeContents(contentRef.current.lastChild);
-                    range.collapse(false);
-                    sel?.removeAllRanges();
-                    sel?.addRange(range);
-                }
-            }
-        }
+        const newHtml = contentRef.current.innerHTML;
         
         adjustHeight();
         onChange(newHtml);
         updateButtonStates();
-    }, [onChange, adjustHeight, updateButtonStates, protectedHeaders, restoreProtectedHeaders]);
+    }, [onChange, adjustHeight, updateButtonStates]);
 
     // 处理按键
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {

@@ -64,12 +64,10 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers as Record<string, string>,
   };
   
-  // 在生产环境中添加JWT认证头
-  if (!isDevelopment) {
-    const jwtToken = getJWTToken();
-    if (jwtToken) {
-      headers['Authorization'] = `Bearer ${jwtToken}`;
-    }
+  // 添加JWT认证头（如果存在）
+  const jwtToken = getJWTToken();
+  if (jwtToken) {
+    headers['Authorization'] = `Bearer ${jwtToken}`;
   }
   
   try {
@@ -78,8 +76,8 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
       headers,
     });
     
-    // 如果是401错误且在生产环境，可能需要重新登录
-    if (response.status === 401 && !isDevelopment) {
+    // 如果是401错误，可能需要重新登录
+    if (response.status === 401) {
       console.error('JWT token expired or invalid, redirecting to login...');
       // 清除过期的token
       localStorage.removeItem('jwt_token');
@@ -155,6 +153,12 @@ export const api = {
   // 获取项目列表（别名）
   async fetchProjects(useCache = true) {
     return this.getProjects(useCache);
+  },
+
+  // 获取项目详情（包含变更记录等完整信息）
+  async getProjectDetail(projectId: string) {
+    const endpoint = isDevelopment ? `/dev/projects/${projectId}` : `/projects/${projectId}`;
+    return makeRequest(endpoint);
   },
 
   // 获取OKR集合（带缓存）
@@ -240,6 +244,7 @@ export const api = {
   // 创建项目
   async createProject(project: any) {
     const endpoint = isDevelopment ? '/dev/projects' : '/projects';
+    console.log('📡 API createProject - endpoint:', endpoint, 'isDevelopment:', isDevelopment);
     return makeRequest(endpoint, {
       method: 'POST',
       body: JSON.stringify(project),

@@ -407,7 +407,7 @@ const EditableUpdateDisplay: React.FC<{
                 )}
             </h4>
             <div
-                className={`p-3 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg min-h-[5rem] max-h-[7.5rem] overflow-hidden text-sm weekly-update-content cursor-pointer leading-relaxed line-clamp-5 ${
+                className={`p-3 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg min-h-[6rem] max-h-[9rem] overflow-hidden text-sm weekly-update-content cursor-pointer leading-relaxed ${
                     isLastWeek ? 'text-gray-500 dark:text-gray-500' : 'text-gray-800 dark:text-gray-300'
                 }`}
                 dangerouslySetInnerHTML={{ __html: content }}
@@ -415,7 +415,10 @@ const EditableUpdateDisplay: React.FC<{
                 style={{
                     wordWrap: 'break-word',
                     wordBreak: 'break-word',
-                    overflowWrap: 'anywhere'
+                    overflowWrap: 'anywhere',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 6,
+                    WebkitBoxOrient: 'vertical'
                 }}
             />
             
@@ -441,20 +444,25 @@ const EditableUpdateDisplay: React.FC<{
             <style>{`
               .weekly-update-content b { font-weight: 600; }
               .weekly-update-content font[color="#ef4444"] { color: #ef4444; }
-              .weekly-update-content p { margin-bottom: 0.5rem; }
-              .weekly-update-content br { display: block; margin: 0.25rem 0; }
-              .weekly-update-content div { margin-bottom: 0.5rem; }
+              .weekly-update-content p { margin-bottom: 0.25rem; display: block; line-height: 1.4; }
+              .weekly-update-content br { display: block; margin: 0.1rem 0; }
+              .weekly-update-content div { margin-bottom: 0.25rem; }
               .weekly-update-content {
                 word-wrap: break-word;
                 word-break: break-word;
                 overflow-wrap: anywhere;
                 white-space: pre-wrap;
+                line-height: 1.4;
               }
               .weekly-update-content * {
                 word-wrap: break-word;
                 word-break: break-word;
                 overflow-wrap: anywhere;
                 max-width: 100%;
+              }
+              /* 确保 strong 标签在块级上下文中显示 */
+              .weekly-update-content strong {
+                display: inline;
               }
             `}</style>
         </div>

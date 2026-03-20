@@ -73,6 +73,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 		{
 			// 项目相关路由（敏感数据，需要认证）
 			protected.GET("/projects", handler.GetProjects)
+			protected.GET("/projects/:projectId", handler.GetProjectDetail)
 			protected.POST("/projects", handler.CreateProject)
 			protected.PATCH("/projects/:projectId", handler.UpdateProject)
 			protected.DELETE("/projects/:projectId", handler.DeleteProject)
