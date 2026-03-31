@@ -48,30 +48,36 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
 
     // 生成默认模板内容
     const generateDefaultTemplate = useCallback(() => {
-        if (protectedHeaders.length === 0) return html || '';
-        
-        // 如果已有内容且包含所有标题，检查并修复格式
-        if (html && protectedHeaders.every(h => html.includes(h))) {
-            // 确保每个标题都在单独的 <p> 标签中
-            let formattedHtml = html;
-            protectedHeaders.forEach(header => {
-                // 如果标题不在 <p> 标签中，添加 <p> 标签
-                if (!formattedHtml.includes(`<p><strong>${header}</strong>`) && 
-                    !formattedHtml.includes(`<p><b>${header}</b>`)) {
-                    // 查找标题位置并包裹在 <p> 标签中
-                    const headerRegex = new RegExp(`(<strong>|<b>)?${header.replace(':', '\\:')}(</strong>|</b>)?`, 'g');
-                    formattedHtml = formattedHtml.replace(headerRegex, `<p><strong>${header}</strong> </p>`);
-                }
-            });
-            return formattedHtml;
+        // 优先使用传入的 html 内容，如果有内容就直接使用
+        if (html && html.trim().length > 0) {
+            // 如果已有内容且包含所有标题，检查并修复格式
+            if (protectedHeaders.length > 0 && protectedHeaders.every(h => html.includes(h))) {
+                // 确保每个标题都在单独的 <p> 标签中
+                let formattedHtml = html;
+                protectedHeaders.forEach(header => {
+                    // 如果标题不在 <p> 标签中，添加 <p> 标签
+                    if (!formattedHtml.includes(`<p><strong>${header}</strong>`) && 
+                        !formattedHtml.includes(`<p><b>${header}</b>`)) {
+                        // 查找标题位置并包裹在 <p> 标签中
+                        const headerRegex = new RegExp(`(<strong>|<b>)?${header.replace(':', '\\:')}(</strong>|</b>)?`, 'g');
+                        formattedHtml = formattedHtml.replace(headerRegex, `<p><strong>${header}</strong> </p>`);
+                    }
+                });
+                return formattedHtml;
+            }
+            // 有内容但不需要检查标题，直接返回
+            return html;
         }
         
-        // 生成带加粗标题的模板
-        const templateLines = protectedHeaders.map(header => 
-            `<p><strong>${header}</strong> </p>`
-        ).join('');
+        // 没有传入内容，生成带加粗标题的模板
+        if (protectedHeaders.length > 0) {
+            const templateLines = protectedHeaders.map(header => 
+                `<p><strong>${header}</strong> </p>`
+            ).join('');
+            return templateLines;
+        }
         
-        return templateLines;
+        return '';
     }, [html, protectedHeaders]);
 
     // 检查内容是否包含所有受保护标题
@@ -80,19 +86,19 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
         return protectedHeaders.every(h => content.includes(h));
     }, [protectedHeaders]);
 
-    // 初始化内容
+    // 初始化内容 - 只在组件首次挂载时执行
     useEffect(() => {
         if (contentRef.current && !isInitializedRef.current) {
             const initialContent = generateDefaultTemplate();
             contentRef.current.innerHTML = initialContent;
             isInitializedRef.current = true;
             adjustHeight();
-            // 如果有模板内容，触发onChange通知父组件
-            if (initialContent !== html) {
+            // 只有当生成了默认模板（而非使用原有内容）时才触发 onChange
+            if (initialContent !== html && html === '') {
                 onChange(initialContent);
             }
         }
-    }, [html, adjustHeight, generateDefaultTemplate, onChange]);
+    }, []); // 空依赖数组，只在挂载时执行一次
 
     // 更新按钮状态
     const updateButtonStates = useCallback(() => {
