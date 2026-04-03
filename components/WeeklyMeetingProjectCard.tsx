@@ -350,7 +350,15 @@ const EditableUpdateDisplay: React.FC<{
     React.useEffect(() => {
         if (showTooltip) {
             document.addEventListener('click', handleClickOutside);
-            const handleScroll = () => setShowTooltip(false);
+            // 只在窗口滚动时关闭弹窗，弹窗内部滚动不关闭
+            const handleScroll = (e: Event) => {
+                const target = e.target as Element;
+                // 如果滚动发生在弹窗内部，不关闭
+                if (target && target.closest('.update-tooltip-popup')) {
+                    return;
+                }
+                setShowTooltip(false);
+            };
             window.addEventListener('scroll', handleScroll, true);
             return () => {
                 document.removeEventListener('click', handleClickOutside);
@@ -423,7 +431,7 @@ const EditableUpdateDisplay: React.FC<{
             />
             
             {showTooltip && (
-                <div className="fixed z-[10000] w-[560px] p-5 bg-white dark:bg-[#1a1a1a] border-2 border-gray-300 dark:border-[#4a4a4a] rounded-lg shadow-xl backdrop-blur-sm pointer-events-none max-h-[500px] overflow-y-auto" style={{
+                <div className="fixed z-[10000] w-[560px] p-5 bg-white dark:bg-[#1a1a1a] border-2 border-gray-300 dark:border-[#4a4a4a] rounded-lg shadow-xl backdrop-blur-sm max-h-[500px] overflow-y-auto update-tooltip-popup" style={{
                     left: Math.min(mousePosition.x + 10, window.innerWidth - 580),
                     top: Math.max(10, Math.min(mousePosition.y - 50, window.innerHeight - 520)),
                 }}>

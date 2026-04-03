@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Project, User, OKR, ProjectRoleKey, Priority, ProjectStatus, Role, Document } from '../types';
 import { IconX, IconStar, IconPencil, IconChevronDown, IconFileText, IconClipboard, IconPlus, IconTrash } from './Icons';
 import { RichTextInput } from './RichTextInput';
@@ -313,6 +313,11 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
     const [copySuccess, setCopySuccess] = useState(false);
     const [isKrModalOpen, setIsKrModalOpen] = useState(false);
     const krTriggerRef = useRef<HTMLDivElement>(null);
+    
+    // 当 project 变化时，更新 weeklyUpdateHtml 状态
+    useEffect(() => {
+        setWeeklyUpdateHtml(project.weeklyUpdate);
+    }, [project.id, project.weeklyUpdate]);
     
     // 文档编辑状态
     const [documents, setDocuments] = useState<Document[]>(project.documents || []);
@@ -711,6 +716,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                         <InfoBlock label="本周进展/问题">
                             <div onBlur={handleWeeklyUpdateBlur}>
                                 <RichTextInput
+                                    key={project.id}
                                     html={weeklyUpdateHtml}
                                     onChange={setWeeklyUpdateHtml}
                                     placeholder="输入本周进展/问题..."
