@@ -484,10 +484,19 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     }
   }, [filteredAndSortedProjects, allUsers, activeOkrs]);
 
-  // 准备筛选选项
-  const statusOptions = Object.values(ProjectStatus).map(status => ({ value: status, label: status }));
-  const priorityOptions = Object.values(Priority).map(priority => ({ value: priority, label: priority }));
-  const systemOptions = SYSTEM_OPTIONS.map(system => ({ value: system, label: system }));
+  // 准备筛选选项 - 包含空值选项
+  const statusOptions = [
+    { value: '', label: '未设置' },
+    ...Object.values(ProjectStatus).map(status => ({ value: status, label: status }))
+  ];
+  const priorityOptions = [
+    { value: '', label: '未设置' },
+    ...Object.values(Priority).map(priority => ({ value: priority, label: priority }))
+  ];
+  const systemOptions = [
+    { value: '', label: '未设置' },
+    ...SYSTEM_OPTIONS.map(system => ({ value: system, label: system }))
+  ];
   
   // 按部门分组参与人选项
   const participantGroupedOptions = useMemo(() => {

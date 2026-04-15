@@ -51,6 +51,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 }) => {
     
     const statusOptions = [
+        { value: '', label: '未设置' },
         ProjectStatus.NotStarted,
         ProjectStatus.Discussion,
         ProjectStatus.RequirementsDone,
@@ -63,9 +64,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         ProjectStatus.LaunchedThisWeek,
         ProjectStatus.Paused,
         ProjectStatus.ProjectInProgress,
-    ].map(s => ({ value: s, label: s }));
-    const priorityOptions = Object.values(Priority).map(p => ({ value: p, label: p }));
-    const systemOptions = SYSTEM_OPTIONS.map(s => ({ value: s, label: s }));
+    ].map(s => typeof s === 'string' ? { value: s, label: s } : s);
+    const priorityOptions = [
+        { value: '', label: '未设置' },
+        ...Object.values(Priority).map(p => ({ value: p, label: p }))
+    ];
+    const systemOptions = [
+        { value: '', label: '未设置' },
+        ...SYSTEM_OPTIONS.map(s => ({ value: s, label: s }))
+    ];
     
     // 按部门分组用户选项
     const userGroupedOptions = useMemo(() => {

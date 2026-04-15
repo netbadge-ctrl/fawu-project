@@ -61,17 +61,17 @@ export const KanbanFilterBar: React.FC<KanbanFilterBarProps> = ({
     
     const projectOptions = allProjects.map(p => ({ value: p.id, label: p.name }));
     
-    // 状态选项
-    const statusOptions = Object.values(ProjectStatus).map(status => ({
-        value: status,
-        label: status
-    }));
+    // 状态选项 - 包含空值选项
+    const statusOptions = [
+        { value: '', label: '未设置' },
+        ...Object.values(ProjectStatus).map(status => ({ value: status, label: status }))
+    ];
     
-    // 优先级选项
-    const priorityOptions = Object.values(Priority).map(priority => ({
-        value: priority,
-        label: priority
-    }));
+    // 优先级选项 - 包含空值选项
+    const priorityOptions = [
+        { value: '', label: '未设置' },
+        ...Object.values(Priority).map(priority => ({ value: priority, label: priority }))
+    ];
     
     return (
         <div className="bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-xl p-4 flex flex-wrap items-center gap-4 flex-shrink-0 relative z-30">

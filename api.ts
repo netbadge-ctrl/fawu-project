@@ -1,9 +1,11 @@
 // API 配置和接口封装
 // 使用环境变量，如果未设置则使用本地默认值
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9000/api';
+const API_BASE_URL = 'http://120.92.36.175:9000/api';
 
 // 检查是否为开发模式（使用 VITE_APP_ENV 更可靠）
 const isDevelopment = import.meta.env.VITE_APP_ENV === 'development' || import.meta.env.DEV || import.meta.env.NODE_ENV === 'development';
+
+console.log('🌐 API_BASE_URL:', API_BASE_URL, '| isDevelopment:', isDevelopment);
 
 // 简单的内存缓存
 interface CacheItem<T> {
@@ -123,9 +125,12 @@ export const api = {
     const endpoint = isDevelopment ? '/dev/users' : '/users';
     const data = await makeRequest(endpoint);
     
+    // 防御性处理：确保始终返回数组
+    const safeData = Array.isArray(data) ? data : (data ?? []);
+    
     // 存入缓存
-    apiCache.set(cacheKey, data);
-    return data;
+    apiCache.set(cacheKey, safeData);
+    return safeData;
   },
 
   // 获取项目列表（带缓存）
@@ -145,9 +150,12 @@ export const api = {
     const endpoint = isDevelopment ? '/dev/projects' : '/projects';
     const data = await makeRequest(endpoint);
     
+    // 防御性处理：后端空数据时可能返回null，确保始终返回数组
+    const safeData = Array.isArray(data) ? data : (data ?? []);
+    
     // 存入缓存
-    apiCache.set(cacheKey, data);
-    return data;
+    apiCache.set(cacheKey, safeData);
+    return safeData;
   },
 
   // 获取项目列表（别名）
@@ -178,9 +186,12 @@ export const api = {
     const endpoint = isDevelopment ? '/dev/okr-sets' : '/okr-sets';
     const data = await makeRequest(endpoint);
     
+    // 防御性处理：确保始终返回数组
+    const safeData = Array.isArray(data) ? data : (data ?? []);
+    
     // 存入缓存
-    apiCache.set(cacheKey, data);
-    return data;
+    apiCache.set(cacheKey, safeData);
+    return safeData;
   },
 
   // 创建OKR集合

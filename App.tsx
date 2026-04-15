@@ -92,7 +92,7 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
         // 第一阶段：优先加载项目数据（个人视图和项目总览需要）
         console.log('🚀 Phase 1: Loading core data (projects)...');
         const fetchedProjects = await api.fetchProjects();
-        setProjects(fetchedProjects);
+        setProjects(Array.isArray(fetchedProjects) ? fetchedProjects : []);
         
         // 核心数据加载完成，先让页面可交互
         setIsLoading(false);
@@ -107,15 +107,19 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
             api.fetchUsers()
         ]);
         
-        setOkrSets(fetchedOkrSets);
+        // 防御性处理：确保不为null
+        const safeOkrSets = Array.isArray(fetchedOkrSets) ? fetchedOkrSets : [];
+        const safeUsers = Array.isArray(fetchedUsers) ? fetchedUsers : [];
+        
+        setOkrSets(safeOkrSets);
         
         // 设置默认 OKR 周期（仅在初始化时）
-        if (fetchedOkrSets.length > 0 && !currentOkrPeriodId) {
-            const currentPeriod = getCurrentOkrPeriod(fetchedOkrSets);
+        if (safeOkrSets.length > 0 && !currentOkrPeriodId) {
+            const currentPeriod = getCurrentOkrPeriod(safeOkrSets);
             setCurrentOkrPeriodId(currentPeriod.periodId);
         }
 
-        setAllUsers(fetchedUsers);
+        setAllUsers(safeUsers);
         console.log('✅ Phase 2 complete: All data loaded');
     } catch (error) {
         console.error("Failed to fetch initial data", error);
@@ -580,7 +584,7 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
 
   const renderView = () => {
     // 个人视图：只要有项目数据就立即渲染，支持分阶段加载
-    if (view === 'personal' && projects.length > 0) {
+    if (view === 'personal' && (projects || []).length > 0) {
       return (
         <PersonalView
           projects={projects}

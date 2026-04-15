@@ -1248,9 +1248,13 @@ func (h *Handler) syncEmployeeData() error {
 	}
 
 	// 4. 删除已离职的员工（在数据库中但不在API返回中）
+	// 白名单：这些员工即使不在API返回中也不会被删除
+	whitelist := map[string]bool{
+		"63784": true, // 陆璐
+	}
 	var deletedCount int
 	for userID := range existingUserIDs {
-		if !apiEmployeeIDs[userID] {
+		if !apiEmployeeIDs[userID] && !whitelist[userID] {
 			_, err := h.db.Exec("DELETE FROM users WHERE id = $1", userID)
 			if err != nil {
 				fmt.Printf("Failed to delete user %s: %v\n", userID, err)

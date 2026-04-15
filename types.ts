@@ -49,6 +49,7 @@ export enum Priority {
     DeptOKR = '部门OKR',
     PersonalOKR = '个人OKR',
     UrgentRequirement = '临时重要需求',
+    Routine = '日常需求',
     LowPriority = '不重要的需求',
 }
 

@@ -39,8 +39,14 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
     setSelectedStatuses
 }) => {
     
-    const priorityOptions = Object.values(Priority).map(p => ({ value: p, label: p }));
-    const systemOptions = SYSTEM_OPTIONS.map(s => ({ value: s, label: s }));
+    const priorityOptions = [
+        { value: '', label: '未设置' },
+        ...Object.values(Priority).map(p => ({ value: p, label: p }))
+    ];
+    const systemOptions = [
+        { value: '', label: '未设置' },
+        ...SYSTEM_OPTIONS.map(s => ({ value: s, label: s }))
+    ];
     
     // 按部门分组参与人选项
     const participantGroupedOptions = React.useMemo(() => {
@@ -67,6 +73,7 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
     }, [allUsers]);
     
     const statusOptions = [
+        { value: '', label: '未设置' },
         ProjectStatus.NotStarted,
         ProjectStatus.Discussion,
         ProjectStatus.ProductDesign,
@@ -80,7 +87,7 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
         ProjectStatus.LaunchedThisWeek,
         ProjectStatus.Completed,
         ProjectStatus.Paused,
-    ].map(s => ({ value: s, label: s }));
+    ].map(s => typeof s === 'string' ? { value: s, label: s } : s);
     
     return (
         <div className="bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-xl p-4 flex flex-wrap items-center gap-4 mb-6">
