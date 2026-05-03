@@ -7,6 +7,7 @@ import { PersonalView } from './components/PersonalView';
 import ProjectOverview from './components/ProjectOverview';
 import { WeeklyMeetingView } from './components/WeeklyMeetingView';
 import { MonthlyMeetingView } from './components/MonthlyMeetingView';
+import WeeklyReportView from './components/WeeklyReport';
 
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { PersonalViewSkeleton, ProjectOverviewSkeleton, OKRPageSkeleton, KanbanViewSkeleton } from './components/SkeletonLoader';
@@ -18,7 +19,7 @@ import { ProjectDetailModal } from './components/ProjectDetailModal';
 import { api, apiCache } from './api.ts';
 import { Project, ProjectStatus, Role, User, ProjectRoleKey, OKR, Priority, Comment, ChangeLogEntry, OkrSet, Document } from './types';
 
-export type ViewType = 'overview' | 'okr' | 'kanban' | 'personal' | 'weekly' | 'monthly';
+export type ViewType = 'overview' | 'okr' | 'kanban' | 'personal' | 'weekly' | 'monthly' | 'weeklyReport';
 
 // 根据当前日期确定应该显示的OKR周期
 const getCurrentOkrPeriod = (okrSets: OkrSet[]): OkrSet => {
@@ -669,7 +670,8 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
                 currentUser={currentUser}
             />
         );
-
+      case 'weeklyReport':
+        return <WeeklyReportView />;
       case 'overview':
         return (
           <ProjectOverview

@@ -24,3 +24,12 @@ dist-ssr
 *.sw?
 .claude
 .codebuddy
+
+# backend 二进制产物与本地 SQLite
+backend/backend-app
+backend/project-management-backend
+backend/main
+backend/main-linux
+backend/projects.db
+backend/project.db
+backend/backend.log

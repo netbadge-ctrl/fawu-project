@@ -146,12 +146,56 @@ func createTables(db *sql.DB) error {
 		);`
 	}
 
+	// 创建周报表（PG 不认 DATETIME，两边都接受 TIMESTAMP）
+	weeklyReportsTable := `
+	CREATE TABLE IF NOT EXISTS weekly_reports (
+		id TEXT PRIMARY KEY,
+		week_year INTEGER NOT NULL,
+		week_number INTEGER NOT NULL,
+		start_date TEXT NOT NULL,
+		end_date TEXT NOT NULL,
+		status TEXT NOT NULL DEFAULT 'generated',
+		content TEXT,
+		summary TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		generated_by TEXT
+	);
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_weekly_reports_week ON weekly_reports(week_year, week_number);
+	CREATE INDEX IF NOT EXISTS idx_weekly_reports_year ON weekly_reports(week_year);
+	`
+
+	// 周报历史版本表（每次重新生成时将当前内容归档）
+	weeklyReportVersionsTable := `
+	CREATE TABLE IF NOT EXISTS weekly_report_versions (
+		id TEXT PRIMARY KEY,
+		report_id TEXT NOT NULL,
+		week_year INTEGER NOT NULL,
+		week_number INTEGER NOT NULL,
+		version_no INTEGER NOT NULL,
+		content TEXT,
+		summary TEXT,
+		generated_by TEXT,
+		archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE INDEX IF NOT EXISTS idx_weekly_report_versions_report_id ON weekly_report_versions(report_id);
+	CREATE INDEX IF NOT EXISTS idx_weekly_report_versions_week ON weekly_report_versions(week_year, week_number);
+	`
+
 	tables := []string{usersTable, okrSetsTable, projectsTable}
 
 	for _, table := range tables {
 		if _, err := db.Exec(table); err != nil {
 			return fmt.Errorf("failed to create table: %w", err)
 		}
+	}
+
+	// 创建周报表
+	if _, err := db.Exec(weeklyReportsTable); err != nil {
+		return fmt.Errorf("failed to create weekly_reports table: %w", err)
+	}
+	if _, err := db.Exec(weeklyReportVersionsTable); err != nil {
+		return fmt.Errorf("failed to create weekly_report_versions table: %w", err)
 	}
 
 	return nil

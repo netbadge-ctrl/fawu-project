@@ -1,6 +1,6 @@
 // API 配置和接口封装
 // 使用环境变量，如果未设置则使用本地默认值
-const API_BASE_URL = 'http://120.92.36.175:9000/api';
+const API_BASE_URL = 'http://localhost:9000/api';
 
 // 检查是否为开发模式（使用 VITE_APP_ENV 更可靠）
 const isDevelopment = import.meta.env.VITE_APP_ENV === 'development' || import.meta.env.DEV || import.meta.env.NODE_ENV === 'development';
@@ -359,6 +359,65 @@ export const api = {
     return makeRequest(endpoint, {
       method: 'DELETE',
     });
+  },
+
+  // ================== 周报相关 API ==================
+
+  // 获取周报列表
+  async fetchWeeklyReports() {
+    const endpoint = isDevelopment ? '/dev/weekly-reports' : '/weekly-reports';
+    const data = await makeRequest(endpoint);
+    return Array.isArray(data) ? data : [];
+  },
+
+  // 获取指定周的周报
+  async fetchWeeklyReportByWeek(year: number, week: number) {
+    const endpoint = isDevelopment 
+      ? `/dev/weekly-reports/${year}/${week}` 
+      : `/weekly-reports/${year}/${week}`;
+    return makeRequest(endpoint);
+  },
+
+  // 生成周报
+  async generateWeeklyReport() {
+    const endpoint = isDevelopment ? '/dev/weekly-reports/generate' : '/weekly-reports/generate';
+    return makeRequest(endpoint, { method: 'POST' });
+  },
+
+  // 更新周报
+  async updateWeeklyReport(reportId: string, updates: any) {
+    const endpoint = isDevelopment 
+      ? `/dev/weekly-reports/${reportId}`
+      : `/weekly-reports/${reportId}`;
+    return makeRequest(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  // 重新生成周报（同时将当前内容归档为历史版本）
+  async regenerateWeeklyReport(reportId: string) {
+    const endpoint = isDevelopment
+      ? `/dev/weekly-reports/regenerate/${reportId}`
+      : `/weekly-reports/regenerate/${reportId}`;
+    return makeRequest(endpoint, { method: 'POST' });
+  },
+
+  // 获取周报的历史版本列表
+  async fetchWeeklyReportVersions(reportId: string) {
+    const endpoint = isDevelopment
+      ? `/dev/weekly-reports/versions/${reportId}`
+      : `/weekly-reports/versions/${reportId}`;
+    const data = await makeRequest(endpoint);
+    return Array.isArray(data) ? data : [];
+  },
+
+  // 获取某个历史版本的完整内容
+  async fetchWeeklyReportVersion(versionId: string) {
+    const endpoint = isDevelopment
+      ? `/dev/weekly-report-versions/${versionId}`
+      : `/weekly-report-versions/${versionId}`;
+    return makeRequest(endpoint);
   }
 };
 

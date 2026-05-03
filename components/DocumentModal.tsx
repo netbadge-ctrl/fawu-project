@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Document, User } from '../types';
 import { IconX, IconPlus, IconTrash } from './Icons';
+import { extractUrl, safeHref } from '../utils';
 
 interface DocumentModalProps {
   isOpen: boolean;
@@ -29,7 +30,12 @@ export const DocumentModal: React.FC<DocumentModalProps> = ({
 
   const handleAdd = () => {
     if (newDocName.trim() && newDocUrl.trim()) {
-      onAddDocument(newDocName.trim(), newDocUrl.trim());
+      const cleanUrl = extractUrl(newDocUrl);
+      if (!cleanUrl) {
+        alert('请输入合法的文档链接（需包含 http(s):// 或裸域名）');
+        return;
+      }
+      onAddDocument(newDocName.trim(), cleanUrl);
       setNewDocName('');
       setNewDocUrl('');
       setIsAdding(false);
@@ -86,9 +92,9 @@ export const DocumentModal: React.FC<DocumentModalProps> = ({
                     className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#2d2d2d] rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors group"
                   >
                     <div className="flex-1 min-w-0 flex items-center gap-4">
-                      {/* 文档标题链接 */}
+                      {/* 文档标题链接（safeHref 兼容历史脏数据） */}
                       <a 
-                        href={doc.url}
+                        href={safeHref(doc.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-medium text-blue-600 dark:text-blue-400 hover:underline truncate flex-1 min-w-0"

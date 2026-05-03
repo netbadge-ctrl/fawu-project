@@ -140,6 +140,40 @@ export const formatDateOnly = (dateString: string | null): string => {
   return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
 };
 
+// 从用户输入/粘贴的文本中提取首个 http(s) 链接。
+// - 如果输入本身就是 http(s) URL，返回去除首尾空白后的第一段。
+// - 如果输入是《中文描述 + URL》混合文本，提取中间的 URL。
+// - 如果仅含裸域名（如 example.com/path），自动补上 https:// 前缀。
+// - 提取不到任何合法路径时返回 null。
+export const extractUrl = (input: string): string | null => {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // 常见包裹符去除（中英文括号、引号等）
+  const peel = (s: string) => s.replace(/^[\s\u3000<>"'\u300a\u300b\u3010\u3011\u300c\u300d\(\)\[\]]+|[\s\u3000<>"'\u300a\u300b\u3010\u3011\u300c\u300d\)\]\.,;:\u3002\uff0c\uff1b\uff1a]+$/g, '');
+
+  // 从文本中搜首个 http/https URL
+  const m = trimmed.match(/https?:\/\/[^\s\u3000<>"'\u300a\u300b\u3010\u3011\u300c\u300d]+/i);
+  if (m) return peel(m[0]);
+
+  // 裸域名启发式（包含点，且不含中文/空白）→ 补 https://
+  if (/^[A-Za-z0-9.-]+\.[A-Za-z]{2,}(\/.*)?$/.test(trimmed)) {
+    return 'https://' + trimmed;
+  }
+
+  return null;
+};
+
+// 面向展示场景的安全 href：如果原始值不是有效 http(s) 链接，尝试提取；
+// 提取不到返回 '#'，避免被浏览器拼接为当前站点的相对路径。
+export const safeHref = (raw: string | null | undefined): string => {
+  if (!raw) return '#';
+  const t = raw.trim();
+  if (/^https?:\/\//i.test(t)) return t;
+  return extractUrl(t) || '#';
+};
+
 export const renderCommentTextAsHtml = (comment: Comment, allUsers: User[]): string => {
     let text = comment.text;
     // Basic HTML escaping

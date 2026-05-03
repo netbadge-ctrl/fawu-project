@@ -64,6 +64,14 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 			public.POST("/dev/monthly-work-items", handler.CreateDevMonthlyWorkItem)                  // 创建月度工作条目
 			public.PATCH("/dev/monthly-work-items/:itemId", handler.UpdateDevMonthlyWorkItem)         // 更新月度工作条目
 			public.DELETE("/dev/monthly-work-items/:itemId", handler.DeleteDevMonthlyWorkItem)        // 删除月度工作条目
+			// 周报相关端点（开发模式）
+			public.GET("/dev/weekly-reports", handler.GetDevWeeklyReports)
+			public.GET("/dev/weekly-reports/:year/:week", handler.GetDevWeeklyReportByWeek)
+			public.POST("/dev/weekly-reports/generate", handler.GenerateDevWeeklyReport)
+			public.PATCH("/dev/weekly-reports/:reportId", handler.UpdateDevWeeklyReport)
+			public.POST("/dev/weekly-reports/regenerate/:reportId", handler.RegenerateDevWeeklyReport)
+			public.GET("/dev/weekly-reports/versions/:reportId", handler.GetDevWeeklyReportVersions)
+			public.GET("/dev/weekly-report-versions/:versionId", handler.GetDevWeeklyReportVersionByID)
 			// 员工同步端点（开发模式）
 			public.POST("/dev/sync-employees", handler.SyncEmployeeData) // 同步员工数据（开发模式）
 		}
@@ -100,6 +108,15 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 			protected.POST("/monthly-work-items", handler.CreateMonthlyWorkItem)
 			protected.PATCH("/monthly-work-items/:itemId", handler.UpdateMonthlyWorkItem)
 			protected.DELETE("/monthly-work-items/:itemId", handler.DeleteMonthlyWorkItem)
+
+			// 周报相关路由（需要认证）
+			protected.GET("/weekly-reports", handler.GetWeeklyReports)
+			protected.GET("/weekly-reports/:year/:week", handler.GetWeeklyReportByWeek)
+			protected.POST("/weekly-reports/generate", handler.GenerateWeeklyReport)
+			protected.PATCH("/weekly-reports/:reportId", handler.UpdateWeeklyReport)
+			protected.POST("/weekly-reports/regenerate/:reportId", handler.RegenerateWeeklyReport)
+			protected.GET("/weekly-reports/versions/:reportId", handler.GetWeeklyReportVersions)
+			protected.GET("/weekly-report-versions/:versionId", handler.GetWeeklyReportVersionByID)
 		}
 	}
 

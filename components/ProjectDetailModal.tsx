@@ -7,6 +7,7 @@ import { AutoResizeTextarea } from './AutoResizeTextarea';
 import { DatePicker } from './DatePicker';
 import { SYSTEM_OPTIONS } from '../constants';
 import KRSelectionModal from './KRSelectionModal';
+import { extractUrl, safeHref } from '../utils';
 
 // 本周进展默认模板标题 - 这四个标题加粗展示，且不允许用户删除
 const WEEKLY_UPDATE_HEADERS = ['产品进展:', '后端进展:', '前端进展:', '测试进展:'];
@@ -312,6 +313,8 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
     const [weeklyUpdateHtml, setWeeklyUpdateHtml] = useState(project.weeklyUpdate);
     const [copySuccess, setCopySuccess] = useState(false);
     const [isKrModalOpen, setIsKrModalOpen] = useState(false);
+    // 用于“部门OKR 必须关联 KR”规则：记录切换前的 priority，关闭弹窗未选 KR 时回退。
+    const priorityBeforeKrModalRef = useRef<Priority | null>(null);
     const krTriggerRef = useRef<HTMLDivElement>(null);
     
     // 当 project 变化时，更新 weeklyUpdateHtml 状态
@@ -445,7 +448,28 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
     };
 
     const handlePriorityChange = (newPriority: Priority) => {
+        const prev = project.priority;
         onUpdateProject(project.id, 'priority', newPriority);
+        // 优先级切到“部门OKR”且当前未关联 KR 时，自动弹出 KR 选择框；
+        // 并记录上一个 priority，便于用户未选 KR 就关闭时回退优先级。
+        if (newPriority === Priority.DeptOKR && (project.keyResultIds?.length ?? 0) === 0) {
+            priorityBeforeKrModalRef.current = prev;
+            setIsKrModalOpen(true);
+        }
+    };
+
+    // KR 选择弹窗关闭（非保存路径）：若 priority=部门OKR 但仍无 KR，强制回退优先级。
+    const handleKrModalClose = () => {
+        if (
+            priorityBeforeKrModalRef.current &&
+            project.priority === Priority.DeptOKR &&
+            (project.keyResultIds?.length ?? 0) === 0
+        ) {
+            alert('优先级选择“部门OKR”时必须关联一个 KR，已为您还原优先级。');
+            onUpdateProject(project.id, 'priority', priorityBeforeKrModalRef.current);
+        }
+        priorityBeforeKrModalRef.current = null;
+        setIsKrModalOpen(false);
     };
 
     const handleProjectNameSave = (newName: string) => {
@@ -473,16 +497,22 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
     // OKR 选择处理
     const handleKrSave = (newKrIds: string[]) => {
         onUpdateProject(project.id, 'keyResultIds', newKrIds);
+        priorityBeforeKrModalRef.current = null;
         setIsKrModalOpen(false);
     };
 
     // 文档处理函数
     const handleAddDocument = () => {
         if (!newDocName.trim() || !newDocUrl.trim()) return;
+        const cleanUrl = extractUrl(newDocUrl);
+        if (!cleanUrl) {
+            alert('请输入合法的文档链接（需包含 http(s):// 或裸域名）');
+            return;
+        }
         const newDoc: Document = {
             id: `doc_${Date.now()}`,
             name: newDocName.trim(),
-            url: newDocUrl.trim(),
+            url: cleanUrl,
             createdAt: new Date().toISOString(),
             createdBy: currentUser.id
         };
@@ -574,13 +604,58 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                 multiline
                             />
                         </InfoBlock>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-[120px_1fr] gap-3">
                             <InfoBlock label="优先级">
                                 <EditablePrioritySelect 
                                     priority={project.priority} 
                                     onPriorityChange={handlePriorityChange}
                                 />
                             </InfoBlock>
+                            <div>
+                                <div className="flex items-center justify-between mb-1.5 gap-2">
+                                    <h4 className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">关联的 OKR</h4>
+                                    <button
+                                        onClick={() => setIsKrModalOpen(true)}
+                                        className="flex-shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] leading-none rounded border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                                    >
+                                        <IconPencil className="w-2.5 h-2.5" />
+                                        {project.keyResultIds?.length ? '修改关联' : '选择关联'}
+                                    </button>
+                                </div>
+                                <div className="text-sm text-gray-800 dark:text-gray-300">
+                                    {projectOkrs.length > 0 ? (
+                                        <ul className="space-y-1">
+                                            {(() => {
+                                                // 去重处理，确保每个KR只显示一次
+                                                const uniqueKrs = new Map();
+                                                projectOkrs.forEach(okr => {
+                                                    okr.keyResults
+                                                        .filter(kr => project.keyResultIds.includes(kr.id))
+                                                        .forEach(kr => {
+                                                            if (!uniqueKrs.has(kr.id)) {
+                                                                uniqueKrs.set(kr.id, kr);
+                                                            }
+                                                        });
+                                                });
+                                                return Array.from(uniqueKrs.values()).map((kr) => (
+                                                    <li key={kr.id} className="text-xs text-gray-700 dark:text-gray-300">
+                                                        KR: {kr.description}
+                                                    </li>
+                                                ));
+                                            })()}
+                                        </ul>
+                                    ) : (
+                                        <span className="text-sm text-gray-400 dark:text-gray-500">未关联</span>
+                                    )}
+                                    {project.priority === Priority.DeptOKR && (project.keyResultIds?.length ?? 0) === 0 && (
+                                        <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                                            <span aria-hidden>⚠</span>部门OKR 必须关联一个 KR
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-[120px_1fr] gap-3">
                             <InfoBlock label="状态">
                                 <EditableStatusSelect 
                                     status={project.status} 
@@ -595,42 +670,6 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                 />
                             </InfoBlock>
                         </div>
-                        <InfoBlock label="关联的 OKR">
-                            <div className="space-y-2">
-                                {projectOkrs.length > 0 ? (
-                                    <ul className="space-y-1">
-                                        {(() => {
-                                            // 去重处理，确保每个KR只显示一次
-                                            const uniqueKrs = new Map();
-                                            projectOkrs.forEach(okr => {
-                                                okr.keyResults
-                                                    .filter(kr => project.keyResultIds.includes(kr.id))
-                                                    .forEach(kr => {
-                                                        if (!uniqueKrs.has(kr.id)) {
-                                                            uniqueKrs.set(kr.id, kr);
-                                                        }
-                                                    });
-                                            });
-                                            
-                                            return Array.from(uniqueKrs.values()).map((kr) => (
-                                                <li key={kr.id} className="text-xs text-gray-700 dark:text-gray-300">
-                                                    KR: {kr.description}
-                                                </li>
-                                            ));
-                                        })()}
-                                    </ul>
-                                ) : (
-                                    <span className="text-sm text-gray-400 dark:text-gray-500">未关联</span>
-                                )}
-                                <button
-                                    onClick={() => setIsKrModalOpen(true)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                                >
-                                    <IconPencil className="w-3 h-3" />
-                                    {project.keyResultIds?.length ? '修改关联' : '选择关联'}
-                                </button>
-                            </div>
-                        </InfoBlock>
                         <InfoBlock label="上周进展/问题">
                              <div 
                                 dangerouslySetInnerHTML={{ __html: project.lastWeekUpdate || `<span class="text-sm text-gray-400 dark:text-gray-500">暂无记录</span>`}}
@@ -656,9 +695,9 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                                 >
                                                     <IconFileText className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                                                     <div className="flex-1 min-w-0 flex items-center gap-3">
-                                                        {/* 文档标题链接 */}
+                                                        {/* 文档标题链接（使用 safeHref 对历史脏数据也代代提取干净 URL） */}
                                                         <a 
-                                                            href={doc.url}
+                                                            href={safeHref(doc.url)}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="font-medium text-sm text-blue-600 dark:text-blue-400 hover:underline truncate flex-1 min-w-0"
@@ -694,7 +733,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                     />
                                     <input
                                         type="text"
-                                        placeholder="文档链接"
+                                        placeholder="文档链接（可粘贴整段，自动提取 http(s) 部分）"
                                         value={newDocUrl}
                                         onChange={(e) => setNewDocUrl(e.target.value)}
                                         className="flex-[2] min-w-0 px-2 py-1 text-sm bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#4a4a4a] rounded text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -919,7 +958,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
             {/* KR 选择弹窗 */}
             <KRSelectionModal
                 isOpen={isKrModalOpen}
-                onClose={() => setIsKrModalOpen(false)}
+                onClose={handleKrModalClose}
                 selectedKrIds={project.keyResultIds || []}
                 allOkrs={activeOkrs}
                 onSave={handleKrSave}

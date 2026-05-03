@@ -130,7 +130,62 @@ type Project struct {
 	Documents          []Document       `json:"documents" db:"documents"`
 }
 
-// EmployeeResponse 员工接口响应
+// WeeklyReportContent 周报内容结构
+type WeeklyReportContent struct {
+	OkrSummaries []OkrWeeklySummary `json:"okrSummaries"`
+}
+
+// OkrWeeklySummary 单个OKR的周报总结
+type OkrWeeklySummary struct {
+	OkrID       string            `json:"okrId"`
+	Objective   string            `json:"objective"`
+	KrSummaries []KrWeeklySummary `json:"krSummaries"`
+}
+
+// KrWeeklySummary 单个KR的周报总结
+type KrWeeklySummary struct {
+	KrID        string                    `json:"krId"`
+	KrDesc      string                    `json:"krDesc"`
+	ProjectSummaries []ProjectWeeklySummary `json:"projectSummaries"`
+}
+
+// ProjectWeeklySummary 单个项目的周报总结条目
+type ProjectWeeklySummary struct {
+	ProjectID     string `json:"projectId"`
+	ProjectName   string `json:"projectName"`
+	WeeklyUpdate  string `json:"weeklyUpdate"`
+	Status        string `json:"status"`
+	Priority      string `json:"priority"`
+	ProductManagers []string `json:"productManagers"`
+}
+
+// WeeklyReport 周报模型
+type WeeklyReport struct {
+	ID          string              `json:"id" db:"id"`
+	WeekYear    int                 `json:"weekYear" db:"week_year"`
+	WeekNumber  int                 `json:"weekNumber" db:"week_number"`
+	StartDate   string              `json:"startDate" db:"start_date"`
+	EndDate     string              `json:"endDate" db:"end_date"`
+	Status      string              `json:"status" db:"status"` // generated / editing / finalized
+	Content     WeeklyReportContent `json:"content" db:"content"`
+	Summary     string              `json:"summary" db:"summary"`
+	CreatedAt   string              `json:"createdAt" db:"created_at"`
+	UpdatedAt   string              `json:"updatedAt" db:"updated_at"`
+	GeneratedBy string              `json:"generatedBy" db:"generated_by"`
+}
+
+// WeeklyReportVersion 周报历史版本快照
+type WeeklyReportVersion struct {
+	ID          string              `json:"id" db:"id"`
+	ReportID    string              `json:"reportId" db:"report_id"`
+	WeekYear    int                 `json:"weekYear" db:"week_year"`
+	WeekNumber  int                 `json:"weekNumber" db:"week_number"`
+	VersionNo   int                 `json:"versionNo" db:"version_no"`
+	Content     WeeklyReportContent `json:"content" db:"content"`
+	Summary     string              `json:"summary" db:"summary"`
+	GeneratedBy string              `json:"generatedBy" db:"generated_by"`
+	ArchivedAt  string              `json:"archivedAt" db:"archived_at"`
+}
 type EmployeeResponse struct {
 	EmployeeList map[string][]Employee `json:"employee_list"`
 }

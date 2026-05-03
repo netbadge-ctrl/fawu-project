@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IconG, IconList, IconBarChart, IconLayoutGrid, IconUser, IconLogOut, IconSun, IconMoon, IconClipboard, IconChevronLeft, IconChevronRight, IconCalendar } from './Icons';
+import { IconG, IconList, IconBarChart, IconLayoutGrid, IconUser, IconLogOut, IconSun, IconMoon, IconClipboard, IconChevronLeft, IconChevronRight, IconCalendar, IconFileText } from './Icons';
 import { ViewType } from '../App';
 import { User } from '../types';
 import { useTheme } from '../context/theme-context';
@@ -109,6 +109,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, currentUser }) 
             label="周会视图"
             isActive={view === 'weekly'}
             onClick={() => setView('weekly')}
+            collapsed={collapsed}
+          />
+          <NavItem
+            icon={<IconFileText className={`${collapsed ? 'w-7 h-7' : 'w-6 h-6'}`} />}
+            label="周报"
+            isActive={view === 'weeklyReport'}
+            onClick={() => setView('weeklyReport')}
             collapsed={collapsed}
           />
         </ul>

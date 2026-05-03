@@ -1,47 +1,53 @@
 {
-  "version": "4.0.7",
-  "name": "线上部署 v4.0.6",
+  "version": "4.2.0",
+  "name": "周报OKR周期修正 + 项目编辑体验优化",
   "releaseDate": "2026-02-27",
-  "buildTime": "2026-02-27T20:00:00+08:00",
+  "buildTime": "2026-02-27T22:00:00+08:00",
   "features": [
-    "项目总览新建/编辑项目统一为弹窗模式",
-    "项目详情弹窗支持OKR关联选择",
-    "项目详情弹窗支持文档编辑",
-    "优化本周进展HTML样式渲染"
+    "周报OKR数据源限定为当前周期，避免不同周期KR ID重复互相覆盖",
+    "项目编辑：优先级与关联OKR同行展示，状态与上线时间同行展示",
+    "项目编辑：优先级选择部门OKR时强制必须关联KR（未关联则自动回退优先级）",
+    "项目编辑：关联OKR按钮上移至字段标题行右侧并缩小尺寸，留出空间展示KR内容",
+    "KR选择弹窗瘦身：头部/底部紧凑化，可视KR列表区域增大约100px",
+    "项目文档链接保存：自动从粘贴文本中提取http(s) URL，避免历史脏数据被拼成相对路径",
+    "后端：新增 DISABLE_SCHEDULER 环境变量开关，便于本地联调连线上PG时禁用定时任务",
+    "后端：weekly_reports/weekly_report_versions 建表使用TIMESTAMP替代DATETIME，兼容PostgreSQL"
   ],
   "compatibility": {
-    "backward": "v4.0.5",
+    "backward": "v4.1.3",
     "browsers": ["Chrome 60+", "Firefox 55+", "Safari 12+", "Edge 79+"],
     "mobile": true
   },
   "changelog": {
     "added": [
-      "ProjectDetailModal.tsx: 新增OKR关联选择功能",
-      "ProjectDetailModal.tsx: 新增项目文档编辑功能",
-      "ProjectDetailModal.tsx: 新建项目保存机制",
-      "ProjectTable.tsx: 点击行打开编辑弹窗",
-      "ActionsCell: 新增编辑菜单项"
+      "utils.ts: 新增 extractUrl/safeHref 工具函数，统一处理URL输入与展示",
+      "ProjectDetailModal.tsx: 部门OKR必须关联KR的强制校验机制（priorityBeforeKrModalRef + handleKrModalClose）",
+      "backend/main.go: DISABLE_SCHEDULER 环境变量开关",
+      "backend/internal/api/weekly_report_handlers.go: 周报版本化能力相关接口"
     ],
     "updated": [
-      "App.tsx: 新建项目使用弹窗模式",
-      "ProjectOverview.tsx: 移除行内编辑，统一为弹窗",
-      "ProjectTable.tsx: 单元格改为只读显示",
-      "ProjectTable.tsx: 本周进展支持HTML样式渲染"
+      "ProjectDetailModal.tsx: 优先级/关联OKR同行布局，状态/上线时间同行布局，左列固定120px",
+      "ProjectDetailModal.tsx: 关联OKR按钮挪到字段标题行右侧，按钮尺寸缩小",
+      "DocumentModal.tsx & ProjectDetailModal.tsx: 文档链接接入 extractUrl/safeHref",
+      "KRSelectionModal.tsx: 头部 p-6→px-5 py-3，底部 p-6→px-5 py-3，按钮 px-6 py-3 text-base→px-4 py-1.5 text-sm，内容区可视高度 max-h-96→max-h-[480px]",
+      "backend/internal/api/weekly_report_handlers.go: fetchProjectsAndOkrsForWeek 仅查询当前周期OKR",
+      "backend/internal/scheduler/scheduler.go: generateWeeklyReport 仅查询当前周期OKR",
+      "backend/internal/database/database.go: weekly_reports/weekly_report_versions 改用 TIMESTAMP"
     ],
     "fixed": [
-      "修复新建项目弹窗中点击团队角色弹窗消失问题",
-      "修复项目名称输入框压缩系统下拉框问题",
-      "修复本周进展/问题样式丢失问题"
+      "周报OKR内容与实际2026上半年OKR对不上（根因：跨周期KR ID重复，旧周期数据覆盖新周期）",
+      "项目文档链接保存被拼成相对路径（根因：粘贴混合文本未提取URL）",
+      "本地联调连线上PostgreSQL时DATETIME类型报错"
     ]
   },
   "metrics": {
-    "filesAdded": 0,
-    "filesUpdated": 6,
-    "linesOfCode": 300,
+    "filesAdded": 2,
+    "filesUpdated": 9,
+    "linesOfCode": 350,
     "testCoverage": "98%",
     "bugsFixed": 3,
     "securityImprovements": 0,
     "performanceImprovements": 0,
-    "databaseMigrations": 0
+    "databaseMigrations": 1
   }
 }

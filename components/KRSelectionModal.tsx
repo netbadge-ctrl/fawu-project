@@ -154,28 +154,28 @@ const KRSelectionModal: React.FC<KRSelectionModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* 头部 */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-600 flex items-center justify-between bg-white dark:bg-gray-800">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-600 flex items-center justify-between bg-white dark:bg-gray-800">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             选择关联的关键成果 (KR)
           </h2>
           <button
             onClick={handleCancel}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
           >
-            <IconX className="w-6 h-6" />
+            <IconX className="w-5 h-5" />
           </button>
         </div>
         
         {/* 内容区域 */}
-        <div className="p-6 max-h-96 overflow-y-auto bg-white dark:bg-gray-800">
+        <div className="px-5 py-4 max-h-[480px] overflow-y-auto bg-white dark:bg-gray-800">
           {allOkrs.map((okr, okrIndex) => {
             console.log('🔧 KRSelectionModal render OKR:', { okrIndex, okr, keyResults: okr.keyResults });
             return (
-              <div key={okr.id} className="mb-6 last:mb-0">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-3 text-base leading-relaxed">
+              <div key={okr.id} className="mb-4 last:mb-0">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2 text-sm leading-relaxed">
                   O{okrIndex + 1}: {okr.objective}
                 </h3>
-                <div className="space-y-3 pl-4">
+                <div className="space-y-1.5 pl-3">
                   {okr.keyResults.map((kr, krIndex) => {
                     // 后端返回的kr.id已经是复合ID格式（o1::kr1），直接使用
                     const isChecked = currentSelection.includes(kr.id);
@@ -188,7 +188,7 @@ const KRSelectionModal: React.FC<KRSelectionModalProps> = ({
                       currentSelection 
                     });
                     return (
-                      <label key={kr.id} className="flex items-start gap-3 cursor-pointer p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <label key={kr.id} className="flex items-start gap-2 cursor-pointer p-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -208,18 +208,18 @@ const KRSelectionModal: React.FC<KRSelectionModalProps> = ({
         </div>
         
         {/* 底部按钮 */}
-        <div className="p-6 border-t border-gray-200 dark:border-gray-600 flex justify-end gap-3 bg-white dark:bg-gray-800">
+        <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-600 flex justify-end gap-2 bg-white dark:bg-gray-800">
           <button
             onClick={handleCancel}
-            className="px-6 py-3 text-base text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="px-4 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             取消
           </button>
           <button
             onClick={handleSave}
-            className="px-6 py-3 text-base bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center gap-2"
+            className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex items-center gap-1.5"
           >
-            <IconCheck className="w-5 h-5" />
+            <IconCheck className="w-4 h-4" />
             确定
           </button>
         </div>
