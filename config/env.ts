@@ -27,9 +27,12 @@ const getBoolEnvVar = (key: string, defaultValue: boolean = false): boolean => {
 };
 
 // 应用配置
+export const APP_VERSION = '4.2.0';
+export const BUILD_ID = 'b20260227-2200';
+
 export const appConfig: AppConfig = {
   env: getEnvVar('VITE_APP_ENV', 'development') as 'development' | 'production',
-  apiBaseUrl: 'http://localhost:9000/api',
+  apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'http://localhost:9000/api'),
   frontendUrl: getEnvVar('VITE_FRONTEND_URL', 'http://localhost:5173'),
   enableOIDC: getBoolEnvVar('VITE_ENABLE_OIDC', false),
   mockUserId: getEnvVar('VITE_MOCK_USER_ID', '22231'),
