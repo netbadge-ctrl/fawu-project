@@ -10,9 +10,9 @@ echo "开始部署 codebuddy..."
 echo "删除旧的项目目录..."
 rm -rf /opt/codebuddy
 
-# 克隆最新代码
+# 克隆最新代码（从 GitHub 拉取）
 echo "克隆最新代码..."
-git clone git@gitee.com:fengyikai/codebuddy.git /opt/codebuddy
+git clone https://github.com/netbadge-ctrl/project.git /opt/codebuddy
 
 # 进入项目目录
 cd /opt/codebuddy
