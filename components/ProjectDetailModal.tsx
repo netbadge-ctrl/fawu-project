@@ -8,6 +8,7 @@ import { DatePicker } from './DatePicker';
 import { SYSTEM_OPTIONS } from '../constants';
 import KRSelectionModal from './KRSelectionModal';
 import { extractUrl, safeHref } from '../utils';
+import { countTimeSlotsWorkingDays, countWorkingDaysInRange } from '../utils/holidays';
 
 // 本周进展默认模板标题 - 这四个标题加粗展示，且不允许用户删除
 const WEEKLY_UPDATE_HEADERS = ['产品进展:', '后端进展:', '前端进展:', '测试进展:'];
@@ -912,6 +913,14 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                                                     scheduleText = <span className="text-gray-500 dark:text-gray-400">无排期</span>;
                                                                 }
                                                                 
+                                                                // 计算工作日天数（去周末 + 去法定节假日，多段去重合并）
+                                                                let workingDays = 0;
+                                                                if (member.timeSlots && member.timeSlots.length > 0) {
+                                                                    workingDays = countTimeSlotsWorkingDays(member.timeSlots);
+                                                                } else if (member.startDate && member.endDate) {
+                                                                    workingDays = countWorkingDaysInRange(member.startDate, member.endDate);
+                                                                }
+
                                                                 return (
                                                                     <li key={member.userId} className="grid grid-cols-[1fr_auto] items-baseline gap-x-3">
                                                                         <span className="text-gray-700 dark:text-gray-200 text-right">{user?.name}</span>
@@ -919,7 +928,16 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                                                             isExpired 
                                                                                 ? 'text-gray-300 dark:text-gray-600' 
                                                                                 : 'text-gray-500 dark:text-gray-400'
-                                                                        }`}>{scheduleText}</span>
+                                                                        }`}>
+                                                                            {scheduleText}
+                                                                            {workingDays > 0 && (
+                                                                                <span className={`ml-2 ${
+                                                                                    isExpired
+                                                                                        ? 'text-gray-300 dark:text-gray-600'
+                                                                                        : 'text-gray-400 dark:text-gray-500'
+                                                                                }`}>· 共 {workingDays} 天</span>
+                                                                            )}
+                                                                        </span>
                                                                     </li>
                                                                 );
                                                             })}
