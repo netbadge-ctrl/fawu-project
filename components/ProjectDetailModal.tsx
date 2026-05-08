@@ -480,10 +480,19 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
     };
 
     const handleSystemChange = (newSystem: string) => {
+        if (!newSystem || !newSystem.trim()) {
+            alert('归属系统为必填项，不允许清空');
+            return;
+        }
         onUpdateProject(project.id, 'system', newSystem);
     };
 
     const handleBusinessProblemSave = (newBusinessProblem: string) => {
+        // 编辑场景下阻止清空：解决的业务问题为必填项
+        if (!newBusinessProblem.trim()) {
+            alert('解决的业务问题为必填项，不允许清空');
+            return;
+        }
         if (newBusinessProblem.trim() !== (project.businessProblem || '').trim()) {
             onUpdateProject(project.id, 'businessProblem', newBusinessProblem.trim());
         }
@@ -536,6 +545,14 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
             alert('请输入项目名称');
             return;
         }
+        if (!project.businessProblem || !project.businessProblem.trim()) {
+            alert('请填写解决的业务问题');
+            return;
+        }
+        if (!project.system || !project.system.trim()) {
+            alert('请选择归属系统');
+            return;
+        }
         if (onSave) {
             onSave(project);
         }
@@ -573,6 +590,11 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                 system={project.system}
                                 onSystemChange={handleSystemChange}
                             />
+                            {(!project.system || !project.system.trim()) && (
+                                <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                                    <span aria-hidden>⚠</span>归属系统为必填项
+                                </p>
+                            )}
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -604,6 +626,11 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                 placeholder="输入项目要解决的业务问题..."
                                 multiline
                             />
+                            {(!project.businessProblem || !project.businessProblem.trim()) && (
+                                <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                                    <span aria-hidden>⚠</span>解决的业务问题为必填项
+                                </p>
+                            )}
                         </InfoBlock>
                         <div className="grid grid-cols-[120px_1fr] gap-3">
                             <InfoBlock label="优先级">

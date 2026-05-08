@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Project, User, Priority, ProjectStatus, OKR, Role, ProjectRoleKey } from '../types';
 import { IconMessageCircle } from './Icons';
 import { RichTextInput } from './RichTextInput';
+import { countTimeSlotsWorkingDays, countWorkingDaysInRange } from '../utils/holidays';
 
 // 全局弹窗管理
 const tooltipRegistry = new Map<string, () => void>();
@@ -249,12 +250,23 @@ const StatusBadge: React.FC<{ status: ProjectStatus; project: Project; allUsers:
                               scheduleText = member.startDate.split('T')[0] + ' 开始';
                             }
                             
+                            // 计算工作日天数（去周末 + 去法定节假日），与项目详情弹窗口径一致
+                            let workingDays = 0;
+                            if (member.timeSlots && member.timeSlots.length > 0) {
+                              workingDays = countTimeSlotsWorkingDays(member.timeSlots);
+                            } else if (member.startDate && member.endDate) {
+                              workingDays = countWorkingDaysInRange(member.startDate, member.endDate);
+                            }
+                            
                             return (
                               <div key={`${member.userId}-${idx}`} className="text-gray-600 dark:text-gray-400">
                                 <span className="font-medium">{userName}</span>
                                 {scheduleText && (
                                   <div className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
                                     {scheduleText}
+                                    {workingDays > 0 && (
+                                      <span className="ml-2 text-gray-400 dark:text-gray-500">· 共 {workingDays} 天</span>
+                                    )}
                                   </div>
                                 )}
                               </div>

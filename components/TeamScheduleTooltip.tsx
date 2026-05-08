@@ -1,10 +1,22 @@
 import React from 'react';
 import { Project, User, Role } from '../types';
+import { countTimeSlotsWorkingDays, countWorkingDaysInRange } from '../utils/holidays';
 
 interface TeamScheduleTooltipProps {
   project: Project;
   allUsers: User[];
 }
+
+// 计算成员工作日天数（去周末 + 去法定节假日，多段去重合并），与 ProjectDetailModal 口径一致
+const getMemberWorkingDays = (member: any): number => {
+  if (member.timeSlots && member.timeSlots.length > 0) {
+    return countTimeSlotsWorkingDays(member.timeSlots);
+  }
+  if (member.startDate && member.endDate) {
+    return countWorkingDaysInRange(member.startDate, member.endDate);
+  }
+  return 0;
+};
 
 // 获取成员的排期信息（支持多段排期）,返回{ schedule: string, isExpired: boolean }
 const getMemberSchedule = (member: any): { schedule: string; isExpired: boolean } => {
@@ -113,6 +125,7 @@ const RoleSection: React.FC<{ role: Role; roleName: string; allUsers: User[] }> 
           if (!user) return null;
           
           const { schedule, isExpired } = getMemberSchedule(member);
+          const workingDays = getMemberWorkingDays(member);
           
           return (
             <li key={user.id} className="flex justify-between items-center gap-3">
@@ -121,7 +134,12 @@ const RoleSection: React.FC<{ role: Role; roleName: string; allUsers: User[] }> 
                 isExpired
                   ? 'text-gray-500 dark:text-gray-600'
                   : 'text-gray-400'
-              }`}>{schedule}</span>
+              }`}>
+                {schedule}
+                {workingDays > 0 && (
+                  <span className={`ml-2 ${isExpired ? 'text-gray-600' : 'text-gray-500'}`}>· 共 {workingDays} 天</span>
+                )}
+              </span>
             </li>
           );
         })}
