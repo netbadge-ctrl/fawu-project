@@ -151,12 +151,20 @@ type KrWeeklySummary struct {
 
 // ProjectWeeklySummary 单个项目的周报总结条目
 type ProjectWeeklySummary struct {
-	ProjectID     string `json:"projectId"`
-	ProjectName   string `json:"projectName"`
-	WeeklyUpdate  string `json:"weeklyUpdate"`
-	Status        string `json:"status"`
-	Priority      string `json:"priority"`
+	ProjectID       string   `json:"projectId"`
+	ProjectName     string   `json:"projectName"`
+	WeeklyUpdate    string   `json:"weeklyUpdate"`
+	Status          string   `json:"status"`
+	Priority        string   `json:"priority"`
 	ProductManagers []string `json:"productManagers"`
+	// —— v4.3 新增：供 AI 周报生成使用的原始数据字段（向后兼容）——
+	System          string   `json:"system,omitempty"`
+	BusinessProblem string   `json:"businessProblem,omitempty"`
+	LastWeekUpdate  string   `json:"lastWeekUpdate,omitempty"`
+	LaunchDate      string   `json:"launchDate,omitempty"`
+	ScheduleText    string   `json:"scheduleText,omitempty"` // 排期摘要；推进型项目为空
+	MemberAlerts    []string `json:"memberAlerts,omitempty"` // 成员>14天无排期提示
+	IsDrivingOnly   bool     `json:"isDrivingOnly,omitempty"` // true=项目进行中(推进型，无需开发)
 }
 
 // WeeklyReport 周报模型

@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,9 +9,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
+	"project-management-backend/internal/ai"
 	"project-management-backend/internal/models"
 
 	"github.com/lib/pq"
@@ -364,11 +363,11 @@ func generateWeeklyReport(db *sql.DB) error {
 	}
 
 	// 构建周报内容
-	content := buildReportContent(db, projects, okrSets)
+	content := buildReportContent(db, projects, okrSets, startOfWeek, endOfWeek)
 	contentJSON, _ := json.Marshal(content)
 
 	// 调用AI生成总结
-	summary, err := generateAIReportSummary(content)
+	summary, err := generateAIReportSummary(content, year, weekNum, startOfWeek, endOfWeek)
 	if err != nil {
 		log.Printf("AI summary generation failed: %v", err)
 		summary = "AI总结生成失败，请手动编辑补充。"
@@ -408,10 +407,9 @@ func generateWeeklyReport(db *sql.DB) error {
 }
 
 // buildReportContent 构建周报内容
-func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.OkrSet) models.WeeklyReportContent {
-	// 预加载用户姓名映射 + 并发调用 AI 生成项目级总结
+func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.OkrSet, weekStart, weekEnd time.Time) models.WeeklyReportContent {
+	// 预加载用户姓名映射
 	userNames := schedLoadUserNames(db)
-	aiSummaries := schedGenerateProjectAISummaries(projects)
 
 	// 构建KR映射
 	krToObjective := make(map[string]string)
@@ -459,7 +457,7 @@ func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.
 					okrSummaries[i].KrSummaries = append(okrSummaries[i].KrSummaries, models.KrWeeklySummary{
 						KrID:             krId,
 						KrDesc:           krToDesc[krId],
-						ProjectSummaries: buildProjSummaries(projs, userNames, aiSummaries),
+						ProjectSummaries: buildProjSummaries(projs, userNames, weekStart, weekEnd),
 					})
 					break
 				}
@@ -473,7 +471,7 @@ func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.
 					{
 						KrID:             krId,
 						KrDesc:           krToDesc[krId],
-						ProjectSummaries: buildProjSummaries(projs, userNames, aiSummaries),
+						ProjectSummaries: buildProjSummaries(projs, userNames, weekStart, weekEnd),
 					},
 				},
 			})
@@ -496,7 +494,7 @@ func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.
 				{
 					KrID:             "zz-urgent-kr",
 					KrDesc:           "本周推进事项",
-					ProjectSummaries: buildProjSummaries(urgentProjects, userNames, aiSummaries),
+					ProjectSummaries: buildProjSummaries(urgentProjects, userNames, weekStart, weekEnd),
 				},
 			},
 		})
@@ -505,8 +503,15 @@ func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.
 	return models.WeeklyReportContent{OkrSummaries: okrSummaries}
 }
 
-func buildProjSummaries(projects []models.Project, userNames, aiSummaries map[string]string) []models.ProjectWeeklySummary {
+// buildProjSummaries v4.3：填充完整字段（含推进型判定、排期摘要、排期缺失提示），不再单项目调 LLM
+func buildProjSummaries(projects []models.Project, userNames map[string]string, weekStart, weekEnd time.Time) []models.ProjectWeeklySummary {
 	summaries := make([]models.ProjectWeeklySummary, 0, len(projects))
+	deref := func(s *string) string {
+		if s == nil {
+			return ""
+		}
+		return *s
+	}
 	for _, p := range projects {
 		pmNames := []string{}
 		for _, pm := range p.ProductManagers {
@@ -519,21 +524,30 @@ func buildProjSummaries(projects []models.Project, userNames, aiSummaries map[st
 				pmNames = append(pmNames, pm.UserID)
 			}
 		}
-		update := ""
-		if s, ok := aiSummaries[p.ID]; ok && s != "" {
-			update = s
-		} else if p.WeeklyUpdate != nil {
-			update = stripHtmlTags(*p.WeeklyUpdate)
+		isDriving := schedIsDrivingOnly(p.Status)
+		scheduleText := ""
+		if !isDriving {
+			scheduleText = schedBuildProjectScheduleText(p, userNames)
 		}
+		alerts := schedBuildProjectMemberAlerts(p, weekEnd, userNames)
+
 		summaries = append(summaries, models.ProjectWeeklySummary{
 			ProjectID:       p.ID,
 			ProjectName:     p.Name,
-			WeeklyUpdate:    update,
+			WeeklyUpdate:    stripHtmlTags(deref(p.WeeklyUpdate)),
 			Status:          p.Status,
 			Priority:        p.Priority,
 			ProductManagers: pmNames,
+			System:          deref(p.System),
+			BusinessProblem: stripHtmlTags(deref(p.BusinessProblem)),
+			LastWeekUpdate:  stripHtmlTags(deref(p.LastWeekUpdate)),
+			LaunchDate:      deref(p.LaunchDate),
+			ScheduleText:    scheduleText,
+			MemberAlerts:    alerts,
+			IsDrivingOnly:   isDriving,
 		})
 	}
+	_ = weekStart
 	return summaries
 }
 
@@ -555,185 +569,161 @@ func schedLoadUserNames(db *sql.DB) map[string]string {
 	return names
 }
 
-// schedGenerateProjectAISummaries 并发调用 GLM-5 为每个项目生成短总结
-func schedGenerateProjectAISummaries(projects []models.Project) map[string]string {
-	result := make(map[string]string)
-	if len(projects) == 0 {
-		return result
+// generateAIReportSummary 通过 ai 包（glm-5.1，按 OKR 分批）生成周报总结
+func generateAIReportSummary(content models.WeeklyReportContent, year, weekNum int, startOfWeek, endOfWeek time.Time) (string, error) {
+	input := schedConvertContentToAIInput(content, ai.WeekRange{
+		Year:       year,
+		WeekNumber: weekNum,
+		Start:      startOfWeek.Format("2006-01-02"),
+		End:        endOfWeek.Format("2006-01-02"),
+	})
+	return ai.GenerateWeeklySummary(input)
+}
+
+// ---------- v4.3 scheduler 内部辅助函数（与 api 包内逻辑等价）----------
+
+func schedIsDrivingOnly(s string) bool {
+	return strings.TrimSpace(s) == "项目进行中"
+}
+
+func schedShortMD(ymd string) string {
+	if len(ymd) == 10 && ymd[4] == '-' && ymd[7] == '-' {
+		return ymd[5:7] + "." + ymd[8:10]
 	}
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	sem := make(chan struct{}, 3)
-	for _, p := range projects {
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(proj models.Project) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			var summary string
-			var err error
-			for attempt := 1; attempt <= 2; attempt++ {
-				summary, err = schedCallProjectAISummary(proj)
-				if err == nil && summary != "" {
-					break
-				}
-				if attempt < 2 {
-					time.Sleep(time.Duration(attempt) * time.Second)
-				}
+	return ymd
+}
+
+func schedBuildProjectScheduleText(p models.Project, userNames map[string]string) string {
+	parts := []string{}
+	appendRole := func(label string, role models.Role) {
+		segs := []string{}
+		for _, m := range role {
+			if m.UserID == "" {
+				continue
 			}
-			if err != nil {
-				log.Printf("[Scheduler] project %s AI failed: %v", proj.ID, err)
-				return
+			name := userNames[m.UserID]
+			if name == "" {
+				name = m.UserID
 			}
-			mu.Lock()
-			result[proj.ID] = summary
-			mu.Unlock()
-		}(p)
-	}
-	wg.Wait()
-	log.Printf("[Scheduler] project AI summaries: %d/%d", len(result), len(projects))
-	return result
-}
-
-// schedCallProjectAISummary 调用 GLM-5 为单个项目生成短总结
-func schedCallProjectAISummary(p models.Project) (string, error) {
-	deref := func(s *string) string {
-		if s == nil {
-			return ""
-		}
-		return *s
-	}
-	weeklyUpdate := stripHtmlTags(deref(p.WeeklyUpdate))
-	lastWeek := stripHtmlTags(deref(p.LastWeekUpdate))
-
-	prompt := fmt.Sprintf(`请基于以下项目原始数据，用 2-3 句话精炼总结本周进展与风险。只输出总结正文，不要标题、寒暄、Markdown 格式符号。
-
-项目名称：%s
-所属系统：%s
-状态：%s
-优先级：%s
-业务问题：%s
-本周进展：%s
-上周进展：%s
-预期上线：%s`,
-		p.Name, deref(p.System), p.Status, p.Priority, deref(p.BusinessProblem),
-		weeklyUpdate, lastWeek, deref(p.LaunchDate),
-	)
-
-	reqBody := map[string]interface{}{
-		"model": "glm-5",
-		"messages": []map[string]string{
-			{"role": "system", "content": "你是资深项目经理。产出要精炼、中立、信息量高，总字数控制在 80 字以内，使用与原文一致的语言，不要输出 Markdown 标记。"},
-			{"role": "user", "content": prompt},
-		},
-	}
-	body, _ := json.Marshal(reqBody)
-
-	client := &http.Client{Timeout: 90 * time.Second}
-	req, err := http.NewRequest("POST", "https://kspmas.ksyun.com/v1/chat/completions", bytes.NewBuffer(body))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer a56ce535-a362-4215-9143-4d80987875ba")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("status=%d body=%s", resp.StatusCode, string(b))
-	}
-	var result struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-	if len(result.Choices) == 0 {
-		return "", fmt.Errorf("no choices")
-	}
-	return strings.TrimSpace(result.Choices[0].Message.Content), nil
-}
-
-// generateAIReportSummary 调用GLM-5模型生成周报总结
-func generateAIReportSummary(content models.WeeklyReportContent) (string, error) {
-	prompt := buildReportPrompt(content)
-
-	reqBody := map[string]interface{}{
-		"model": "glm-5",
-		"messages": []map[string]string{
-			{"role": "system", "content": "你是一位资深项目管理专家，擅长总结项目进展。请根据提供的项目数据，按OKR维度生成简洁、专业的周报总结。每个O和KR下的项目进展要条理清晰，突出重点。"},
-			{"role": "user", "content": prompt},
-		},
-	}
-
-	jsonBody, _ := json.Marshal(reqBody)
-
-	req, err := http.NewRequest("POST", "https://kspmas.ksyun.com/v1/chat/completions", bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer a56ce535-a362-4215-9143-4d80987875ba")
-
-	client := &http.Client{Timeout: 120 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("AI API error: %d, %s", resp.StatusCode, string(body))
-	}
-
-	var result struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-
-	if len(result.Choices) > 0 {
-		return result.Choices[0].Message.Content, nil
-	}
-	return "", fmt.Errorf("no response from AI")
-}
-
-func buildReportPrompt(content models.WeeklyReportContent) string {
-	var sb strings.Builder
-	sb.WriteString("请根据以下项目数据生成周报总结：\n\n")
-
-	for _, okrSummary := range content.OkrSummaries {
-		sb.WriteString(fmt.Sprintf("【目标：%s】\n", okrSummary.Objective))
-		for _, krSummary := range okrSummary.KrSummaries {
-			sb.WriteString(fmt.Sprintf("  关键结果：%s\n", krSummary.KrDesc))
-			for _, proj := range krSummary.ProjectSummaries {
-				sb.WriteString(fmt.Sprintf("    - %s（%s）：%s\n", proj.ProjectName, proj.Status, stripHtmlTags(proj.WeeklyUpdate)))
+			var s, e string
+			if len(m.TimeSlots) > 0 {
+				s = m.TimeSlots[0].StartDate
+				e = m.TimeSlots[0].EndDate
+				for _, ts := range m.TimeSlots[1:] {
+					if ts.StartDate != "" && ts.StartDate < s {
+						s = ts.StartDate
+					}
+					if ts.EndDate != "" && ts.EndDate > e {
+						e = ts.EndDate
+					}
+				}
+			} else if m.StartDate != nil && m.EndDate != nil {
+				s = *m.StartDate
+				e = *m.EndDate
+			}
+			if s != "" && e != "" {
+				segs = append(segs, fmt.Sprintf("%s %s~%s", name, schedShortMD(s), schedShortMD(e)))
+			} else {
+				segs = append(segs, name)
 			}
 		}
-		sb.WriteString("\n")
+		if len(segs) > 0 {
+			parts = append(parts, label+": "+strings.Join(segs, ", "))
+		}
 	}
+	appendRole("后端", p.BackendDevelopers)
+	appendRole("前端", p.FrontendDevelopers)
+	appendRole("测试", p.QaTesters)
+	return strings.Join(parts, "; ")
+}
 
-	sb.WriteString("\n请生成一份专业的周报总结，要求：\n")
-	sb.WriteString("1. 按目标和关键结果维度组织\n")
-	sb.WriteString("2. 突出本周主要进展和风险\n")
-	sb.WriteString("3. 语言简洁专业\n")
-	sb.WriteString("4. 总字数控制在500字以内\n")
+func schedBuildProjectMemberAlerts(p models.Project, weekEnd time.Time, userNames map[string]string) []string {
+	threshold := weekEnd.AddDate(0, 0, -14)
+	chk := func(label string, role models.Role) []string {
+		alerts := []string{}
+		for _, m := range role {
+			if m.UserID == "" {
+				continue
+			}
+			name := userNames[m.UserID]
+			if name == "" {
+				name = m.UserID
+			}
+			latest := ""
+			for _, ts := range m.TimeSlots {
+				if ts.EndDate > latest {
+					latest = ts.EndDate
+				}
+			}
+			if latest == "" && m.EndDate != nil {
+				latest = *m.EndDate
+			}
+			if latest == "" {
+				alerts = append(alerts, fmt.Sprintf("⚠️ %s(%s) 排期缺失，请确认推进计划", name, label))
+				continue
+			}
+			if le, err := time.Parse("2006-01-02", latest); err == nil {
+				if le.Before(threshold) {
+					alerts = append(alerts, fmt.Sprintf("⚠️ %s(%s) 排期截至 %s 后无新排，请确认后续计划", name, label, latest))
+				}
+			}
+		}
+		return alerts
+	}
+	out := []string{}
+	out = append(out, chk("后端", p.BackendDevelopers)...)
+	out = append(out, chk("前端", p.FrontendDevelopers)...)
+	out = append(out, chk("测试", p.QaTesters)...)
+	return out
+}
 
-	return sb.String()
+func schedConvertContentToAIInput(content models.WeeklyReportContent, wr ai.WeekRange) ai.WeeklyReportInput {
+	in := ai.WeeklyReportInput{
+		WeekRange:   wr,
+		Okrs:        make([]ai.OkrInput, 0, len(content.OkrSummaries)),
+		IdleMembers: []ai.IdleMember{},
+	}
+	order := 1
+	for _, okr := range content.OkrSummaries {
+		if okr.OkrID == "zz-urgent" {
+			for _, kr := range okr.KrSummaries {
+				for _, p := range kr.ProjectSummaries {
+					in.UrgentProjects = append(in.UrgentProjects, schedSummaryToAIProject(p))
+				}
+			}
+			continue
+		}
+		oi := ai.OkrInput{OkrID: okr.OkrID, Objective: okr.Objective, Order: order}
+		order++
+		krOrder := 1
+		for _, kr := range okr.KrSummaries {
+			ki := ai.KrInput{KrID: kr.KrID, KrDesc: kr.KrDesc, Order: krOrder}
+			krOrder++
+			for _, p := range kr.ProjectSummaries {
+				ki.Projects = append(ki.Projects, schedSummaryToAIProject(p))
+			}
+			oi.KrItems = append(oi.KrItems, ki)
+		}
+		in.Okrs = append(in.Okrs, oi)
+	}
+	return in
+}
+
+func schedSummaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
+	return ai.ProjectInput{
+		ID:              p.ProjectID,
+		Name:            p.ProjectName,
+		System:          p.System,
+		Status:          p.Status,
+		Priority:        p.Priority,
+		BusinessProblem: p.BusinessProblem,
+		WeeklyUpdate:    p.WeeklyUpdate,
+		LastWeekUpdate:  p.LastWeekUpdate,
+		LaunchDate:      p.LaunchDate,
+		ScheduleText:    p.ScheduleText,
+		MemberAlerts:    p.MemberAlerts,
+		IsDrivingOnly:   p.IsDrivingOnly,
+	}
 }
 
 func stripHtmlTags(html string) string {

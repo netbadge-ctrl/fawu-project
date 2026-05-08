@@ -1,41 +1,48 @@
 {
-  "version": "4.2.1",
-  "name": "排期工作日统计 + 项目必填校验",
-  "releaseDate": "2026-05-03",
-  "buildTime": "2026-05-03T23:59:00+08:00",
+  "version": "4.3.0",
+  "name": "周报 AI 重构：glm-5.1 + 按OKR分批 + 推进型项目 + 无遮罩生成",
+  "releaseDate": "2026-02-27",
+  "buildTime": "2026-02-27T23:59:00+08:00",
   "features": [
-    "项目详情弹窗：成员排期后追加『共 X 天』工作日统计（去周末+去法定节假日，不加调休，多段去重合并）",
-    "周会视图排期弹窗：同步展示『共 X 天』，口径与项目详情完全一致",
-    "新建项目：解决的业务问题、归属系统增加必填校验",
-    "编辑项目：解决的业务问题不允许清空，归属系统不允许清空；空值时显示红色必填提示"
+    "周报模型升级：glm-5 → glm-5.1，秘钥更新",
+    "周报按 OKR 分批调用 LLM（避免上下文过大），单 OKR 失败不中断整体",
+    "推进型项目判定：状态为『项目进行中』时不看研发排期，仅总结当周进度",
+    "周报严格遵守 7 条原则：OKR 升序/项目归集/四维融合/上周对比/排期缺失提醒/空闲人员",
+    "生成周报时去除 confirm 拦截与 disabled 阻塞，允许用户继续操作其它页面"
   ],
   "compatibility": {
-    "backward": "v4.2.0",
+    "backward": "v4.2.1",
     "browsers": ["Chrome 60+", "Firefox 55+", "Safari 12+", "Edge 79+"],
     "mobile": true
   },
   "changelog": {
     "added": [
-      "utils/holidays.ts: 新增 CHINA_HOLIDAYS 节假日集合、isWorkingDay、countWorkingDaysInRange、countTimeSlotsWorkingDays 工具函数（覆盖2026权威+2027预估）",
-      "docs/weekly_report_system_prompt.md: 周报AI生成系统提示词（严格按OKR顺序、多项目融合、排期空闲人员识别等6条核心规则）"
+      "backend/internal/ai/weekly_report_ai.go: 新增周报 AI 生成包，封装 glm-5.1 调用+按OKR分批+7原则system prompt",
+      "ProjectWeeklySummary 新增 7 字段：System/BusinessProblem/LastWeekUpdate/LaunchDate/ScheduleText/MemberAlerts/IsDrivingOnly（向后兼容）",
+      "buildProjectSummaries/buildProjSummaries 新增推进型判定（项目进行中→不看排期）+排期摘要拼接+14天排期缺失提醒"
     ],
     "updated": [
-      "components/ProjectDetailModal.tsx: 成员排期后追加『共 X 天』工作日天数；handleSaveNewProject 增加 businessProblem/system 必填校验；handleBusinessProblemSave/handleSystemChange 阻止清空；UI 增加红色 ⚠ 必填提示",
-      "components/TeamScheduleTooltip.tsx: RoleSection 同步追加『共 X 天』工作日展示",
-      "components/WeeklyMeetingProjectCard.tsx: StatusBadge 排期弹窗内成员排期后追加『共 X 天』工作日展示"
+      "backend/internal/api/weekly_report_handlers.go: 去除阿米巴单项目短总结，generateAISummary 改调 ai.GenerateWeeklySummary",
+      "backend/internal/scheduler/scheduler.go: 同步去除阿米巴短总结，generateAIReportSummary 改调 ai.GenerateWeeklySummary",
+      "components/WeeklyReport.tsx: 去 confirm 拦截、生成中不 disable 按钮、增加重复触发守卫"
+    ],
+    "removed": [
+      "generateProjectAISummaries/callProjectAISummary（glm-5 单项目 80 字短总结）",
+      "schedGenerateProjectAISummaries/schedCallProjectAISummary（定时任务版单项目短总结）",
+      "buildWeeklyReportPrompt/buildReportPrompt（旧 500 字 prompt 构造）"
     ],
     "fixed": [
-      "上一轮 api.ts 中 API_BASE_URL 硬编码 localhost 导致线上 CORS 拦截（已改为读取 VITE_API_BASE_URL）"
+      "旧逻辑中 7 条原则几乎未生效（docs/weekly_report_system_prompt.md 孤立未接入代码）"
     ]
   },
   "metrics": {
-    "filesAdded": 2,
-    "filesUpdated": 3,
-    "linesOfCode": 240,
-    "testCoverage": "98%",
+    "filesAdded": 1,
+    "filesUpdated": 4,
+    "linesOfCode": 520,
+    "testCoverage": "编译通过",
     "bugsFixed": 1,
     "securityImprovements": 0,
-    "performanceImprovements": 0,
+    "performanceImprovements": 1,
     "databaseMigrations": 0
   }
 }

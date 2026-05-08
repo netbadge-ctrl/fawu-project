@@ -204,6 +204,7 @@ const WeeklyReportView: React.FC = () => {
   }, [versionsOpen]);
 
   const handleGenerate = async () => {
+    if (isGenerating || isRegenerating) return;
     setIsGenerating(true);
     setError(null);
     try {
@@ -220,10 +221,8 @@ const WeeklyReportView: React.FC = () => {
 
   const handleRegenerate = async () => {
     if (!selectedReport) return;
-    const ok = window.confirm(
-      '重新生成后，当前内容将被归档为历史版本，可随时回看。\n是否继续？'
-    );
-    if (!ok) return;
+    if (isGenerating || isRegenerating) return;
+    // v4.3：去除 window.confirm 拦截——清单进入后台，用户可继续操作其它页面
     setIsRegenerating(true);
     setError(null);
     try {
@@ -339,10 +338,12 @@ const WeeklyReportView: React.FC = () => {
             </div>
             <button
               onClick={hasCurrentWeekReport ? handleRegenerate : handleGenerate}
-              disabled={isGenerating || isRegenerating || !!viewingVersion}
+              disabled={!!viewingVersion}
               title={
                 viewingVersion
                   ? '正在预览历史版本，请先返回当前版本'
+                  : (isGenerating || isRegenerating)
+                  ? '后台生成中，可继续操作其它页面'
                   : hasCurrentWeekReport
                   ? '重新生成，当前内容归档为历史版本'
                   : '生成本周周报'
