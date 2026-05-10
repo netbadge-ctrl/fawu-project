@@ -13,6 +13,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -22,8 +23,15 @@ import (
 const (
 	glmModel    = "glm-5.1"
 	glmEndpoint = "https://kspmas.ksyun.com/v1/chat/completions"
-	glmAuthHdr  = "Bearer fce00142-9287-4500-92b6-0baa0ffad576"
 )
+
+// glmAuthHdr 优先取 GLM_AUTH_HEADER 环境变量；未设置时退回到内置默认值以保持向后兼容。
+var glmAuthHdr = func() string {
+	if v := os.Getenv("GLM_AUTH_HEADER"); v != "" {
+		return v
+	}
+	return "Bearer fce00142-9287-4500-92b6-0baa0ffad576"
+}()
 
 // ---------- 对外数据结构 ----------
 

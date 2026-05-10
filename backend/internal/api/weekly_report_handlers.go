@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -870,14 +871,20 @@ func summaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
 	}
 }
 
+// htmlTagRegex 兜底剥除 stripHTML 未枚举到的残留标签（<ul>、<li>、<h3>、<span> 等）。
+var htmlTagRegex = regexp.MustCompile(`<[^>]+>`)
+
 func stripHTML(html string) string {
 	// 简单去除HTML标签
 	result := strings.ReplaceAll(html, "<p>", "")
-	result = strings.ReplaceAll(result, "</p>", "")
+	result = strings.ReplaceAll(result, "</p>", "\n")
 	result = strings.ReplaceAll(result, "<strong>", "")
 	result = strings.ReplaceAll(result, "</strong>", "")
 	result = strings.ReplaceAll(result, "<br>", "\n")
 	result = strings.ReplaceAll(result, "<br/>", "\n")
+	result = strings.ReplaceAll(result, "<br />", "\n")
 	result = strings.ReplaceAll(result, "&nbsp;", " ")
+	// 兜底：清除富文本编辑器产生的其它标签
+	result = htmlTagRegex.ReplaceAllString(result, "")
 	return strings.TrimSpace(result)
 }

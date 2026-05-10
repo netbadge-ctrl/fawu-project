@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -900,9 +901,13 @@ func (h *Handler) fetchEmployeeData() (models.EmployeeResponse, error) {
 		return models.EmployeeResponse{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// 设置请求头
+	// 设置请求头（Basic Auth 允许 EMPLOYEE_API_AUTH_HEADER 覆盖，默认保留原值以兼容线上配置）
+	authHeader := os.Getenv("EMPLOYEE_API_AUTH_HEADER")
+	if authHeader == "" {
+		authHeader = "Basic QUs1YWRkZDVkMjJiNThiOlNLNWFkZGQ1ZDIyYjVjYg=="
+	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Basic QUs1YWRkZDVkMjJiNThiOlNLNWFkZGQ1ZDIyYjVjYg==")
+	req.Header.Set("Authorization", authHeader)
 	req.Header.Set("Host", "contact.inner.sdns.ksyun.com")
 
 	resp, err := client.Do(req)

@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -121,9 +123,13 @@ func fetchEmployeeData() (models.EmployeeResponse, error) {
 		return models.EmployeeResponse{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// 设置请求头
+	// 设置请求头（Basic Auth 允许 EMPLOYEE_API_AUTH_HEADER 覆盖，默认保留原值以兼容线上配置）
+	authHeader := os.Getenv("EMPLOYEE_API_AUTH_HEADER")
+	if authHeader == "" {
+		authHeader = "Basic QUs1YWRkZDVkMjJiNThiOlNLNWFkZGQ1ZDIyYjVjYg=="
+	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Basic QUs1YWRkZDVkMjJiNThiOlNLNWFkZGQ1ZDIyYjVjYg==")
+	req.Header.Set("Authorization", authHeader)
 	req.Header.Set("Host", "contact.inner.sdns.ksyun.com")
 
 	resp, err := client.Do(req)
@@ -726,13 +732,19 @@ func schedSummaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
 	}
 }
 
+// schedHtmlTagRegex 兜底剥除 stripHtmlTags 未枚举到的残留标签（<ul>、<li>、<h3>、<span> 等）。
+var schedHtmlTagRegex = regexp.MustCompile(`<[^>]+>`)
+
 func stripHtmlTags(html string) string {
 	result := strings.ReplaceAll(html, "<p>", "")
-	result = strings.ReplaceAll(result, "</p>", "")
+	result = strings.ReplaceAll(result, "</p>", "\n")
 	result = strings.ReplaceAll(result, "<strong>", "")
 	result = strings.ReplaceAll(result, "</strong>", "")
 	result = strings.ReplaceAll(result, "<br>", "\n")
 	result = strings.ReplaceAll(result, "<br/>", "\n")
+	result = strings.ReplaceAll(result, "<br />", "\n")
 	result = strings.ReplaceAll(result, "&nbsp;", " ")
+	// 兜底：清除富文本编辑器产生的其它标签
+	result = schedHtmlTagRegex.ReplaceAllString(result, "")
 	return strings.TrimSpace(result)
 }

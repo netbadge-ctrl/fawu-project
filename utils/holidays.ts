@@ -1,6 +1,7 @@
 // 中国大陆法定节假日（已调休后实际不上班的日期）
 // 数据来源：国务院办公厅年度节假日安排通知
-// 注意：补班日（周末补上班）不收录 —— 补班日本身是工作日，天数计算时会自动按工作日处理
+// 补班日（因节假日调休而在周末上班的日期）单独维护在 MAKEUP_WORK_DATES 中：
+//   - isWorkingDay 会优先把这些周末判定为工作日
 // 维护：每年底国务院发布次年安排后，在此文件追加/更新日期
 
 const HOLIDAY_DATES: readonly string[] = [
@@ -41,6 +42,21 @@ const HOLIDAY_DATES: readonly string[] = [
 
 export const CHINA_HOLIDAYS: ReadonlySet<string> = new Set(HOLIDAY_DATES);
 
+// 中国大陆法定节假日调休产生的「周末补班日」（当天虽为周六/周日，但按国务院通知需上班）
+// 数据来源：国务院办公厅年度节假日安排通知
+// 未发布正式通知的年份暂不录入，避免误判
+const MAKEUP_WORK_DATES_LIST: readonly string[] = [
+  // ===== 2026 年（2025 年 11 月国务院办公厅通知）=====
+  '2026-02-14', // 春节调休（周六上班）
+  '2026-02-28', // 春节调休（周六上班）
+  '2026-04-26', // 劳动节调休（周日上班）
+  '2026-05-09', // 劳动节调休（周六上班）
+  '2026-09-19', // 中秋国庆调休（周六上班）
+  '2026-10-10', // 中秋国庆调休（周六上班）
+];
+
+export const MAKEUP_WORK_DATES: ReadonlySet<string> = new Set(MAKEUP_WORK_DATES_LIST);
+
 /** 格式化为 YYYY-MM-DD（本地时区，避免 toISOString 的 UTC 偏移） */
 function toLocalIso(d: Date): string {
   const y = d.getFullYear();
@@ -49,11 +65,23 @@ function toLocalIso(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-/** 判断一个日期（Date 对象）是否为工作日：非周末且非法定节假日 */
+/**
+ * 判断一个日期（Date 对象）是否为工作日。
+ * 优先级：
+ *   1. 命中「调休补班日」MAKEUP_WORK_DATES → 工作日（即便当天是周末）
+ *   2. 周六/周日 → 非工作日
+ *   3. 命中法定节假日 CHINA_HOLIDAYS → 非工作日
+ *   4. 其余 → 工作日
+ */
 export function isWorkingDay(d: Date): boolean {
+  const iso = toLocalIso(d);
+  // 1. 调休补班日优先：国务院明确要求这些周末上班
+  if (MAKEUP_WORK_DATES.has(iso)) return true;
+  // 2. 普通周末非工作日
   const weekday = d.getDay(); // 0=日, 6=六
   if (weekday === 0 || weekday === 6) return false;
-  return !CHINA_HOLIDAYS.has(toLocalIso(d));
+  // 3. 法定节假日非工作日
+  return !CHINA_HOLIDAYS.has(iso);
 }
 
 /**

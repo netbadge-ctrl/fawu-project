@@ -27,6 +27,7 @@ dist-ssr
 
 # backend 二进制产物与本地 SQLite
 backend/backend-app
+backend/backend-linux-amd64
 backend/project-management-backend
 backend/main
 backend/main-linux

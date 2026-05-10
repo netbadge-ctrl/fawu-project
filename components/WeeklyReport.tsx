@@ -282,10 +282,12 @@ const WeeklyReportView: React.FC = () => {
   };
 
   const getWeekNumber = (date: Date) => {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    // 按本地时间计算 ISO 周号：走 UTC 会导致北京时区周一 00:00~08:00 与后端（按服务器本地时区 ISOWeek）不一致，
+    // 出现"已生成本周周报但前端仍显示上一周"的边缘误判。
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const dayNum = d.getDay() || 7;
+    d.setDate(d.getDate() + 4 - dayNum);
+    const yearStart = new Date(d.getFullYear(), 0, 1);
     return Math.ceil((((+d - +yearStart) / 86400000) + 1) / 7);
   };
 
