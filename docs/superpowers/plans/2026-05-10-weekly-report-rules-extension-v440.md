@@ -1,4 +1,4 @@
-# Weekly Report Rules Extension v4.4.0 · Implementation Plan
+# Weekly Report Rules Extension v4.4.1 · Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -29,7 +29,7 @@
 | `backend/internal/scheduler/scheduler.go` | 定时任务周报生成 | 复用 handler 导出的 helper |
 | `backend/internal/ai/weekly_report_ai.go` | System prompt + LLM 调用 | Prompt 规则 8 + 后处理兜底 |
 | `docs/weekly_report_system_prompt.md` | 规则文档 | 同步规则 8 |
-| `package.json` / `version.json` / `CHANGELOG.md` / `VERSION_4.4.0.md` | 版本元数据 | 升版本到 4.4.0 |
+| `package.json` / `version.json` / `CHANGELOG.md` / `VERSION_4.4.1.md` | 版本元数据 | 升版本到 4.4.1 |
 
 ---
 
@@ -43,7 +43,7 @@
 在 `weeklyReportVersionsTable` 常量定义结束处（约 183 行 `` ` ``）之后、`tables := []string{...}` 之前插入：
 
 ```go
-	// 项目排期快照表（v4.4.0）：每次生成周报时写入当周所有研发中项目的排期明细，
+	// 项目排期快照表（v4.4.1）：每次生成周报时写入当周所有研发中项目的排期明细，
 	// 供下一周生成周报时做"排期较上周是否调整"的 diff。首次生成时此表为空，不影响流程。
 	projectScheduleSnapshotsTable := `
 	CREATE TABLE IF NOT EXISTS project_schedule_snapshots (
@@ -108,7 +108,7 @@ Expected: 表存在，列与 DDL 一致；三个索引均在
 ```bash
 cd /Users/chennan/Qoder/project-qoder_重构
 git add backend/internal/database/database.go
-git commit -m "feat(db): add project_schedule_snapshots table for weekly report v4.4.0"
+git commit -m "feat(db): add project_schedule_snapshots table for weekly report v4.4.1"
 ```
 
 ---
@@ -123,9 +123,9 @@ git commit -m "feat(db): add project_schedule_snapshots table for weekly report 
 定位到 `ProjectWeeklySummary` 定义（查找 `ProjectWeeklySummary struct`），在 `IsDrivingOnly` 字段之后新增：
 
 ```go
-	// v4.4.0 新增：排期调整提示（与上周 snapshot 对比得出），omitempty 保证向前兼容
+	// v4.4.1 新增：排期调整提示（与上周 snapshot 对比得出），omitempty 保证向前兼容
 	ScheduleChanges []string `json:"scheduleChanges,omitempty"`
-	// v4.4.0 新增：状态-排期一致性告警（延期风险），omitempty 保证向前兼容
+	// v4.4.1 新增：状态-排期一致性告警（延期风险），omitempty 保证向前兼容
 	DelayRisks []string `json:"delayRisks,omitempty"`
 ```
 
@@ -158,7 +158,7 @@ git commit -m "feat(models): add ScheduleChanges and DelayRisks to ProjectWeekly
 在 `weekly_report_handlers.go` 文件末尾追加：
 
 ```go
-// ---------- v4.4.0 排期快照 ----------
+// ---------- v4.4.1 排期快照 ----------
 
 // scheduleRow 单条排期快照
 type scheduleRow struct {
@@ -617,7 +617,7 @@ git commit -m "feat(weekly-report): add delay risk detection by status-role matr
 改为：
 
 ```go
-	// v4.4.0：仅纳入白名单 11 个状态的项目（排除 "已完成" / "暂停"）
+	// v4.4.1：仅纳入白名单 11 个状态的项目（排除 "已完成" / "暂停"）
 	projectQuery := `
 		SELECT id, name, system, priority, business_problem, key_result_ids,
 		       weekly_update, last_week_update, status,
@@ -668,7 +668,7 @@ git commit -m "feat(weekly-report): filter projects by status whitelist (11 allo
 
 ```go
 // buildProjectSummaries 把项目转换为周报条目：
-// v4.4.0：新增 schedule diff + 延期风险计算；接收 lastWeek 快照 map 做对比。
+// v4.4.1：新增 schedule diff + 延期风险计算；接收 lastWeek 快照 map 做对比。
 func buildProjectSummaries(
 	projects []models.Project,
 	userNames map[string]string,
@@ -762,12 +762,12 @@ buildProjectSummaries(urgentProjects, userNames, weekStart, weekEnd, lastWeek)
 定位 `GenerateWeeklyReport`（约第 90 行起），在 `content := h.buildWeeklyReportContent(...)` 调用**前后**分别新增：
 
 ```go
-	// v4.4.0: 读取上周排期快照（表不存在时返回空 map，不影响流程）
+	// v4.4.1: 读取上周排期快照（表不存在时返回空 map，不影响流程）
 	lastWeek := loadLastWeekSnapshots(h.db, isoYear, weekNum)
 
 	content := h.buildWeeklyReportContent(projects, okrSets, startOfWeek, endOfWeek, lastWeek)
 
-	// v4.4.0: 写入本周排期快照，供下周 diff 使用
+	// v4.4.1: 写入本周排期快照，供下周 diff 使用
 	reportIDForSnapshot := fmt.Sprintf("wr%d%02d", isoYear, weekNum)
 	snapshotRows := flattenProjectSchedules(projects, loadUserNames(h.db))
 	if err := saveScheduleSnapshots(h.db, reportIDForSnapshot, isoYear, weekNum, snapshotRows); err != nil {
@@ -809,7 +809,7 @@ git commit -m "feat(weekly-report): integrate schedule diff, delay risks, snapsh
 
 ```go
 func summaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
-	// v4.4.0：合并三类告警 —— 排期缺失 + 排期调整 + 延期风险。LLM 由规则 8 引导原样追加。
+	// v4.4.1：合并三类告警 —— 排期缺失 + 排期调整 + 延期风险。LLM 由规则 8 引导原样追加。
 	merged := make([]string, 0, len(p.MemberAlerts)+len(p.ScheduleChanges)+len(p.DelayRisks))
 	merged = append(merged, p.MemberAlerts...)
 	merged = append(merged, p.ScheduleChanges...)
@@ -972,7 +972,7 @@ grep -n "buildReportContent\|buildProjSummaries\|buildMemberAlerts\|ISOWeek" \
 在 `generateWeeklyReport` 函数里，紧跟 `isoYear, weekNum := now.ISOWeek()` 之后、`buildReportContent` 调用之前，新增：
 
 ```go
-	// v4.4.0: 复用 handler 的 snapshot 读取（需 import "github.com/.../backend/internal/api"）
+	// v4.4.1: 复用 handler 的 snapshot 读取（需 import "github.com/.../backend/internal/api"）
 	lastWeek := api.LoadLastWeekSnapshotsForScheduler(db, isoYear, weekNum)
 ```
 
@@ -1014,12 +1014,12 @@ Expected: 无报错
 ```bash
 cd /Users/chennan/Qoder/project-qoder_重构
 git add backend/internal/scheduler/scheduler.go
-git commit -m "feat(scheduler): apply v4.4.0 schedule diff and delay risk logic to cron-generated reports"
+git commit -m "feat(scheduler): apply v4.4.1 schedule diff and delay risk logic to cron-generated reports"
 ```
 
 ---
 
-## Task 12: 回滚开关 `WEEKLY_REPORT_RULES_V440`
+## Task 12: 回滚开关 `WEEKLY_REPORT_RULES_V441`
 
 **Files:**
 - Modify: `backend/internal/api/weekly_report_handlers.go`（在新算法入口处加开关）
@@ -1027,9 +1027,9 @@ git commit -m "feat(scheduler): apply v4.4.0 schedule diff and delay risk logic 
 - [ ] **Step 1: 在 Task 3 的 helper 块顶部追加开关读取**
 
 ```go
-// v4.4.0 规则总开关：设置 WEEKLY_REPORT_RULES_V440=off 可关闭新规则（snapshot 仍写入，但不做 diff / 延期判定）。
-var weeklyRulesV440Enabled = func() bool {
-	v := strings.ToLower(strings.TrimSpace(os.Getenv("WEEKLY_REPORT_RULES_V440")))
+// v4.4.1 规则总开关：设置 WEEKLY_REPORT_RULES_V441=off 可关闭新规则（snapshot 仍写入，但不做 diff / 延期判定）。
+var weeklyRulesV441Enabled = func() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("WEEKLY_REPORT_RULES_V441")))
 	return v != "off" && v != "false" && v != "0"
 }()
 ```
@@ -1038,7 +1038,7 @@ var weeklyRulesV440Enabled = func() bool {
 
 ```go
 func computeScheduleChanges(...) []string {
-	if !weeklyRulesV440Enabled {
+	if !weeklyRulesV441Enabled {
 		return nil
 	}
 	if len(lastWeek) == 0 {
@@ -1048,7 +1048,7 @@ func computeScheduleChanges(...) []string {
 }
 
 func computeDelayRisks(...) []string {
-	if !weeklyRulesV440Enabled {
+	if !weeklyRulesV441Enabled {
 		return nil
 	}
 	// ... 原逻辑
@@ -1073,7 +1073,7 @@ Expected: 无报错
 ```bash
 cd /Users/chennan/Qoder/project-qoder_重构
 git add backend/internal/api/weekly_report_handlers.go
-git commit -m "feat(weekly-report): add WEEKLY_REPORT_RULES_V440 kill switch"
+git commit -m "feat(weekly-report): add WEEKLY_REPORT_RULES_V441 kill switch"
 ```
 
 ---
@@ -1128,14 +1128,14 @@ psql "$DATABASE_URL" -c "SELECT content FROM weekly_reports ORDER BY created_at 
 - [ ] **Step 6: 回滚开关验证**
 
 ```bash
-export WEEKLY_REPORT_RULES_V440=off
+export WEEKLY_REPORT_RULES_V441=off
 bash restart-backend.sh
 # 再次触发生成，确认 content 里没有新增告警
 ```
 
 完成后恢复：
 ```bash
-unset WEEKLY_REPORT_RULES_V440
+unset WEEKLY_REPORT_RULES_V441
 bash restart-backend.sh
 ```
 
@@ -1145,26 +1145,26 @@ bash restart-backend.sh
 
 **Files:**
 - Modify: `package.json` / `version.json` / `CHANGELOG.md`
-- Create: `VERSION_4.4.0.md`
+- Create: `VERSION_4.4.1.md`
 
 - [ ] **Step 1: 更新 package.json**
 
-将 `"version": "4.3.2"` 改为 `"version": "4.4.0"`。
+将 `"version": "4.3.2"` 改为 `"version": "4.4.1"`。
 
 - [ ] **Step 2: 更新 version.json**
 
 参照 `VERSION_4.3.2.md` 现有格式，更新 version/backward/features/changelog/metrics 等字段。
 
-- [ ] **Step 3: 创建 VERSION_4.4.0.md**
+- [ ] **Step 3: 创建 VERSION_4.4.1.md**
 
 包含本期 3 大新增规则 + 硬约束说明 + 回滚方式。
 
 - [ ] **Step 4: 追加 CHANGELOG.md**
 
-在顶部插入 v4.4.0 条目：
+在顶部插入 v4.4.1 条目：
 
 ```markdown
-## [4.4.0] - 2026-05-10
+## [4.4.1] - 2026-05-10
 
 ### 新增
 - 项目状态白名单过滤：周报仅纳入 11 种有效状态项目（排除"已完成"、"暂停"）
@@ -1172,7 +1172,7 @@ bash restart-backend.sh
 - 状态-排期一致性校验：检测"开发中/测试中"等状态下排期已过期的延期风险
 - System Prompt 规则 8：引导 LLM 原样追加三类 ⚠️ 告警
 - 后处理兜底：即使 LLM 漏写告警，后端也会在项目段末硬追加
-- 环境变量 `WEEKLY_REPORT_RULES_V440=off` 作为紧急回滚开关
+- 环境变量 `WEEKLY_REPORT_RULES_V441=off` 作为紧急回滚开关
 
 ### 数据库
 - 新增表 `project_schedule_snapshots`（`CREATE IF NOT EXISTS`，无历史数据影响）
@@ -1186,8 +1186,8 @@ bash restart-backend.sh
 
 ```bash
 cd /Users/chennan/Qoder/project-qoder_重构
-git add package.json version.json CHANGELOG.md VERSION_4.4.0.md
-git commit -m "chore(release): bump to v4.4.0 (weekly report rules extension)"
+git add package.json version.json CHANGELOG.md VERSION_4.4.1.md
+git commit -m "chore(release): bump to v4.4.1 (weekly report rules extension)"
 ```
 
 ---
@@ -1208,17 +1208,17 @@ Expected: working tree clean
 - [ ] **Step 2: 打 tag**
 
 ```bash
-git tag -a v4.4.0 -m "v4.4.0: 周报规则扩展 - 状态白名单 + 排期diff + 延期风险 + 硬约束无历史数据影响"
+git tag -a v4.4.1 -m "v4.4.1: 周报规则扩展 - 状态白名单 + 排期diff + 延期风险 + 硬约束无历史数据影响"
 ```
 
 - [ ] **Step 3: 推送 main + tag**
 
 ```bash
 GIT_SSH_COMMAND="ssh -i ~/.ssh/id_rsa_1" git push origin main
-GIT_SSH_COMMAND="ssh -i ~/.ssh/id_rsa_1" git push origin v4.4.0
+GIT_SSH_COMMAND="ssh -i ~/.ssh/id_rsa_1" git push origin v4.4.1
 ```
 
-Expected: push 成功，GitHub 上能看到 v4.4.0 tag
+Expected: push 成功，GitHub 上能看到 v4.4.1 tag
 
 ---
 

@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -108,8 +110,18 @@ func (h *Handler) GenerateWeeklyReport(c *gin.Context) {
 		return
 	}
 
+	// v4.4.1: 读取上周排期快照（表不存在或无数据时返回空 map，不影响流程）
+	lastWeek := loadLastWeekSnapshots(h.db, isoYear, weekNum)
+
 	// 构建周报内容
-	content := h.buildWeeklyReportContent(projects, okrs, startOfWeek, endOfWeek)
+	content := h.buildWeeklyReportContent(projects, okrs, startOfWeek, endOfWeek, lastWeek)
+
+	// v4.4.1: 写入本周排期快照，供下周 diff 使用（失败不影响流程）
+	reportIDForSnapshot := fmt.Sprintf("wr%d%02d", isoYear, weekNum)
+	snapshotRows := flattenProjectSchedules(projects, loadUserNames(h.db))
+	if serr := saveScheduleSnapshots(h.db, reportIDForSnapshot, isoYear, weekNum, snapshotRows); serr != nil {
+		log.Printf("[WeeklyReport] save snapshots failed (non-fatal): %v", serr)
+	}
 
 	// 调用AI模型生成总结
 	summary, err := h.generateAISummary(content, isoYear, weekNum, startOfWeek, endOfWeek)
@@ -291,7 +303,13 @@ func (h *Handler) RegenerateWeeklyReport(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	content := h.buildWeeklyReportContent(projects, okrs, parseDateOrToday(existing.StartDate), parseDateOrToday(existing.EndDate))
+	// v4.4.1: 读取上周排期快照并在本轮重新生成后再写一次本周快照
+	lastWeekRegen := loadLastWeekSnapshots(h.db, existing.WeekYear, existing.WeekNumber)
+	content := h.buildWeeklyReportContent(projects, okrs, parseDateOrToday(existing.StartDate), parseDateOrToday(existing.EndDate), lastWeekRegen)
+	snapshotRowsRegen := flattenProjectSchedules(projects, loadUserNames(h.db))
+	if serr := saveScheduleSnapshots(h.db, reportID, existing.WeekYear, existing.WeekNumber, snapshotRowsRegen); serr != nil {
+		log.Printf("[WeeklyReport] regen save snapshots failed (non-fatal): %v", serr)
+	}
 	summary, aerr := h.generateAISummary(content, existing.WeekYear, existing.WeekNumber,
 		parseDateOrToday(existing.StartDate), parseDateOrToday(existing.EndDate))
 	if aerr != nil {
@@ -394,12 +412,18 @@ func (h *Handler) GetDevWeeklyReportVersionByID(c *gin.Context) {
 // fetchProjectsAndOkrsForWeek 查询本周的所有项目和OKR数据
 func (h *Handler) fetchProjectsAndOkrsForWeek(c *gin.Context) ([]models.Project, []models.OkrSet, error) {
 	// 查询所有项目（带本周进展）
+	// v4.4.1：仅纳入白名单 11 个状态的项目（排除 "已完成" / "暂停"）
 	projectQuery := `
 		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update,
 		       last_week_update, status, proposal_date, launch_date, created_at, followers,
 		       product_managers, backend_developers, frontend_developers, qa_testers
 		FROM projects
 		WHERE weekly_update IS NOT NULL AND weekly_update != ''
+		  AND status IN (
+		      '未开始','讨论中','产品设计','需求完成','评审完成',
+		      '开发中','开发完成','测试中','测试完成',
+		      '本周已上线','项目进行中'
+		  )
 		ORDER BY created_at DESC
 	`
 	rows, err := h.db.Query(projectQuery)
@@ -508,7 +532,8 @@ func (h *Handler) fetchProjectsAndOkrsForWeek(c *gin.Context) ([]models.Project,
 }
 
 // buildWeeklyReportContent 按OKR维度构建周报内容
-func (h *Handler) buildWeeklyReportContent(projects []models.Project, okrSets []models.OkrSet, weekStart, weekEnd time.Time) models.WeeklyReportContent {
+// v4.4.1：新增 lastWeek 参数用于排期 diff；当上周无快照时 lastWeek 为空 map，diff 自动跳过。
+func (h *Handler) buildWeeklyReportContent(projects []models.Project, okrSets []models.OkrSet, weekStart, weekEnd time.Time, lastWeek lastWeekScheduleMap) models.WeeklyReportContent {
 	// 预加载用户姓名映射
 	userNames := loadUserNames(h.db)
 
@@ -580,7 +605,7 @@ func (h *Handler) buildWeeklyReportContent(projects []models.Project, okrSets []
 					okrSummaries[i].KrSummaries = append(okrSummaries[i].KrSummaries, models.KrWeeklySummary{
 						KrID:             krId,
 						KrDesc:           krToKrDesc[krId],
-						ProjectSummaries: buildProjectSummaries(projs, userNames, weekStart, weekEnd),
+						ProjectSummaries: buildProjectSummaries(projs, userNames, weekStart, weekEnd, lastWeek),
 					})
 					break
 				}
@@ -594,7 +619,7 @@ func (h *Handler) buildWeeklyReportContent(projects []models.Project, okrSets []
 					{
 						KrID:             krId,
 						KrDesc:           krToKrDesc[krId],
-						ProjectSummaries: buildProjectSummaries(projs, userNames, weekStart, weekEnd),
+						ProjectSummaries: buildProjectSummaries(projs, userNames, weekStart, weekEnd, lastWeek),
 					},
 				},
 			})
@@ -618,7 +643,7 @@ func (h *Handler) buildWeeklyReportContent(projects []models.Project, okrSets []
 				{
 					KrID:             "zz-urgent-kr",
 					KrDesc:           "本周推进事项",
-					ProjectSummaries: buildProjectSummaries(urgentProjects, userNames, weekStart, weekEnd),
+					ProjectSummaries: buildProjectSummaries(urgentProjects, userNames, weekStart, weekEnd, lastWeek),
 				},
 			},
 		})
@@ -630,8 +655,9 @@ func (h *Handler) buildWeeklyReportContent(projects []models.Project, okrSets []
 // buildProjectSummaries 把项目转换为周报条目：
 // - ProductManagers 字段由 user id 解析为真实姓名
 // - v4.3：增加原始数据字段（System/BusinessProblem/LastWeekUpdate/LaunchDate/ScheduleText/MemberAlerts/IsDrivingOnly），供后续 AI 入参使用
+// - v4.4.1：新增 ScheduleChanges（排期较上周 diff）+ DelayRisks（状态-排期不符告警）
 // - 不再单项目调 LLM；WeeklyUpdate 直接取项目原文纯文本，由整体 AI 负责文本生成
-func buildProjectSummaries(projects []models.Project, userNames map[string]string, weekStart, weekEnd time.Time) []models.ProjectWeeklySummary {
+func buildProjectSummaries(projects []models.Project, userNames map[string]string, weekStart, weekEnd time.Time, lastWeek lastWeekScheduleMap) []models.ProjectWeeklySummary {
 	summaries := make([]models.ProjectWeeklySummary, 0, len(projects))
 	deref := func(s *string) string {
 		if s == nil {
@@ -652,11 +678,16 @@ func buildProjectSummaries(projects []models.Project, userNames map[string]strin
 			}
 		}
 		isDriving := isDrivingOnlyStatus(p.Status)
+		isLaunched := strings.TrimSpace(p.Status) == "本周已上线"
 		scheduleText := ""
 		alerts := []string{}
-		if !isDriving {
+		changes := []string{}
+		risks := []string{}
+		if !isDriving && !isLaunched {
 			scheduleText = buildProjectScheduleText(p, userNames)
 			alerts = buildProjectMemberAlerts(p, weekEnd, userNames)
+			changes = computeScheduleChanges(p, userNames, lastWeek)
+			risks = computeDelayRisks(p, weekEnd, userNames)
 		}
 
 		summaries = append(summaries, models.ProjectWeeklySummary{
@@ -673,6 +704,8 @@ func buildProjectSummaries(projects []models.Project, userNames map[string]strin
 			ScheduleText:    scheduleText,
 			MemberAlerts:    alerts,
 			IsDrivingOnly:   isDriving,
+			ScheduleChanges: changes,
+			DelayRisks:      risks,
 		})
 	}
 	_ = weekStart // 预留：后续可用于过滤仅本周有排期的项目
@@ -853,6 +886,12 @@ func convertContentToAIInput(content models.WeeklyReportContent, wr ai.WeekRange
 }
 
 func summaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
+	// v4.4.1：合并三类告警 —— 排期缺失（MemberAlerts）+ 排期调整（ScheduleChanges）+ 延期风险（DelayRisks）。
+	// LLM 由规则 8 引导原样追加；后端再加一道后处理兜底。
+	merged := make([]string, 0, len(p.MemberAlerts)+len(p.ScheduleChanges)+len(p.DelayRisks))
+	merged = append(merged, p.MemberAlerts...)
+	merged = append(merged, p.ScheduleChanges...)
+	merged = append(merged, p.DelayRisks...)
 	return ai.ProjectInput{
 		ID:              p.ProjectID,
 		Name:            p.ProjectName,
@@ -864,7 +903,7 @@ func summaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
 		LastWeekUpdate:  p.LastWeekUpdate,
 		LaunchDate:      p.LaunchDate,
 		ScheduleText:    p.ScheduleText,
-		MemberAlerts:    p.MemberAlerts,
+		MemberAlerts:    merged,
 		IsDrivingOnly:   p.IsDrivingOnly,
 	}
 }
@@ -885,4 +924,333 @@ func stripHTML(html string) string {
 	// 兜底：清除富文本编辑器产生的其它标签
 	result = htmlTagRegex.ReplaceAllString(result, "")
 	return strings.TrimSpace(result)
+}
+
+// ================= v4.4.1 周报规则扩展 =================
+// 设计文档：docs/superpowers/specs/2026-05-10-weekly-report-rules-extension-design.md
+// 硬约束：不 ALTER 现有表；新字段均 omitempty；新表或快照为空时优雅降级不崩。
+// ===========================================================
+
+// v4.4.1 规则总开关：设置 WEEKLY_REPORT_RULES_V441=off 可关闭新规则（snapshot 仍写入，但不做 diff/延期判定）。
+var weeklyRulesV441Enabled = func() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("WEEKLY_REPORT_RULES_V441")))
+	return v != "off" && v != "false" && v != "0"
+}()
+
+// isDevelopmentStatus 研发中 9 状态（需要展示排期与做 diff / 延期判定）
+func isDevelopmentStatus(s string) bool {
+	switch strings.TrimSpace(s) {
+	case "未开始", "讨论中", "产品设计", "需求完成", "评审完成",
+		"开发中", "开发完成", "测试中", "测试完成":
+		return true
+	}
+	return false
+}
+
+// isWeeklyReportEligibleStatus 周报白名单 11 状态（研发中 9 + 本周已上线 + 项目进行中）
+func isWeeklyReportEligibleStatus(s string) bool {
+	if isDevelopmentStatus(s) {
+		return true
+	}
+	switch strings.TrimSpace(s) {
+	case "本周已上线", "项目进行中":
+		return true
+	}
+	return false
+}
+
+// scheduleRow 单条排期快照
+type scheduleRow struct {
+	ProjectID string
+	Role      string // backend / frontend / qa
+	UserID    string
+	UserName  string
+	Start     string // YYYY-MM-DD 或 ""
+	End       string // YYYY-MM-DD 或 ""
+	Status    string
+}
+
+// flattenProjectSchedules 把项目按角色 × 成员 × TimeSlot(合并)展开为快照行。
+// 对同一 (project, role, userId) 的多 TimeSlot，取 min(Start) / max(End) 合并为 1 行。
+// 仅对研发中 9 状态输出排期；本周已上线/项目进行中返回空列表。
+func flattenProjectSchedules(projects []models.Project, userNames map[string]string) []scheduleRow {
+	rows := []scheduleRow{}
+	for _, p := range projects {
+		if !isDevelopmentStatus(p.Status) {
+			continue
+		}
+		appendRole := func(role string, members models.Role) {
+			for _, m := range members {
+				if m.UserID == "" {
+					continue
+				}
+				name := userNames[m.UserID]
+				if name == "" {
+					name = m.UserID
+				}
+				var s, e string
+				if len(m.TimeSlots) > 0 {
+					s = m.TimeSlots[0].StartDate
+					e = m.TimeSlots[0].EndDate
+					for _, ts := range m.TimeSlots[1:] {
+						if ts.StartDate != "" && (s == "" || ts.StartDate < s) {
+							s = ts.StartDate
+						}
+						if ts.EndDate != "" && ts.EndDate > e {
+							e = ts.EndDate
+						}
+					}
+				} else if m.StartDate != nil && m.EndDate != nil {
+					s = *m.StartDate
+					e = *m.EndDate
+				}
+				rows = append(rows, scheduleRow{
+					ProjectID: p.ID, Role: role,
+					UserID: m.UserID, UserName: name,
+					Start: s, End: e, Status: p.Status,
+				})
+			}
+		}
+		appendRole("backend", p.BackendDevelopers)
+		appendRole("frontend", p.FrontendDevelopers)
+		appendRole("qa", p.QaTesters)
+	}
+	return rows
+}
+
+// saveScheduleSnapshots 幂等写入本周排期快照。先删后插（同 reportID）保证重复生成不污染。
+func saveScheduleSnapshots(db *sql.DB, reportID string, isoYear, weekNum int, rows []scheduleRow) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec("DELETE FROM project_schedule_snapshots WHERE report_id = $1", reportID); err != nil {
+		tx.Rollback()
+		return err
+	}
+	stmt, err := tx.Prepare(`
+		INSERT INTO project_schedule_snapshots
+			(report_id, iso_year, week_number, project_id, role, user_id, user_name, start_date, end_date, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8,'')::date, NULLIF($9,'')::date, $10)
+		ON CONFLICT (report_id, project_id, role, user_id, start_date) DO NOTHING
+	`)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+	for _, r := range rows {
+		if _, err := stmt.Exec(reportID, isoYear, weekNum, r.ProjectID, r.Role, r.UserID, r.UserName, r.Start, r.End, r.Status); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// ---- Task 4: 上周快照读取 ----
+
+// lastWeekScheduleMap[projectID][role][userID] -> scheduleRow
+type lastWeekScheduleMap map[string]map[string]map[string]scheduleRow
+
+// loadLastWeekSnapshots 读上一个 ISO 周的排期快照。表不存在或无数据时返回空 map，不报错。
+func loadLastWeekSnapshots(db *sql.DB, isoYear, weekNum int) lastWeekScheduleMap {
+	result := lastWeekScheduleMap{}
+	lastIsoYear, lastWeekNum := prevISOWeek(isoYear, weekNum)
+	rows, err := db.Query(`
+		SELECT project_id, role, user_id, user_name,
+		       COALESCE(to_char(start_date,'YYYY-MM-DD'), ''),
+		       COALESCE(to_char(end_date,'YYYY-MM-DD'), ''),
+		       COALESCE(status,'')
+		FROM project_schedule_snapshots
+		WHERE iso_year = $1 AND week_number = $2
+	`, lastIsoYear, lastWeekNum)
+	if err != nil {
+		// 表不存在或查询失败：降级为"无上周数据"，不影响流程
+		return result
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var r scheduleRow
+		if err := rows.Scan(&r.ProjectID, &r.Role, &r.UserID, &r.UserName, &r.Start, &r.End, &r.Status); err != nil {
+			continue
+		}
+		if _, ok := result[r.ProjectID]; !ok {
+			result[r.ProjectID] = map[string]map[string]scheduleRow{}
+		}
+		if _, ok := result[r.ProjectID][r.Role]; !ok {
+			result[r.ProjectID][r.Role] = map[string]scheduleRow{}
+		}
+		result[r.ProjectID][r.Role][r.UserID] = r
+	}
+	return result
+}
+
+// prevISOWeek 计算给定 ISO 年/周的上一周。跨年自动处理。
+func prevISOWeek(isoYear, weekNum int) (int, int) {
+	jan4 := time.Date(isoYear, 1, 4, 0, 0, 0, 0, time.UTC)
+	weekday := int(jan4.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	week1Mon := jan4.AddDate(0, 0, 1-weekday)
+	target := week1Mon.AddDate(0, 0, (weekNum-1)*7)
+	prev := target.AddDate(0, 0, -7)
+	y, w := prev.ISOWeek()
+	return y, w
+}
+
+// ---- Task 5: Schedule Diff ----
+
+// computeScheduleChanges 对单项目计算排期变化提示。
+// - 上周全局无快照（首次运行）-> 返回空切片
+// - 非研发中状态 -> 返回空
+func computeScheduleChanges(p models.Project, userNames map[string]string, lastWeek lastWeekScheduleMap) []string {
+	if !weeklyRulesV441Enabled {
+		return nil
+	}
+	if len(lastWeek) == 0 {
+		return nil
+	}
+	if !isDevelopmentStatus(p.Status) {
+		return nil
+	}
+	thisWeekRows := flattenProjectSchedules([]models.Project{p}, userNames)
+	thisIndex := map[string]scheduleRow{}
+	for _, r := range thisWeekRows {
+		thisIndex[r.Role+"|"+r.UserID] = r
+	}
+	lastByRole := lastWeek[p.ID]
+	lastIndex := map[string]scheduleRow{}
+	for role, us := range lastByRole {
+		for uid, r := range us {
+			lastIndex[role+"|"+uid] = r
+		}
+	}
+
+	out := []string{}
+	roleLabel := map[string]string{"backend": "后端", "frontend": "前端", "qa": "测试"}
+
+	// ADDED & CHANGED
+	for key, cur := range thisIndex {
+		prev, existed := lastIndex[key]
+		if !existed {
+			if cur.Start != "" && cur.End != "" {
+				out = append(out, fmt.Sprintf("⚠️ 本周%s新增 %s 排期 %s~%s",
+					roleLabel[cur.Role], cur.UserName, shortMD(cur.Start), shortMD(cur.End)))
+			}
+			continue
+		}
+		if cur.Start != prev.Start || cur.End != prev.End {
+			delta := endDateDelta(prev.End, cur.End)
+			suffix := ""
+			switch {
+			case delta > 0:
+				suffix = fmt.Sprintf("（延后 %d 天）", delta)
+			case delta < 0:
+				suffix = fmt.Sprintf("（提前 %d 天）", -delta)
+			}
+			out = append(out, fmt.Sprintf("⚠️ 本周%s %s 原 %s~%s 调整为 %s~%s%s",
+				roleLabel[cur.Role], cur.UserName,
+				shortMD(prev.Start), shortMD(prev.End),
+				shortMD(cur.Start), shortMD(cur.End), suffix))
+		}
+	}
+	// REMOVED
+	for key, prev := range lastIndex {
+		if _, existed := thisIndex[key]; !existed {
+			out = append(out, fmt.Sprintf("⚠️ 本周%s %s 取消排期（上周 %s~%s）",
+				roleLabel[prev.Role], prev.UserName, shortMD(prev.Start), shortMD(prev.End)))
+		}
+	}
+	return out
+}
+
+// endDateDelta 返回 cur - prev 的天数差
+func endDateDelta(prev, cur string) int {
+	p, err1 := time.Parse("2006-01-02", prev)
+	c, err2 := time.Parse("2006-01-02", cur)
+	if err1 != nil || err2 != nil {
+		return 0
+	}
+	return int(c.Sub(p).Hours() / 24)
+}
+
+// ---- Task 6: 延期风险判定 ----
+
+// computeDelayRisks 按状态-角色矩阵判定延期风险。基准日期 = weekEnd（本周末 23:59:59）
+func computeDelayRisks(p models.Project, weekEnd time.Time, userNames map[string]string) []string {
+	if !weeklyRulesV441Enabled {
+		return nil
+	}
+	status := strings.TrimSpace(p.Status)
+	devCheck := false
+	qaCheck := false
+	preCheck := false
+	switch status {
+	case "需求完成", "评审完成":
+		preCheck = true
+	case "开发中", "开发完成":
+		devCheck = true
+	case "测试中", "测试完成":
+		qaCheck = true
+	default:
+		return nil
+	}
+
+	out := []string{}
+	roleLabel := map[string]string{"backend": "后端", "frontend": "前端", "qa": "测试"}
+
+	chkRole := func(role string, members models.Role) []string {
+		als := []string{}
+		for _, m := range members {
+			if m.UserID == "" {
+				continue
+			}
+			name := userNames[m.UserID]
+			if name == "" {
+				name = m.UserID
+			}
+			latest := latestMemberEnd(m)
+			if latest == "" {
+				continue
+			}
+			le, err := time.Parse("2006-01-02", latest)
+			if err != nil {
+				continue
+			}
+			if le.Before(weekEnd) {
+				als = append(als, fmt.Sprintf("⚠️ %s %s 排期截至 %s，当前状态\"%s\"，存在延期风险（请确认续排或调整状态）",
+					roleLabel[role], name, latest, status))
+			}
+		}
+		return als
+	}
+
+	if preCheck {
+		out = append(out, chkRole("backend", p.BackendDevelopers)...)
+		out = append(out, chkRole("frontend", p.FrontendDevelopers)...)
+	}
+	if devCheck {
+		out = append(out, chkRole("backend", p.BackendDevelopers)...)
+		out = append(out, chkRole("frontend", p.FrontendDevelopers)...)
+	}
+	if qaCheck {
+		out = append(out, chkRole("qa", p.QaTesters)...)
+	}
+	return out
+}
+
+// latestMemberEnd 返回单个成员所有 TimeSlot / 兼容字段里最晚的 EndDate。
+func latestMemberEnd(m models.TeamMember) string {
+	latest := ""
+	for _, ts := range m.TimeSlots {
+		if ts.EndDate > latest {
+			latest = ts.EndDate
+		}
+	}
+	if latest == "" && m.EndDate != nil {
+		latest = *m.EndDate
+	}
+	return latest
 }

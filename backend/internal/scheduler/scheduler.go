@@ -260,12 +260,18 @@ func generateWeeklyReport(db *sql.DB) error {
 	endOfWeek := startOfWeek.AddDate(0, 0, 6)
 
 	// 查询本周有进展的项目
+	// v4.4.1：仅纳入白名单 11 个状态（排除 "已完成"/"暂停"）
 	projectQuery := `
 		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update,
 		       last_week_update, status, proposal_date, launch_date, created_at, followers,
 		       product_managers, backend_developers, frontend_developers, qa_testers
 		FROM projects
 		WHERE weekly_update IS NOT NULL AND weekly_update != ''
+		  AND status IN (
+		      '未开始','讨论中','产品设计','需求完成','评审完成',
+		      '开发中','开发完成','测试中','测试完成',
+		      '本周已上线','项目进行中'
+		  )
 		ORDER BY created_at DESC
 	`
 	rows, err := db.Query(projectQuery)
@@ -368,9 +374,19 @@ func generateWeeklyReport(db *sql.DB) error {
 		}
 	}
 
+	// v4.4.1: 读取上周排期快照（表不存在或无数据时返回空 map）
+	lastWeek := schedLoadLastWeekSnapshots(db, isoYear, weekNum)
+
 	// 构建周报内容
-	content := buildReportContent(db, projects, okrSets, startOfWeek, endOfWeek)
+	content := buildReportContent(db, projects, okrSets, startOfWeek, endOfWeek, lastWeek)
 	contentJSON, _ := json.Marshal(content)
+
+	// v4.4.1: 写入本周排期快照（失败不影响流程）
+	reportIDForSnapshot := fmt.Sprintf("wr%d%02d", isoYear, weekNum)
+	snapshotRows := schedFlattenProjectSchedules(projects, schedLoadUserNames(db))
+	if serr := schedSaveScheduleSnapshots(db, reportIDForSnapshot, isoYear, weekNum, snapshotRows); serr != nil {
+		log.Printf("[Scheduler] save snapshots failed (non-fatal): %v", serr)
+	}
 
 	// 调用AI生成总结
 	summary, err := generateAIReportSummary(content, isoYear, weekNum, startOfWeek, endOfWeek)
@@ -413,7 +429,8 @@ func generateWeeklyReport(db *sql.DB) error {
 }
 
 // buildReportContent 构建周报内容
-func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.OkrSet, weekStart, weekEnd time.Time) models.WeeklyReportContent {
+// v4.4.1：新增 lastWeek 参数用于排期 diff。
+func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.OkrSet, weekStart, weekEnd time.Time, lastWeek schedLastWeekScheduleMap) models.WeeklyReportContent {
 	// 预加载用户姓名映射
 	userNames := schedLoadUserNames(db)
 
@@ -471,7 +488,7 @@ func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.
 					okrSummaries[i].KrSummaries = append(okrSummaries[i].KrSummaries, models.KrWeeklySummary{
 						KrID:             krId,
 						KrDesc:           krToDesc[krId],
-						ProjectSummaries: buildProjSummaries(projs, userNames, weekStart, weekEnd),
+						ProjectSummaries: buildProjSummaries(projs, userNames, weekStart, weekEnd, lastWeek),
 					})
 					break
 				}
@@ -485,7 +502,7 @@ func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.
 					{
 						KrID:             krId,
 						KrDesc:           krToDesc[krId],
-						ProjectSummaries: buildProjSummaries(projs, userNames, weekStart, weekEnd),
+						ProjectSummaries: buildProjSummaries(projs, userNames, weekStart, weekEnd, lastWeek),
 					},
 				},
 			})
@@ -508,7 +525,7 @@ func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.
 				{
 					KrID:             "zz-urgent-kr",
 					KrDesc:           "本周推进事项",
-					ProjectSummaries: buildProjSummaries(urgentProjects, userNames, weekStart, weekEnd),
+					ProjectSummaries: buildProjSummaries(urgentProjects, userNames, weekStart, weekEnd, lastWeek),
 				},
 			},
 		})
@@ -518,7 +535,8 @@ func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.
 }
 
 // buildProjSummaries v4.3：填充完整字段（含推进型判定、排期摘要、排期缺失提示），不再单项目调 LLM
-func buildProjSummaries(projects []models.Project, userNames map[string]string, weekStart, weekEnd time.Time) []models.ProjectWeeklySummary {
+// v4.4.1：新增 ScheduleChanges（排期较上周 diff）+ DelayRisks（状态-排期不符告警）
+func buildProjSummaries(projects []models.Project, userNames map[string]string, weekStart, weekEnd time.Time, lastWeek schedLastWeekScheduleMap) []models.ProjectWeeklySummary {
 	summaries := make([]models.ProjectWeeklySummary, 0, len(projects))
 	deref := func(s *string) string {
 		if s == nil {
@@ -539,11 +557,16 @@ func buildProjSummaries(projects []models.Project, userNames map[string]string, 
 			}
 		}
 		isDriving := schedIsDrivingOnly(p.Status)
+		isLaunched := strings.TrimSpace(p.Status) == "本周已上线"
 		scheduleText := ""
 		alerts := []string{}
-		if !isDriving {
+		changes := []string{}
+		risks := []string{}
+		if !isDriving && !isLaunched {
 			scheduleText = schedBuildProjectScheduleText(p, userNames)
 			alerts = schedBuildProjectMemberAlerts(p, weekEnd, userNames)
+			changes = schedComputeScheduleChanges(p, userNames, lastWeek)
+			risks = schedComputeDelayRisks(p, weekEnd, userNames)
 		}
 
 		summaries = append(summaries, models.ProjectWeeklySummary{
@@ -560,6 +583,8 @@ func buildProjSummaries(projects []models.Project, userNames map[string]string, 
 			ScheduleText:    scheduleText,
 			MemberAlerts:    alerts,
 			IsDrivingOnly:   isDriving,
+			ScheduleChanges: changes,
+			DelayRisks:      risks,
 		})
 	}
 	_ = weekStart
@@ -725,6 +750,11 @@ func schedConvertContentToAIInput(content models.WeeklyReportContent, wr ai.Week
 }
 
 func schedSummaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
+	// v4.4.1：合并三类告警
+	merged := make([]string, 0, len(p.MemberAlerts)+len(p.ScheduleChanges)+len(p.DelayRisks))
+	merged = append(merged, p.MemberAlerts...)
+	merged = append(merged, p.ScheduleChanges...)
+	merged = append(merged, p.DelayRisks...)
 	return ai.ProjectInput{
 		ID:              p.ProjectID,
 		Name:            p.ProjectName,
@@ -736,7 +766,7 @@ func schedSummaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
 		LastWeekUpdate:  p.LastWeekUpdate,
 		LaunchDate:      p.LaunchDate,
 		ScheduleText:    p.ScheduleText,
-		MemberAlerts:    p.MemberAlerts,
+		MemberAlerts:    merged,
 		IsDrivingOnly:   p.IsDrivingOnly,
 	}
 }
@@ -756,4 +786,286 @@ func stripHtmlTags(html string) string {
 	// 兜底：清除富文本编辑器产生的其它标签
 	result = schedHtmlTagRegex.ReplaceAllString(result, "")
 	return strings.TrimSpace(result)
+}
+
+// ================= v4.4.1 scheduler 版 helper（与 api 包内逻辑等价，名字加 sched 前缀避免包内冲突） =================
+
+// v4.4.1 规则总开关：设置 WEEKLY_REPORT_RULES_V441=off 可关闭 diff/延期判定（snapshot 仍写入）
+var schedWeeklyRulesV441Enabled = func() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("WEEKLY_REPORT_RULES_V441")))
+	return v != "off" && v != "false" && v != "0"
+}()
+
+// schedIsDevelopmentStatus 研发中 9 状态
+func schedIsDevelopmentStatus(s string) bool {
+	switch strings.TrimSpace(s) {
+	case "未开始", "讨论中", "产品设计", "需求完成", "评审完成",
+		"开发中", "开发完成", "测试中", "测试完成":
+		return true
+	}
+	return false
+}
+
+type schedScheduleRow struct {
+	ProjectID, Role, UserID, UserName, Start, End, Status string
+}
+
+type schedLastWeekScheduleMap map[string]map[string]map[string]schedScheduleRow
+
+// schedFlattenProjectSchedules 把项目按角色 × 成员 × TimeSlot(合并)展开为快照行。
+func schedFlattenProjectSchedules(projects []models.Project, userNames map[string]string) []schedScheduleRow {
+	rows := []schedScheduleRow{}
+	for _, p := range projects {
+		if !schedIsDevelopmentStatus(p.Status) {
+			continue
+		}
+		appendRole := func(role string, members models.Role) {
+			for _, m := range members {
+				if m.UserID == "" {
+					continue
+				}
+				name := userNames[m.UserID]
+				if name == "" {
+					name = m.UserID
+				}
+				var s, e string
+				if len(m.TimeSlots) > 0 {
+					s = m.TimeSlots[0].StartDate
+					e = m.TimeSlots[0].EndDate
+					for _, ts := range m.TimeSlots[1:] {
+						if ts.StartDate != "" && (s == "" || ts.StartDate < s) {
+							s = ts.StartDate
+						}
+						if ts.EndDate != "" && ts.EndDate > e {
+							e = ts.EndDate
+						}
+					}
+				} else if m.StartDate != nil && m.EndDate != nil {
+					s = *m.StartDate
+					e = *m.EndDate
+				}
+				rows = append(rows, schedScheduleRow{
+					ProjectID: p.ID, Role: role,
+					UserID: m.UserID, UserName: name,
+					Start: s, End: e, Status: p.Status,
+				})
+			}
+		}
+		appendRole("backend", p.BackendDevelopers)
+		appendRole("frontend", p.FrontendDevelopers)
+		appendRole("qa", p.QaTesters)
+	}
+	return rows
+}
+
+// schedSaveScheduleSnapshots 幂等写入本周排期快照
+func schedSaveScheduleSnapshots(db *sql.DB, reportID string, isoYear, weekNum int, rows []schedScheduleRow) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec("DELETE FROM project_schedule_snapshots WHERE report_id = $1", reportID); err != nil {
+		tx.Rollback()
+		return err
+	}
+	stmt, err := tx.Prepare(`
+		INSERT INTO project_schedule_snapshots
+			(report_id, iso_year, week_number, project_id, role, user_id, user_name, start_date, end_date, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8,'')::date, NULLIF($9,'')::date, $10)
+		ON CONFLICT (report_id, project_id, role, user_id, start_date) DO NOTHING
+	`)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+	for _, r := range rows {
+		if _, err := stmt.Exec(reportID, isoYear, weekNum, r.ProjectID, r.Role, r.UserID, r.UserName, r.Start, r.End, r.Status); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func schedPrevISOWeek(isoYear, weekNum int) (int, int) {
+	jan4 := time.Date(isoYear, 1, 4, 0, 0, 0, 0, time.UTC)
+	weekday := int(jan4.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	week1Mon := jan4.AddDate(0, 0, 1-weekday)
+	target := week1Mon.AddDate(0, 0, (weekNum-1)*7)
+	prev := target.AddDate(0, 0, -7)
+	y, w := prev.ISOWeek()
+	return y, w
+}
+
+func schedLoadLastWeekSnapshots(db *sql.DB, isoYear, weekNum int) schedLastWeekScheduleMap {
+	result := schedLastWeekScheduleMap{}
+	lastIsoYear, lastWeekNum := schedPrevISOWeek(isoYear, weekNum)
+	rows, err := db.Query(`
+		SELECT project_id, role, user_id, user_name,
+		       COALESCE(to_char(start_date,'YYYY-MM-DD'), ''),
+		       COALESCE(to_char(end_date,'YYYY-MM-DD'), ''),
+		       COALESCE(status,'')
+		FROM project_schedule_snapshots
+		WHERE iso_year = $1 AND week_number = $2
+	`, lastIsoYear, lastWeekNum)
+	if err != nil {
+		return result
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var r schedScheduleRow
+		if err := rows.Scan(&r.ProjectID, &r.Role, &r.UserID, &r.UserName, &r.Start, &r.End, &r.Status); err != nil {
+			continue
+		}
+		if _, ok := result[r.ProjectID]; !ok {
+			result[r.ProjectID] = map[string]map[string]schedScheduleRow{}
+		}
+		if _, ok := result[r.ProjectID][r.Role]; !ok {
+			result[r.ProjectID][r.Role] = map[string]schedScheduleRow{}
+		}
+		result[r.ProjectID][r.Role][r.UserID] = r
+	}
+	return result
+}
+
+func schedComputeScheduleChanges(p models.Project, userNames map[string]string, lastWeek schedLastWeekScheduleMap) []string {
+	if !schedWeeklyRulesV441Enabled {
+		return nil
+	}
+	if len(lastWeek) == 0 {
+		return nil
+	}
+	if !schedIsDevelopmentStatus(p.Status) {
+		return nil
+	}
+	thisWeekRows := schedFlattenProjectSchedules([]models.Project{p}, userNames)
+	thisIndex := map[string]schedScheduleRow{}
+	for _, r := range thisWeekRows {
+		thisIndex[r.Role+"|"+r.UserID] = r
+	}
+	lastByRole := lastWeek[p.ID]
+	lastIndex := map[string]schedScheduleRow{}
+	for role, us := range lastByRole {
+		for uid, r := range us {
+			lastIndex[role+"|"+uid] = r
+		}
+	}
+	out := []string{}
+	roleLabel := map[string]string{"backend": "后端", "frontend": "前端", "qa": "测试"}
+	for key, cur := range thisIndex {
+		prev, existed := lastIndex[key]
+		if !existed {
+			if cur.Start != "" && cur.End != "" {
+				out = append(out, fmt.Sprintf("⚠️ 本周%s新增 %s 排期 %s~%s",
+					roleLabel[cur.Role], cur.UserName, schedShortMD(cur.Start), schedShortMD(cur.End)))
+			}
+			continue
+		}
+		if cur.Start != prev.Start || cur.End != prev.End {
+			delta := schedEndDateDelta(prev.End, cur.End)
+			suffix := ""
+			switch {
+			case delta > 0:
+				suffix = fmt.Sprintf("（延后 %d 天）", delta)
+			case delta < 0:
+				suffix = fmt.Sprintf("（提前 %d 天）", -delta)
+			}
+			out = append(out, fmt.Sprintf("⚠️ 本周%s %s 原 %s~%s 调整为 %s~%s%s",
+				roleLabel[cur.Role], cur.UserName,
+				schedShortMD(prev.Start), schedShortMD(prev.End),
+				schedShortMD(cur.Start), schedShortMD(cur.End), suffix))
+		}
+	}
+	for key, prev := range lastIndex {
+		if _, existed := thisIndex[key]; !existed {
+			out = append(out, fmt.Sprintf("⚠️ 本周%s %s 取消排期（上周 %s~%s）",
+				roleLabel[prev.Role], prev.UserName, schedShortMD(prev.Start), schedShortMD(prev.End)))
+		}
+	}
+	return out
+}
+
+func schedEndDateDelta(prev, cur string) int {
+	p, err1 := time.Parse("2006-01-02", prev)
+	c, err2 := time.Parse("2006-01-02", cur)
+	if err1 != nil || err2 != nil {
+		return 0
+	}
+	return int(c.Sub(p).Hours() / 24)
+}
+
+func schedComputeDelayRisks(p models.Project, weekEnd time.Time, userNames map[string]string) []string {
+	if !schedWeeklyRulesV441Enabled {
+		return nil
+	}
+	status := strings.TrimSpace(p.Status)
+	devCheck := false
+	qaCheck := false
+	preCheck := false
+	switch status {
+	case "需求完成", "评审完成":
+		preCheck = true
+	case "开发中", "开发完成":
+		devCheck = true
+	case "测试中", "测试完成":
+		qaCheck = true
+	default:
+		return nil
+	}
+	out := []string{}
+	roleLabel := map[string]string{"backend": "后端", "frontend": "前端", "qa": "测试"}
+	chkRole := func(role string, members models.Role) []string {
+		als := []string{}
+		for _, m := range members {
+			if m.UserID == "" {
+				continue
+			}
+			name := userNames[m.UserID]
+			if name == "" {
+				name = m.UserID
+			}
+			latest := schedLatestMemberEnd(m)
+			if latest == "" {
+				continue
+			}
+			le, err := time.Parse("2006-01-02", latest)
+			if err != nil {
+				continue
+			}
+			if le.Before(weekEnd) {
+				als = append(als, fmt.Sprintf("⚠️ %s %s 排期截至 %s，当前状态\"%s\"，存在延期风险（请确认续排或调整状态）",
+					roleLabel[role], name, latest, status))
+			}
+		}
+		return als
+	}
+	if preCheck {
+		out = append(out, chkRole("backend", p.BackendDevelopers)...)
+		out = append(out, chkRole("frontend", p.FrontendDevelopers)...)
+	}
+	if devCheck {
+		out = append(out, chkRole("backend", p.BackendDevelopers)...)
+		out = append(out, chkRole("frontend", p.FrontendDevelopers)...)
+	}
+	if qaCheck {
+		out = append(out, chkRole("qa", p.QaTesters)...)
+	}
+	return out
+}
+
+func schedLatestMemberEnd(m models.TeamMember) string {
+	latest := ""
+	for _, ts := range m.TimeSlots {
+		if ts.EndDate > latest {
+			latest = ts.EndDate
+		}
+	}
+	if latest == "" && m.EndDate != nil {
+		latest = *m.EndDate
+	}
+	return latest
 }

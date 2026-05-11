@@ -1,8 +1,8 @@
-# 周报规则扩展 · 设计方案（v4.4.0）
+# 周报规则扩展 · 设计方案（v4.4.1）
 
 - **日期**：2026-05-10
 - **作者**：Qoder Agent
-- **关联版本**：v4.3.2 → v4.4.0
+- **关联版本**：v4.3.2 → v4.4.1
 - **状态**：待实施（spec 已 approve，等待 spec review 后进入 writing-plans）
 
 ---
@@ -285,7 +285,7 @@ type ProjectWeeklySummary struct {
 ## 11. 回滚方案
 
 若上线后发现问题：
-- 环境变量 `WEEKLY_REPORT_RULES_V440=off` 可关闭新规则（snapshot 仍写入，但 diff/延期判定跳过）。
+- 环境变量 `WEEKLY_REPORT_RULES_V441=off` 可关闭新规则（snapshot 仍写入，但 diff/延期判定跳过）。
 - 若 snapshot 表本身有问题，`DROP TABLE project_schedule_snapshots` 后重建即可，不影响其它数据。
 - 代码层面：保留 v4.3.2 分支 tag，紧急时可 revert。
 
@@ -295,7 +295,7 @@ type ProjectWeeklySummary struct {
 
 以下需求本期不做，留到后续迭代：
 
-- 前端页面新增"排期调整"/"延期风险"独立区块展示（v4.4.0 先在 AI 正文里体现，后续再做专门 UI）
+- 前端页面新增“排期调整”/“延期风险”独立区块展示（v4.4.1 先在 AI 正文里体现，后续再做专门 UI）
 - 历史项目排期回溯页面
 - 延期风险的邮件/IM 主动推送
 - snapshot 表的定期归档/清理策略（量级很小，短期不需要）
@@ -312,7 +312,7 @@ type ProjectWeeklySummary struct {
 6. Prompt 规则 8 + 后处理兜底
 7. scheduler 复用 handler helper
 8. 端到端联调（本地 PG）
-9. 版本升 v4.4.0，写 VERSION_4.4.0.md + CHANGELOG
+9. 版本升 v4.4.1，写 VERSION_4.4.1.md + CHANGELOG
 10. 推送 GitHub + 线上部署
 
 ---

@@ -182,6 +182,31 @@ func createTables(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_weekly_report_versions_week ON weekly_report_versions(week_year, week_number);
 	`
 
+	// 项目排期快照表（v4.4.1）：每次生成周报时写入当周所有研发中项目的排期明细，
+	// 供下一周生成周报时做"排期较上周是否调整"的 diff。首次生成时此表为空，不影响流程。
+	projectScheduleSnapshotsTable := `
+	CREATE TABLE IF NOT EXISTS project_schedule_snapshots (
+		id SERIAL PRIMARY KEY,
+		report_id VARCHAR(16) NOT NULL,
+		iso_year INTEGER NOT NULL,
+		week_number INTEGER NOT NULL,
+		project_id VARCHAR(64) NOT NULL,
+		role VARCHAR(16) NOT NULL,
+		user_id VARCHAR(64) NOT NULL,
+		user_name VARCHAR(64) NOT NULL,
+		start_date DATE,
+		end_date DATE,
+		status VARCHAR(32),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_pss_unique
+		ON project_schedule_snapshots(report_id, project_id, role, user_id, start_date);
+	CREATE INDEX IF NOT EXISTS idx_pss_project_week
+		ON project_schedule_snapshots(project_id, iso_year, week_number);
+	CREATE INDEX IF NOT EXISTS idx_pss_week
+		ON project_schedule_snapshots(iso_year, week_number);
+	`
+
 	tables := []string{usersTable, okrSetsTable, projectsTable}
 
 	for _, table := range tables {
@@ -196,6 +221,9 @@ func createTables(db *sql.DB) error {
 	}
 	if _, err := db.Exec(weeklyReportVersionsTable); err != nil {
 		return fmt.Errorf("failed to create weekly_report_versions table: %w", err)
+	}
+	if _, err := db.Exec(projectScheduleSnapshotsTable); err != nil {
+		return fmt.Errorf("failed to create project_schedule_snapshots table: %w", err)
 	}
 
 	return nil

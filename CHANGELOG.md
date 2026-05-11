@@ -1,6 +1,37 @@
 # 更新日志
 # 更新日志
 
+## [4.4.1] - 2026-05-10 - 周报四条硬规则扩展（状态白名单 / 排期展示 / diff / 延期风险）
+
+### ✨ 新增
+- **项目状态白名单过滤**：周报仅纳入 11 种有效状态项目（`未开始/讨论中/产品设计/需求完成/评审完成/开发中/开发完成/测试中/测试完成/本周已上线/项目进行中`），排除 `已完成/暂停` 两类无效状态
+- **排期较上周调整 diff**：新增表 `project_schedule_snapshots` 存结构化排期快照，每周生成时与上周比对，输出 `ADDED/CHANGED/REMOVED` 三类调整，合入 `MemberAlerts` 以 `⚠️ 排期调整：` 前缀透传给 LLM
+- **状态-排期一致性校验（延期风险）**：在开发类状态（`开发中/开发完成/测试中/测试完成`）下检测前后端/产品/测试角色排期是否已过期，命中即输出 `⚠️ 延期风险：` 告警
+- **System Prompt 规则 8**：明确要求 LLM 原样追加三类 ⚠️ 告警（排期缺失 / 排期调整 / 延期风险），禁止合并、改写、省略
+- **后处理兜底 `ensureAlertsAppended`**：即使 LLM 漏写告警，后端也会在对应项目段落末尾硬追加，保障规则强落地
+- **紧急回滚开关**：环境变量 `WEEKLY_REPORT_RULES_V441=off` 可一键退回 v4.3.2 行为，无需回滚代码
+
+### 🔄 变更
+- **`buildProjectSummaries` 签名扩展**：新增 `lastWeek` 参数；已上线（`本周已上线/项目进行中`）项目内部置 `isLaunched=true`，不输出排期；未上线项目按 11 状态白名单输出排期 + diff + 延期风险
+- **`summaryToAIProject` 合并三路告警**：`MemberAlerts = 14天排期缺失 + 排期调整 + 延期风险`
+- **handler / scheduler 双路径等价落地**：scheduler 用 `sched*` 前缀重实现以避免循环依赖，逻辑与 handler 完全对齐
+- **SQL 查询层前置白名单**：`status IN (...)` 在 DB 侧过滤，减少 Go 层遍历与 LLM token 成本
+- **`ProjectWeeklySummary` 结构体**：新增 `ScheduleChanges` / `DelayRisks` 两个 `omitempty` JSON 字段，向前兼容历史 weekly_reports
+
+### 🗄️ 数据库
+- 新增表 `project_schedule_snapshots`（`CREATE TABLE IF NOT EXISTS`，无历史数据影响）
+  - 主键 `(report_id, project_id, member_user_id, role_type, sub_index)`
+  - 幂等写入策略：同 `report_id` 先 `DELETE` 再 `INSERT`，避免重复周报重复写入
+- 不 `ALTER` 任何现有表，历史 `weekly_reports` 数据完全兼容
+
+### 📊 版本信息
+- **新增代码**: ~600 行（handler ~200 / scheduler ~280 / ai ~40 / models ~20 / database ~15 / doc ~45）
+- **修改文件**: 5 Go + 1 Markdown + 3 版本文件 + 1 新建 VERSION_4.4.1.md
+- **兼容性**: 向后兼容 v4.3.2（开关 `WEEKLY_REPORT_RULES_V441=off` 可退回）
+- **数据库迁移**: 1 张新表，首次启动自动创建
+
+---
+
 ## [4.3.2] - 2026-05-10 - 周报生成链路三项修复 + 死代码清理
 
 ### 🐛 问题修复

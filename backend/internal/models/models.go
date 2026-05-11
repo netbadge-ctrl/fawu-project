@@ -165,6 +165,9 @@ type ProjectWeeklySummary struct {
 	ScheduleText    string   `json:"scheduleText,omitempty"` // 排期摘要；推进型项目为空
 	MemberAlerts    []string `json:"memberAlerts,omitempty"` // 成员>14天无排期提示
 	IsDrivingOnly   bool     `json:"isDrivingOnly,omitempty"` // true=项目进行中(推进型，无需开发)
+	// —— v4.4.1 新增：排期调整 diff 与延期风险告警，omitempty 保证向前兼容 ——
+	ScheduleChanges []string `json:"scheduleChanges,omitempty"` // 排期较上周调整提示（new/changed/removed）
+	DelayRisks      []string `json:"delayRisks,omitempty"`      // 状态-排期一致性告警（延期风险）
 }
 
 // WeeklyReport 周报模型

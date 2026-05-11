@@ -1,46 +1,59 @@
 {
-  "version": "4.3.2",
-  "name": "周报生成链路修复：ISO年边界 + OkrID语义 + 推进型告警降噪 + 前端HTML兜底",
+  "version": "4.4.1",
+  "name": "周报规则扩展：状态白名单 + 排期较上周 diff + 状态-排期不符延期告警",
   "releaseDate": "2026-05-10",
-  "buildTime": "2026-05-10T14:30:00+08:00",
+  "buildTime": "2026-05-10T18:00:00+08:00",
   "features": [
-    "周报 ID / 数据库查询改用 time.ISOWeek() 返回的 ISO 年份，修复年末/年初跨年边界（如 2025-12-31 属 ISO 2026 W1）出现的周报 ID 错乱问题",
-    "Scheduler buildReportContent 引入 krToOkrID 映射，OkrWeeklySummary.OkrID 使用真实 Objective ID 而非 KR ID，与 Handler 层语义对齐",
-    "推进型项目（项目进行中/is_driving_only=true）不再生成成员排期告警，避免 AI prompt 出现无意义的『⚠️ 排期缺失』提示",
-    "前端 stripHtml 增加正则 <[^>]+> 兜底 + <br\\s*\\/?> 大小写兼容，与后端 v4.3.1 对齐"
+    "项目状态白名单：周报仅纳入 11 种有效状态项目（未开始/讨论中/产品设计/需求完成/评审完成/开发中/开发完成/测试中/测试完成/本周已上线/项目进行中），排除 '已完成'/'暂停'",
+    "排期较上周调整 diff：新建 project_schedule_snapshots 表存周粒度快照，每周生成时与上一 ISO 周对比，ADDED/CHANGED/REMOVED 三类变化以 ⚠️ 行表达",
+    "状态-排期一致性校验：开发中/测试中等状态下对应角色排期已过本周末则告警（延期风险），基准为本周末 23:59:59",
+    "System Prompt 规则 8：引导 LLM 原样追加三类 ⚠️ 告警（排期缺失 / 排期调整 / 延期风险），禁止合并改写省略翻译",
+    "后处理兜底 ensureAlertsAppended：即使 LLM 漏写告警，后端也会在项目段末硬追加，保证告警 100% 触达",
+    "紧急回滚开关 WEEKLY_REPORT_RULES_V441=off：关闭新增的 diff / 延期告警（snapshot 仍持续写入，不影响下周使用）"
   ],
   "compatibility": {
-    "backward": "v4.3.1",
+    "backward": "v4.3.2",
     "browsers": ["Chrome 60+", "Firefox 55+", "Safari 12+", "Edge 79+"],
     "mobile": true
   },
   "changelog": {
-    "added": [],
+    "added": [
+      "backend/internal/database/database.go: 新增 project_schedule_snapshots 表（CREATE IF NOT EXISTS + 3 索引）",
+      "backend/internal/models/models.go#ProjectWeeklySummary: 新增 ScheduleChanges / DelayRisks 字段（omitempty）",
+      "backend/internal/api/weekly_report_handlers.go: scheduleRow / flattenProjectSchedules / saveScheduleSnapshots / loadLastWeekSnapshots / prevISOWeek / computeScheduleChanges / endDateDelta / computeDelayRisks / latestMemberEnd / isDevelopmentStatus / isWeeklyReportEligibleStatus",
+      "backend/internal/scheduler/scheduler.go: sched* 版本同名函数（避免跨包循环依赖）",
+      "backend/internal/ai/weekly_report_ai.go: 系统提示词规则 8 + ensureAlertsAppended / findNextParaBreak"
+    ],
     "updated": [
-      "backend/internal/api/weekly_report_handlers.go#GenerateWeeklyReport: year 改为 isoYear（ISOWeek 首返回值）",
-      "backend/internal/api/weekly_report_handlers.go#buildProjectSummaries: 推进型项目跳过 buildProjectMemberAlerts",
-      "backend/internal/scheduler/scheduler.go#generateWeeklyReport: year 改为 isoYear",
-      "backend/internal/scheduler/scheduler.go#buildReportContent: 新增 krToOkrID，OkrID 使用真实 Objective ID；dedup key 改为 okrId|objective",
-      "backend/internal/scheduler/scheduler.go#buildProjSummaries: 推进型项目跳过 schedBuildProjectMemberAlerts",
-      "components/WeeklyReport.tsx#stripHtml: 增加正则 <[^>]+> 兜底 + <br\\s*\\/?> 大小写兼容"
+      "backend/internal/api/weekly_report_handlers.go#fetchProjectsAndOkrsForWeek: SQL 增加 status IN (...) 白名单",
+      "backend/internal/api/weekly_report_handlers.go#buildWeeklyReportContent & buildProjectSummaries: 签名增加 lastWeek 参数，接入 diff / 延期结果",
+      "backend/internal/api/weekly_report_handlers.go#GenerateWeeklyReport & RegenerateWeeklyReport: 读上周快照 + 写本周快照",
+      "backend/internal/api/weekly_report_handlers.go#summaryToAIProject: 合并 MemberAlerts + ScheduleChanges + DelayRisks 三路告警",
+      "backend/internal/scheduler/scheduler.go#generateWeeklyReport & buildReportContent & buildProjSummaries & schedSummaryToAIProject: 对齐 handler 同等改造",
+      "docs/weekly_report_system_prompt.md: 追加规则 5' + 规则 8 说明"
     ],
-    "removed": [
-      "backend/internal/ai/weekly_report_ai.go#CallProjectShortSummary: v4.3.0 已从主链路下线的死代码"
+    "removed": [],
+    "fixed": []
+  },
+  "database": {
+    "migrations": [
+      "CREATE TABLE IF NOT EXISTS project_schedule_snapshots（10 列 + 3 索引；不 ALTER 任何现有表，历史数据零影响）"
     ],
-    "fixed": [
-      "年末/年初跨年边界（日历年 ≠ ISO 年）导致周报 ID 错乱、重复创建或覆盖错误记录",
-      "Scheduler 生成周报时 OkrID 被错误设置为 KR ID，同一 O 下多个 KR 分组归集逻辑依赖 objective 文本匹配",
-      "推进型项目产生无意义的成员排期告警（项目已进入推进阶段，无需新排期）"
-    ]
+    "impact": "仅新增 1 张表，weekly_reports / weekly_report_versions 等历史表不动；ProjectWeeklySummary 新增字段全部 omitempty，旧 content JSON 完全兼容"
   },
   "metrics": {
-    "filesAdded": 0,
-    "filesUpdated": 4,
-    "linesOfCode": 40,
+    "filesAdded": 3,
+    "filesUpdated": 5,
+    "linesOfCode": 600,
     "testCoverage": "go build ./internal/... 通过",
-    "bugsFixed": 3,
+    "bugsFixed": 0,
     "securityImprovements": 0,
     "performanceImprovements": 0,
-    "databaseMigrations": 0
+    "databaseMigrations": 1
+  },
+  "rollback": {
+    "flag": "WEEKLY_REPORT_RULES_V441=off",
+    "effect": "关闭 diff / 延期告警的计算与注入；snapshot 写入不受影响（保证开关恢复后立刻能对比上周）",
+    "dbRollback": "无需数据库回滚。新表为加法，旧逻辑从未读写它"
   }
 }
