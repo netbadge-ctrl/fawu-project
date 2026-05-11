@@ -303,9 +303,10 @@ const WeeklyReportView: React.FC = () => {
       .replace(/<\/p>/g, '\n')
       .replace(/<strong>/g, '')
       .replace(/<\/strong>/g, '')
-      .replace(/<br\/>/g, '\n')
-      .replace(/<br>/g, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
       .replace(/&nbsp;/g, ' ')
+      // 兜底：清除富文本编辑器产生的其它标签（<ul>/<li>/<h3>/<span> 等）
+      .replace(/<[^>]+>/g, '')
       .trim();
   };
 

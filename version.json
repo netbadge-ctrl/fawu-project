@@ -1,44 +1,45 @@
 {
-  "version": "4.3.1",
-  "name": "周报周号时区修正 + 2026调休补班日 + 凭证环境变量化 + HTML剥离兜底",
+  "version": "4.3.2",
+  "name": "周报生成链路修复：ISO年边界 + OkrID语义 + 推进型告警降噪 + 前端HTML兜底",
   "releaseDate": "2026-05-10",
-  "buildTime": "2026-05-10T12:00:00+08:00",
+  "buildTime": "2026-05-10T14:30:00+08:00",
   "features": [
-    "前端 ISO 周号改按本地时区计算，消除北京时区周一 00:00~08:00 与后端 ISOWeek 不一致导致的『本周周报已生成但前端仍显示上一周』边缘误判",
-    "工作日计算新增 MAKEUP_WORK_DATES（国务院调休补班日）并在 isWorkingDay 中优先判定为工作日，录入 2026 年 6 个调休补班日",
-    "GLM 周报 AI 鉴权头支持 GLM_AUTH_HEADER 环境变量注入，员工接口 Basic Auth 支持 EMPLOYEE_API_AUTH_HEADER 环境变量注入，默认值保持向后兼容",
-    "stripHTML / stripHtmlTags 新增正则兜底剥除 <ul>/<li>/<h3>/<span> 等残留标签，</p> 转义为换行，避免 AI 周报 prompt 出现裸标签"
+    "周报 ID / 数据库查询改用 time.ISOWeek() 返回的 ISO 年份，修复年末/年初跨年边界（如 2025-12-31 属 ISO 2026 W1）出现的周报 ID 错乱问题",
+    "Scheduler buildReportContent 引入 krToOkrID 映射，OkrWeeklySummary.OkrID 使用真实 Objective ID 而非 KR ID，与 Handler 层语义对齐",
+    "推进型项目（项目进行中/is_driving_only=true）不再生成成员排期告警，避免 AI prompt 出现无意义的『⚠️ 排期缺失』提示",
+    "前端 stripHtml 增加正则 <[^>]+> 兜底 + <br\\s*\\/?> 大小写兼容，与后端 v4.3.1 对齐"
   ],
   "compatibility": {
-    "backward": "v4.3.0",
+    "backward": "v4.3.1",
     "browsers": ["Chrome 60+", "Firefox 55+", "Safari 12+", "Edge 79+"],
     "mobile": true
   },
   "changelog": {
-    "added": [
-      "utils/holidays.ts: MAKEUP_WORK_DATES 常量 + isWorkingDay 调休补班日优先级处理",
-      "backend/internal/ai/weekly_report_ai.go: glmAuthHdr 改为函数初始化，读取 GLM_AUTH_HEADER 环境变量",
-      "backend/internal/api/handlers.go / scheduler/scheduler.go: 员工接口 Authorization 头支持 EMPLOYEE_API_AUTH_HEADER 覆盖"
-    ],
+    "added": [],
     "updated": [
-      "components/WeeklyReport.tsx#getWeekNumber: 走本地时区计算 ISO 周号，与后端 ISOWeek 对齐",
-      "backend/internal/api/weekly_report_handlers.go#stripHTML: 新增正则兜底，</p> → 换行",
-      "backend/internal/scheduler/scheduler.go#stripHtmlTags: 同步正则兜底逻辑"
+      "backend/internal/api/weekly_report_handlers.go#GenerateWeeklyReport: year 改为 isoYear（ISOWeek 首返回值）",
+      "backend/internal/api/weekly_report_handlers.go#buildProjectSummaries: 推进型项目跳过 buildProjectMemberAlerts",
+      "backend/internal/scheduler/scheduler.go#generateWeeklyReport: year 改为 isoYear",
+      "backend/internal/scheduler/scheduler.go#buildReportContent: 新增 krToOkrID，OkrID 使用真实 Objective ID；dedup key 改为 okrId|objective",
+      "backend/internal/scheduler/scheduler.go#buildProjSummaries: 推进型项目跳过 schedBuildProjectMemberAlerts",
+      "components/WeeklyReport.tsx#stripHtml: 增加正则 <[^>]+> 兜底 + <br\\s*\\/?> 大小写兼容"
     ],
-    "removed": [],
+    "removed": [
+      "backend/internal/ai/weekly_report_ai.go#CallProjectShortSummary: v4.3.0 已从主链路下线的死代码"
+    ],
     "fixed": [
-      "周报前端周号计算与后端不一致：周一凌晨阶段前端显示上一周周报",
-      "周末调休补班日被误判为非工作日，排期天数统计偏小",
-      "富文本字段未剥离 <ul>/<li>/<h3> 等标签进入 AI prompt 影响生成质量"
+      "年末/年初跨年边界（日历年 ≠ ISO 年）导致周报 ID 错乱、重复创建或覆盖错误记录",
+      "Scheduler 生成周报时 OkrID 被错误设置为 KR ID，同一 O 下多个 KR 分组归集逻辑依赖 objective 文本匹配",
+      "推进型项目产生无意义的成员排期告警（项目已进入推进阶段，无需新排期）"
     ]
   },
   "metrics": {
     "filesAdded": 0,
-    "filesUpdated": 6,
-    "linesOfCode": 80,
-    "testCoverage": "编译通过",
+    "filesUpdated": 4,
+    "linesOfCode": 40,
+    "testCoverage": "go build ./internal/... 通过",
     "bugsFixed": 3,
-    "securityImprovements": 2,
+    "securityImprovements": 0,
     "performanceImprovements": 0,
     "databaseMigrations": 0
   }

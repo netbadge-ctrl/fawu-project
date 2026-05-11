@@ -90,12 +90,9 @@ func (h *Handler) GetWeeklyReportByWeek(c *gin.Context) {
 
 // GenerateWeeklyReport 生成周报
 func (h *Handler) GenerateWeeklyReport(c *gin.Context) {
-	// 获取当前周信息
+	// 获取当前周信息（ISO 年 / ISO 周号：跨年边界的日历年可能与 ISO 年不同）
 	now := time.Now()
-	_, weekNum := now.ISOWeek()
-	year, month, day := now.Date()
-	_ = month
-	_ = day
+	isoYear, weekNum := now.ISOWeek()
 
 	// 计算本周的起止日期
 	startOfWeek := now.AddDate(0, 0, -int(now.Weekday())+1) // 周一
@@ -115,7 +112,7 @@ func (h *Handler) GenerateWeeklyReport(c *gin.Context) {
 	content := h.buildWeeklyReportContent(projects, okrs, startOfWeek, endOfWeek)
 
 	// 调用AI模型生成总结
-	summary, err := h.generateAISummary(content, year, weekNum, startOfWeek, endOfWeek)
+	summary, err := h.generateAISummary(content, isoYear, weekNum, startOfWeek, endOfWeek)
 	if err != nil {
 		// AI调用失败时仍然保存结构数据
 		summary = "AI总结生成失败，请手动编辑补充。"
@@ -124,9 +121,9 @@ func (h *Handler) GenerateWeeklyReport(c *gin.Context) {
 	// 检查是否已存在本周周报
 	var existingID string
 	checkQuery := `SELECT id FROM weekly_reports WHERE week_year = $1 AND week_number = $2`
-	err = h.db.QueryRow(checkQuery, year, weekNum).Scan(&existingID)
+	err = h.db.QueryRow(checkQuery, isoYear, weekNum).Scan(&existingID)
 
-	reportID := fmt.Sprintf("wr%d%02d", year, weekNum)
+	reportID := fmt.Sprintf("wr%d%02d", isoYear, weekNum)
 	contentJSON, _ := json.Marshal(content)
 
 	if err == sql.ErrNoRows {
@@ -135,7 +132,7 @@ func (h *Handler) GenerateWeeklyReport(c *gin.Context) {
 			INSERT INTO weekly_reports (id, week_year, week_number, start_date, end_date, status, content, summary, generated_by)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		`
-		_, err = h.db.Exec(insertQuery, reportID, year, weekNum,
+		_, err = h.db.Exec(insertQuery, reportID, isoYear, weekNum,
 			startOfWeek.Format("2006-01-02"), endOfWeek.Format("2006-01-02"),
 			"generated", contentJSON, summary, "system")
 	} else {
@@ -156,7 +153,7 @@ func (h *Handler) GenerateWeeklyReport(c *gin.Context) {
 	// 返回生成的周报
 	c.JSON(http.StatusOK, models.WeeklyReport{
 		ID:          reportID,
-		WeekYear:    year,
+		WeekYear:    isoYear,
 		WeekNumber:  weekNum,
 		StartDate:   startOfWeek.Format("2006-01-02"),
 		EndDate:     endOfWeek.Format("2006-01-02"),
@@ -656,10 +653,11 @@ func buildProjectSummaries(projects []models.Project, userNames map[string]strin
 		}
 		isDriving := isDrivingOnlyStatus(p.Status)
 		scheduleText := ""
+		alerts := []string{}
 		if !isDriving {
 			scheduleText = buildProjectScheduleText(p, userNames)
+			alerts = buildProjectMemberAlerts(p, weekEnd, userNames)
 		}
-		alerts := buildProjectMemberAlerts(p, weekEnd, userNames)
 
 		summaries = append(summaries, models.ProjectWeeklySummary{
 			ProjectID:       p.ID,

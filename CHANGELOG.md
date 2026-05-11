@@ -1,6 +1,25 @@
 # 更新日志
 # 更新日志
 
+## [4.3.2] - 2026-05-10 - 周报生成链路三项修复 + 死代码清理
+
+### 🐛 问题修复
+- **Handler ISO 年修正**: `weekly_report_handlers.go#GenerateWeeklyReport` 原用 `now.Year()` 取日历年，跨年（如 2025-12-31 属 ISO 2026 W1）会导致周报 ID 与查询归错年份；改用 `now.ISOWeek()` 返回的 `isoYear`
+- **Scheduler ISO 年修正**: `scheduler.go#generateWeeklyReport` 同步改用 `isoYear`，与 handler 对齐
+- **Scheduler OkrID 错位**: `buildReportContent` 原将 `krId` 赋给 `OkrID` 字段，导致 LLM 输入里的 OKR 维度定位错误；新增 `krToOkrID` 映射，`OkrID` 改用真实 Objective ID
+- **推进型项目跳过排期告警**: Handler + Scheduler 两处的成员排期 14 天告警对 `Status == "项目进行中"` 的推进型项目跳过，减少 noise
+- **前端 stripHtml 正则兜底**: `components/WeeklyReport.tsx` 的 `stripHtml` 补 `<[^>]+>` 兜底 + 大小写兼容的 `<br\s*\/?>`，与后端对齐
+
+### 🧹 代码清理
+- 彻底删除 `backend/internal/ai/weekly_report_ai.go` 中的 `CallProjectShortSummary` 函数（v4.3.0 changelog 已声明移除但函数体仍保留至今的死代码）
+
+### 📊 版本信息
+- **更新文件**: 5 个（后端 3 + 前端 1 + 配置 1）
+- **兼容性**: 向后兼容 v4.3.1
+- **数据库迁移**: 无
+
+---
+
 ## [4.3.1] - 2026-05-10 - 周报周号时区修正 + 2026调休补班日 + 凭证环境变量化
 
 ### 🐛 问题修复

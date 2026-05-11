@@ -249,8 +249,8 @@ func performWeeklyRollover(db *sql.DB) error {
 // generateWeeklyReport 自动生成周报
 func generateWeeklyReport(db *sql.DB) error {
 	now := time.Now()
-	_, weekNum := now.ISOWeek()
-	year := now.Year()
+	// ISO 年与 ISO 周号：年末/年初跨年的 ISO 年与日历年可能不同，必须用 ISOWeek 返回的年份。
+	isoYear, weekNum := now.ISOWeek()
 
 	// 计算本周的起止日期
 	startOfWeek := now.AddDate(0, 0, -int(now.Weekday())+1)
@@ -373,18 +373,18 @@ func generateWeeklyReport(db *sql.DB) error {
 	contentJSON, _ := json.Marshal(content)
 
 	// 调用AI生成总结
-	summary, err := generateAIReportSummary(content, year, weekNum, startOfWeek, endOfWeek)
+	summary, err := generateAIReportSummary(content, isoYear, weekNum, startOfWeek, endOfWeek)
 	if err != nil {
 		log.Printf("AI summary generation failed: %v", err)
 		summary = "AI总结生成失败，请手动编辑补充。"
 	}
 
 	// 保存到数据库
-	reportID := fmt.Sprintf("wr%d%02d", year, weekNum)
+	reportID := fmt.Sprintf("wr%d%02d", isoYear, weekNum)
 
 	var existingID string
 	checkQuery := `SELECT id FROM weekly_reports WHERE week_year = $1 AND week_number = $2`
-	err = db.QueryRow(checkQuery, year, weekNum).Scan(&existingID)
+	err = db.QueryRow(checkQuery, isoYear, weekNum).Scan(&existingID)
 
 	if err != nil {
 		// 插入新周报
@@ -392,7 +392,7 @@ func generateWeeklyReport(db *sql.DB) error {
 			INSERT INTO weekly_reports (id, week_year, week_number, start_date, end_date, status, content, summary, generated_by)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		`
-		_, err = db.Exec(insertQuery, reportID, year, weekNum,
+		_, err = db.Exec(insertQuery, reportID, isoYear, weekNum,
 			startOfWeek.Format("2006-01-02"), endOfWeek.Format("2006-01-02"),
 			"generated", contentJSON, summary, "system")
 	} else {
@@ -408,7 +408,7 @@ func generateWeeklyReport(db *sql.DB) error {
 		return fmt.Errorf("failed to save weekly report: %w", err)
 	}
 
-	log.Printf("Weekly report generated for week %d-%d with %d projects", year, weekNum, len(projects))
+	log.Printf("Weekly report generated for week %d-%d with %d projects", isoYear, weekNum, len(projects))
 	return nil
 }
 
@@ -418,12 +418,14 @@ func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.
 	userNames := schedLoadUserNames(db)
 
 	// 构建KR映射
+	krToOkrID := make(map[string]string)
 	krToObjective := make(map[string]string)
 	krToDesc := make(map[string]string)
 	for i := range okrSets {
 		for j := range okrSets[i].Okrs {
 			for k := range okrSets[i].Okrs[j].KeyResults {
 				kr := okrSets[i].Okrs[j].KeyResults[k]
+				krToOkrID[kr.ID] = okrSets[i].Okrs[j].ID
 				krToObjective[kr.ID] = okrSets[i].Okrs[j].Objective
 				krToDesc[kr.ID] = kr.Description
 			}
@@ -456,10 +458,16 @@ func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.
 			objective = "未关联目标"
 		}
 
-		okrKey := objective
+		// 使用真实的 OKR ID（而非 krId），保证同一 O 下多个 KR 正确归集
+		okrId := krToOkrID[krId]
+		if okrId == "" {
+			okrId = "unknown"
+		}
+
+		okrKey := okrId + "|" + objective
 		if processedOkr[okrKey] {
 			for i := range okrSummaries {
-				if okrSummaries[i].Objective == objective {
+				if okrSummaries[i].OkrID == okrId {
 					okrSummaries[i].KrSummaries = append(okrSummaries[i].KrSummaries, models.KrWeeklySummary{
 						KrID:             krId,
 						KrDesc:           krToDesc[krId],
@@ -471,7 +479,7 @@ func buildReportContent(db *sql.DB, projects []models.Project, okrSets []models.
 		} else {
 			processedOkr[okrKey] = true
 			okrSummaries = append(okrSummaries, models.OkrWeeklySummary{
-				OkrID:     krId,
+				OkrID:     okrId,
 				Objective: objective,
 				KrSummaries: []models.KrWeeklySummary{
 					{
@@ -532,10 +540,11 @@ func buildProjSummaries(projects []models.Project, userNames map[string]string, 
 		}
 		isDriving := schedIsDrivingOnly(p.Status)
 		scheduleText := ""
+		alerts := []string{}
 		if !isDriving {
 			scheduleText = schedBuildProjectScheduleText(p, userNames)
+			alerts = schedBuildProjectMemberAlerts(p, weekEnd, userNames)
 		}
-		alerts := schedBuildProjectMemberAlerts(p, weekEnd, userNames)
 
 		summaries = append(summaries, models.ProjectWeeklySummary{
 			ProjectID:       p.ID,

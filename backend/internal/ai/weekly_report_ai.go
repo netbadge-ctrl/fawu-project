@@ -244,25 +244,3 @@ func callGLM(systemPrompt, userPrompt string, temperature float64, maxTokens int
 	return strings.TrimSpace(result.Choices[0].Message.Content), nil
 }
 
-// ---------- 单项目短总结（给 WeeklyReportContent.ProjectSummaries.weeklyUpdate 使用） ----------
-
-// CallProjectShortSummary 为单个项目生成 2-3 句精炼总结（60~80 字）。
-// 用于兼容旧逻辑：周报 JSON 里每个项目仍保存一段短总结，作为纯文本展示回退。
-func CallProjectShortSummary(name, system, status, priority, businessProblem, weeklyUpdate, lastWeekUpdate, launchDate string, isDrivingOnly bool) (string, error) {
-	sys := `你是资深项目经理。产出要精炼、中立、信息量高，总字数控制在 80 字以内，使用与原文一致的语言，不输出 Markdown 标记。`
-	driveNote := ""
-	if isDrivingOnly {
-		driveNote = "\n注意：当前项目状态为『项目进行中』，属推进型项目，不涉及开发排期，仅总结本周推进与阻塞。"
-	}
-	usr := fmt.Sprintf(`请基于以下项目原始数据，用 2-3 句话精炼总结本周进展与风险。只输出总结正文，不要标题、寒暄、Markdown 格式符号。%s
-
-项目名称：%s
-所属系统：%s
-状态：%s
-优先级：%s
-业务问题：%s
-本周进展：%s
-上周进展：%s
-预期上线：%s`, driveNote, name, system, status, priority, businessProblem, weeklyUpdate, lastWeekUpdate, launchDate)
-	return callGLM(sys, usr, 0.3, 200)
-}
