@@ -100,6 +100,15 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
         updateButtonStates();
     }, [onChange, adjustHeight, updateButtonStates]);
 
+    // 处理粘贴：剥离所有格式，仅保留纯文本
+    const handlePaste = useCallback((e: React.ClipboardEvent) => {
+        e.preventDefault();
+        const plainText = e.clipboardData.getData('text/plain');
+        if (!plainText) return;
+        // 使用 insertText 命令插入纯文本，保持光标位置
+        document.execCommand('insertText', false, plainText);
+    }, []);
+
     // 处理按键
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
@@ -222,6 +231,7 @@ export const RichTextInput: React.FC<RichTextInputProps> = ({
                 contentEditable
                 onInput={handleInput}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
                 className={`

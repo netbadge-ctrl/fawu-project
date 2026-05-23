@@ -10,6 +10,9 @@ interface ProjectWeeklySummary {
   status: string;
   priority: string;
   productManagers: string[];
+  memberAlerts?: string[];
+  scheduleChanges?: string[];
+  delayRisks?: string[];
 }
 
 interface KrWeeklySummary {
@@ -81,24 +84,31 @@ const projPriorityCls = (p: string) => {
 };
 
 // 绝对时间："YYYY-MM-DD HH:mm"
+// 北京时间格式化（UTC+8）
 const formatDateTime = (iso: string) => {
   if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(+d)) return iso;
-  const y = d.getFullYear();
-  const m = pad2(d.getMonth() + 1);
-  const day = pad2(d.getDate());
-  const h = pad2(d.getHours());
-  const min = pad2(d.getMinutes());
+  // 转换为北京时间 (UTC+8)
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+  const bj = new Date(utc + 8 * 3600000);
+  const y = bj.getFullYear();
+  const m = pad2(bj.getMonth() + 1);
+  const day = pad2(bj.getDate());
+  const h = pad2(bj.getHours());
+  const min = pad2(bj.getMinutes());
   return `${y}-${m}-${day} ${h}:${min}`;
 };
 
-// 相对时间："2 小时前" / "3 天前"
+// 相对时间（基于北京时间）："2 小时前" / "3 天前"
 const timeAgo = (iso: string) => {
   if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(+d)) return '';
-  const diff = (Date.now() - +d) / 1000;
+  // 当前北京时间
+  const nowUtc = Date.now() + (new Date().getTimezoneOffset() * 60000) + 8 * 3600000;
+  const bjTime = d.getTime() + (d.getTimezoneOffset() * 60000) + 8 * 3600000;
+  const diff = (nowUtc - bjTime) / 1000;
   if (diff < 60) return '刚刚';
   if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
@@ -654,10 +664,27 @@ const WeeklyReportView: React.FC = () => {
                     placeholder="输入周报总结..."
                   />
                 ) : (
-                  <article className="max-w-[80ch] text-[14.5px] text-zinc-700 dark:text-zinc-300 leading-[1.8] whitespace-pre-wrap">
-                    {(viewingVersion ? viewingVersion.summary : selectedReport.summary) || (
-                      <span className="text-zinc-400 dark:text-zinc-500 italic">暂无总结</span>
-                    )}
+                  <article className="max-w-[80ch] text-[14.5px] text-zinc-700 dark:text-zinc-300 leading-[1.8]">
+                    {(() => {
+                      const text = (viewingVersion ? viewingVersion.summary : selectedReport.summary) || '';
+                      if (!text) return <span className="text-zinc-400 dark:text-zinc-500 italic">暂无总结</span>;
+                      return text.split('\n').map((line: string, i: number) => {
+                        // OKR Objective 标题行：匹配 "1. xxx" 或 "第 X 周周报" 或 "临时重要需求"
+                        const isObjLine = /^\d+\.\s+\S/.test(line) || /^第\s*\d+\s*周周报/.test(line) || /^临时重要需求/.test(line) || /^本周排期空闲人员/.test(line);
+                        // KR 标题行：匹配 "1.1 xxx"
+                        const isKrLine = /^\d+\.\d+\s+\S/.test(line);
+                        if (isObjLine) {
+                          return <div key={i} className="font-bold text-zinc-900 dark:text-white mt-4 mb-1 first:mt-0">{line}</div>;
+                        }
+                        if (isKrLine) {
+                          return <div key={i} className="font-semibold text-zinc-800 dark:text-zinc-200 mt-2 mb-0.5">{line}</div>;
+                        }
+                        if (line.trim() === '') {
+                          return <div key={i} className="h-2" />;
+                        }
+                        return <div key={i} className="whitespace-pre-wrap">{line}</div>;
+                      });
+                    })()}
                   </article>
                 )}
               </section>
@@ -763,6 +790,28 @@ const WeeklyReportView: React.FC = () => {
                                             </span>
                                           </div>
                                         )}
+
+                                        {/* 项目告警信息：排期缺失、排期延后、延期风险、无进展 */}
+                                        {(() => {
+                                          const allAlerts = [
+                                            ...(proj.memberAlerts || []),
+                                            ...(proj.scheduleChanges || []),
+                                            ...(proj.delayRisks || []),
+                                          ];
+                                          if (allAlerts.length === 0) return null;
+                                          return (
+                                            <div className="mt-2.5 space-y-1">
+                                              {allAlerts.map((alert, idx) => (
+                                                <div
+                                                  key={idx}
+                                                  className="text-[12px] leading-relaxed text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded px-2.5 py-1.5"
+                                                >
+                                                  {alert}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          );
+                                        })()}
                                       </li>
                                     ))}
                                   </ul>

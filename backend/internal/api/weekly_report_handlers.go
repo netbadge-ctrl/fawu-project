@@ -571,58 +571,33 @@ func (h *Handler) buildWeeklyReportContent(projects []models.Project, okrSets []
 		}
 	}
 
-	// 构建周报内容
+	// 构建周报内容：按 okrSets 中的原始顺序遍历 OKR，确保顺序与数据库一致
 	okrSummaries := make([]models.OkrWeeklySummary, 0)
-	processedOkr := make(map[string]bool)
 
-	// 先处理有KR关联的项目
-	for krId, projs := range krProjects {
-		objective := krToObjective[krId]
-		if objective == "" {
-			objective = "未关联目标"
-		}
-
-		okrId := ""
-		if okrSet := krToOkr[krId]; okrSet != nil {
-			for _, okr := range okrSet.Okrs {
-				for _, kr := range okr.KeyResults {
-					if kr.ID == krId {
-						okrId = okr.ID
-						break
-					}
+	// 按 okrSets 中 O 的原始顺序遍历，只收集有项目关联的 KR
+	for i := range okrSets {
+		for j := range okrSets[i].Okrs {
+			okr := &okrSets[i].Okrs[j]
+			krSummaryList := []models.KrWeeklySummary{}
+			for _, kr := range okr.KeyResults {
+				projs, hasProjects := krProjects[kr.ID]
+				if !hasProjects || len(projs) == 0 {
+					continue
 				}
+				krSummaryList = append(krSummaryList, models.KrWeeklySummary{
+					KrID:             kr.ID,
+					KrDesc:           kr.Description,
+					ProjectSummaries: buildProjectSummaries(projs, userNames, weekStart, weekEnd, lastWeek),
+				})
 			}
-		}
-		if okrId == "" {
-			okrId = "unknown"
-		}
-
-		okrKey := okrId + "|" + objective
-		if processedOkr[okrKey] {
-			// 已存在该OKR，追加KR
-			for i := range okrSummaries {
-				if okrSummaries[i].OkrID == okrId {
-					okrSummaries[i].KrSummaries = append(okrSummaries[i].KrSummaries, models.KrWeeklySummary{
-						KrID:             krId,
-						KrDesc:           krToKrDesc[krId],
-						ProjectSummaries: buildProjectSummaries(projs, userNames, weekStart, weekEnd, lastWeek),
-					})
-					break
-				}
+			// 只有该 O 下至少有一个 KR 关联了项目才纳入周报
+			if len(krSummaryList) > 0 {
+				okrSummaries = append(okrSummaries, models.OkrWeeklySummary{
+					OkrID:       okr.ID,
+					Objective:   okr.Objective,
+					KrSummaries: krSummaryList,
+				})
 			}
-		} else {
-			processedOkr[okrKey] = true
-			okrSummaries = append(okrSummaries, models.OkrWeeklySummary{
-				OkrID:     okrId,
-				Objective: objective,
-				KrSummaries: []models.KrWeeklySummary{
-					{
-						KrID:             krId,
-						KrDesc:           krToKrDesc[krId],
-						ProjectSummaries: buildProjectSummaries(projs, userNames, weekStart, weekEnd, lastWeek),
-					},
-				},
-			})
 		}
 	}
 
@@ -656,6 +631,7 @@ func (h *Handler) buildWeeklyReportContent(projects []models.Project, okrSets []
 // - ProductManagers 字段由 user id 解析为真实姓名
 // - v4.3：增加原始数据字段（System/BusinessProblem/LastWeekUpdate/LaunchDate/ScheduleText/MemberAlerts/IsDrivingOnly），供后续 AI 入参使用
 // - v4.4.1：新增 ScheduleChanges（排期较上周 diff）+ DelayRisks（状态-排期不符告警）
+// - v4.4.2：新增「无进展」告警（本周与上周进展实质相同）
 // - 不再单项目调 LLM；WeeklyUpdate 直接取项目原文纯文本，由整体 AI 负责文本生成
 func buildProjectSummaries(projects []models.Project, userNames map[string]string, weekStart, weekEnd time.Time, lastWeek lastWeekScheduleMap) []models.ProjectWeeklySummary {
 	summaries := make([]models.ProjectWeeklySummary, 0, len(projects))
@@ -690,16 +666,29 @@ func buildProjectSummaries(projects []models.Project, userNames map[string]strin
 			risks = computeDelayRisks(p, weekEnd, userNames)
 		}
 
+		weeklyText := stripHTML(deref(p.WeeklyUpdate))
+		lastWeekText := stripHTML(deref(p.LastWeekUpdate))
+
+		// v4.4.2：检测本周与上周进展是否实质相同，若相同则生成“无进展”告警
+		noProgressAlert := computeNoProgressAlert(weeklyText, lastWeekText)
+		if noProgressAlert != "" {
+			alerts = append(alerts, noProgressAlert)
+		}
+
+		// v4.4.3：基于进展文字内容检测风险关键词，生成上下文感知的告警
+		textAlerts := detectTextBasedRisks(weeklyText, p.Name)
+		risks = append(risks, textAlerts...)
+
 		summaries = append(summaries, models.ProjectWeeklySummary{
 			ProjectID:       p.ID,
 			ProjectName:     p.Name,
-			WeeklyUpdate:    stripHTML(deref(p.WeeklyUpdate)),
+			WeeklyUpdate:    weeklyText,
 			Status:          p.Status,
 			Priority:        p.Priority,
 			ProductManagers: pmNames,
 			System:          deref(p.System),
 			BusinessProblem: stripHTML(deref(p.BusinessProblem)),
-			LastWeekUpdate:  stripHTML(deref(p.LastWeekUpdate)),
+			LastWeekUpdate:  lastWeekText,
 			LaunchDate:      deref(p.LaunchDate),
 			ScheduleText:    scheduleText,
 			MemberAlerts:    alerts,
@@ -886,12 +875,7 @@ func convertContentToAIInput(content models.WeeklyReportContent, wr ai.WeekRange
 }
 
 func summaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
-	// v4.4.1：合并三类告警 —— 排期缺失（MemberAlerts）+ 排期调整（ScheduleChanges）+ 延期风险（DelayRisks）。
-	// LLM 由规则 8 引导原样追加；后端再加一道后处理兜底。
-	merged := make([]string, 0, len(p.MemberAlerts)+len(p.ScheduleChanges)+len(p.DelayRisks))
-	merged = append(merged, p.MemberAlerts...)
-	merged = append(merged, p.ScheduleChanges...)
-	merged = append(merged, p.DelayRisks...)
+	// v4.4.2：排期告警仅保留在 Breakdown 项目卡片中展示，不传给 AI Summary。
 	return ai.ProjectInput{
 		ID:              p.ProjectID,
 		Name:            p.ProjectName,
@@ -903,7 +887,7 @@ func summaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
 		LastWeekUpdate:  p.LastWeekUpdate,
 		LaunchDate:      p.LaunchDate,
 		ScheduleText:    p.ScheduleText,
-		MemberAlerts:    merged,
+		MemberAlerts:    nil, // 告警不传给AI，仅在项目总结卡片中展示
 		IsDrivingOnly:   p.IsDrivingOnly,
 	}
 }
@@ -911,19 +895,99 @@ func summaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
 // htmlTagRegex 兜底剥除 stripHTML 未枚举到的残留标签（<ul>、<li>、<h3>、<span> 等）。
 var htmlTagRegex = regexp.MustCompile(`<[^>]+>`)
 
+// htmlStyleBlockRegex 移除 <style>...</style> 整块内容
+var htmlStyleBlockRegex = regexp.MustCompile(`(?i)<style[^>]*>[\s\S]*?</style>`)
+
+// htmlEntityNumRegex 匹配数字 HTML 实体 &#123; 或 &#x1a;
+var htmlEntityNumRegex = regexp.MustCompile(`&#x?[0-9a-fA-F]+;`)
+
+// cssVarPatternRegex 匹配残留的 CSS 变量声明片段（如 "--tw-translate-x: 0; --tw-rotate: 0;"）
+var cssVarPatternRegex = regexp.MustCompile(`(\s*--[\w-]+\s*:[^;]*;\s*)+`)
+
+// inlineStyleContentRegex 匹配 style="..." 类属性残留文本
+var inlineStyleContentRegex = regexp.MustCompile(`style="[^"]*"`)
+
 func stripHTML(html string) string {
-	// 简单去除HTML标签
-	result := strings.ReplaceAll(html, "<p>", "")
+	if html == "" {
+		return ""
+	}
+	result := html
+
+	// 第一步：解码 HTML 实体（必须在标签剥除前执行，否则 &lt;span&gt; 会逃逸）
+	result = strings.ReplaceAll(result, "&lt;", "<")
+	result = strings.ReplaceAll(result, "&gt;", ">")
+	result = strings.ReplaceAll(result, "&amp;", "&")
+	result = strings.ReplaceAll(result, "&quot;", `"`)
+	result = strings.ReplaceAll(result, "&#39;", "'")
+	result = strings.ReplaceAll(result, "&apos;", "'")
+	result = strings.ReplaceAll(result, "&nbsp;", " ")
+	// 解码数字实体
+	result = htmlEntityNumRegex.ReplaceAllStringFunc(result, decodeHTMLEntity)
+
+	// 第二步：移除 <style>...</style> 整块
+	result = htmlStyleBlockRegex.ReplaceAllString(result, "")
+
+	// 第三步：常见块级/内联标签 → 语义化替换
+	result = strings.ReplaceAll(result, "<p>", "")
 	result = strings.ReplaceAll(result, "</p>", "\n")
+	result = strings.ReplaceAll(result, "<div>", "")
+	result = strings.ReplaceAll(result, "</div>", "\n")
+	result = strings.ReplaceAll(result, "<li>", "")
+	result = strings.ReplaceAll(result, "</li>", "\n")
 	result = strings.ReplaceAll(result, "<strong>", "")
 	result = strings.ReplaceAll(result, "</strong>", "")
+	result = strings.ReplaceAll(result, "<em>", "")
+	result = strings.ReplaceAll(result, "</em>", "")
 	result = strings.ReplaceAll(result, "<br>", "\n")
 	result = strings.ReplaceAll(result, "<br/>", "\n")
 	result = strings.ReplaceAll(result, "<br />", "\n")
-	result = strings.ReplaceAll(result, "&nbsp;", " ")
-	// 兜底：清除富文本编辑器产生的其它标签
+
+	// 第四步：正则兜底清除所有残留 HTML 标签（含带属性的，如 <span style="...">）
 	result = htmlTagRegex.ReplaceAllString(result, "")
-	return strings.TrimSpace(result)
+
+	// 第五步：清除可能残留的 CSS 变量片段和 style 属性值
+	result = cssVarPatternRegex.ReplaceAllString(result, "")
+	result = inlineStyleContentRegex.ReplaceAllString(result, "")
+
+	// 第六步：再执行一次实体解码（防止标签移除后暴露新的实体）
+	result = strings.ReplaceAll(result, "&lt;", "<")
+	result = strings.ReplaceAll(result, "&gt;", ">")
+	result = strings.ReplaceAll(result, "&amp;", "&")
+	// 第二轮标签清除（处理实体解码后暴露的标签）
+	result = htmlTagRegex.ReplaceAllString(result, "")
+
+	// 第七步：清理多余空白
+	// 合并连续空行为单个换行
+	for strings.Contains(result, "\n\n\n") {
+		result = strings.ReplaceAll(result, "\n\n\n", "\n\n")
+	}
+	// 去除每行首尾多余空格
+	lines := strings.Split(result, "\n")
+	cleaned := make([]string, 0, len(lines))
+	for _, line := range lines {
+		l := strings.TrimSpace(line)
+		if l != "" {
+			cleaned = append(cleaned, l)
+		}
+	}
+	return strings.TrimSpace(strings.Join(cleaned, "\n"))
+}
+
+// decodeHTMLEntity 解码数字 HTML 实体（&#60; → <, &#x3C; → <）
+func decodeHTMLEntity(entity string) string {
+	// 去掉 &# 和 ;
+	inner := entity[2 : len(entity)-1]
+	var code int64
+	var err error
+	if strings.HasPrefix(inner, "x") || strings.HasPrefix(inner, "X") {
+		code, err = strconv.ParseInt(inner[1:], 16, 32)
+	} else {
+		code, err = strconv.ParseInt(inner, 10, 32)
+	}
+	if err != nil || code <= 0 || code > 0x10FFFF {
+		return entity
+	}
+	return string(rune(code))
 }
 
 // ================= v4.4.1 周报规则扩展 =================
@@ -1103,8 +1167,11 @@ func prevISOWeek(isoYear, weekNum int) (int, int) {
 // ---- Task 5: Schedule Diff ----
 
 // computeScheduleChanges 对单项目计算排期变化提示。
-// - 上周全局无快照（首次运行）-> 返回空切片
-// - 非研发中状态 -> 返回空
+// v4.4.2：只提醒排期延后（end_date 往后推迟）的情况：
+//   - 从没排期到有排期不算变化（不报 ADDED）
+//   - 排期提前不报
+//   - 排期取消不报
+//   - 只有当排期结束日期延后时才生成告警
 func computeScheduleChanges(p models.Project, userNames map[string]string, lastWeek lastWeekScheduleMap) []string {
 	if !weeklyRulesV441Enabled {
 		return nil
@@ -1131,38 +1198,29 @@ func computeScheduleChanges(p models.Project, userNames map[string]string, lastW
 	out := []string{}
 	roleLabel := map[string]string{"backend": "后端", "frontend": "前端", "qa": "测试"}
 
-	// ADDED & CHANGED
+	// 只检测 CHANGED 且延后的情况
 	for key, cur := range thisIndex {
 		prev, existed := lastIndex[key]
 		if !existed {
-			if cur.Start != "" && cur.End != "" {
-				out = append(out, fmt.Sprintf("⚠️ 本周%s新增 %s 排期 %s~%s",
-					roleLabel[cur.Role], cur.UserName, shortMD(cur.Start), shortMD(cur.End)))
-			}
+			// 从没排期到有排期不算变化，跳过
+			continue
+		}
+		// 上周有排期但 start/end 为空的（数据异常），跳过
+		if prev.End == "" {
 			continue
 		}
 		if cur.Start != prev.Start || cur.End != prev.End {
 			delta := endDateDelta(prev.End, cur.End)
-			suffix := ""
-			switch {
-			case delta > 0:
-				suffix = fmt.Sprintf("（延后 %d 天）", delta)
-			case delta < 0:
-				suffix = fmt.Sprintf("（提前 %d 天）", -delta)
+			// 只提醒延后（delta > 0），提前和不变都不报
+			if delta > 0 {
+				out = append(out, fmt.Sprintf("⚠️ 本周%s %s 排期由 %s~%s 调整为 %s~%s（延后 %d 天）",
+					roleLabel[cur.Role], cur.UserName,
+					shortMD(prev.Start), shortMD(prev.End),
+					shortMD(cur.Start), shortMD(cur.End), delta))
 			}
-			out = append(out, fmt.Sprintf("⚠️ 本周%s %s 原 %s~%s 调整为 %s~%s%s",
-				roleLabel[cur.Role], cur.UserName,
-				shortMD(prev.Start), shortMD(prev.End),
-				shortMD(cur.Start), shortMD(cur.End), suffix))
 		}
 	}
-	// REMOVED
-	for key, prev := range lastIndex {
-		if _, existed := thisIndex[key]; !existed {
-			out = append(out, fmt.Sprintf("⚠️ 本周%s %s 取消排期（上周 %s~%s）",
-				roleLabel[prev.Role], prev.UserName, shortMD(prev.Start), shortMD(prev.End)))
-		}
-	}
+	// 不再报 REMOVED（取消排期不提醒）
 	return out
 }
 
@@ -1253,4 +1311,155 @@ func latestMemberEnd(m models.TeamMember) string {
 		latest = *m.EndDate
 	}
 	return latest
+}
+
+// ---------- v4.4.2：无进展检测 ----------
+
+// ---------- v4.4.3：基于进展文字的风险检测 ----------
+
+// detectTextBasedRisks 扫描本周进展文本中的风险关键词，生成上下文感知的告警。
+// 不单纯依赖项目状态和排期，而是从实际进展描述中提取风险信号。
+func detectTextBasedRisks(weeklyUpdate, projectName string) []string {
+	if weeklyUpdate == "" {
+		return nil
+	}
+	risks := []string{}
+
+	// 风险类别 1：阻塞/卡点
+	blockKeywords := []string{"阻塞", "卡住", "卡点", "blocked", "无法推进", "停滞", "待解决"}
+	for _, kw := range blockKeywords {
+		if strings.Contains(weeklyUpdate, kw) {
+			risks = append(risks, fmt.Sprintf("⚠️ 进展描述中提及“%s”，请关注阻塞风险", kw))
+			break // 同类只报一次
+		}
+	}
+
+	// 风险类别 2：延期/推迟
+	delayKeywords := []string{"延期", "延后", "推迟", "来不及", "赶不上", "来不及"}
+	for _, kw := range delayKeywords {
+		if strings.Contains(weeklyUpdate, kw) {
+			risks = append(risks, fmt.Sprintf("⚠️ 进展描述中提及“%s”，存在延期风险", kw))
+			break
+		}
+	}
+
+	// 风险类别 3：依赖等待
+	depKeywords := []string{"等待", "依赖于", "依赖​", "需要等", "待确认", "待定"}
+	for _, kw := range depKeywords {
+		if strings.Contains(weeklyUpdate, kw) {
+			risks = append(risks, fmt.Sprintf("⚠️ 进展描述中提及“%s”，存在外部依赖风险", kw))
+			break
+		}
+	}
+
+	// 风险类别 4：人力/资源不足
+	resKeywords := []string{"人手不足", "人力不足", "资源不足", "忙不过来", "排不开"}
+	for _, kw := range resKeywords {
+		if strings.Contains(weeklyUpdate, kw) {
+			risks = append(risks, fmt.Sprintf("⚠️ 进展描述中提及“%s”，存在资源风险", kw))
+			break
+		}
+	}
+
+	// 风险类别 5：方案/需求变更
+	changeKeywords := []string{"需求变更", "方案调整", "推倒重来", "返工", "重新设计", "重做"}
+	for _, kw := range changeKeywords {
+		if strings.Contains(weeklyUpdate, kw) {
+			risks = append(risks, fmt.Sprintf("⚠️ 进展描述中提及“%s”，可能影响整体进度", kw))
+			break
+		}
+	}
+
+	return risks
+}
+
+// computeNoProgressAlert 对比本周与上周进展文本，若实质相同则返回告警文案。
+// 判定规则：去除标点、空白后字符相似度 ≥ 85%。
+// 若上周进展为空则不检测（新项目没有上周参照）。
+func computeNoProgressAlert(weeklyUpdate, lastWeekUpdate string) string {
+	if lastWeekUpdate == "" || weeklyUpdate == "" {
+		return ""
+	}
+	normThis := normalizeForComparison(weeklyUpdate)
+	normLast := normalizeForComparison(lastWeekUpdate)
+	if normThis == "" || normLast == "" {
+		return ""
+	}
+	// 完全相同
+	if normThis == normLast {
+		return "⚠️ 本周进展与上周基本一致，推进节奏停滞，建议同步具体阻塞。"
+	}
+	// 计算相似度
+	sim := textSimilarity(normThis, normLast)
+	if sim >= 0.85 {
+		return "⚠️ 本周进展与上周基本一致，推进节奏停滞，建议同步具体阻塞。"
+	}
+	return ""
+}
+
+// normalizeForComparison 去除标点、空白、换行，用于文本相似度对比。
+func normalizeForComparison(s string) string {
+	// 去除常见标点符号和空白
+	var sb strings.Builder
+	for _, r := range s {
+		switch {
+		case r == ' ' || r == '\t' || r == '\n' || r == '\r':
+			continue
+		case r == '。' || r == '，' || r == '；' || r == '：' || r == '！' || r == '？':
+			continue
+		case r == '.' || r == ',' || r == ';' || r == ':' || r == '!' || r == '?':
+			continue
+		case r == '-' || r == '/' || r == '(' || r == ')' || r == '（' || r == '）':
+			continue
+		default:
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
+}
+
+// textSimilarity 计算两段文本的相似度（基于共同子序列比例）。
+// 返回 0.0~1.0，1.0 表示完全相同。
+func textSimilarity(a, b string) float64 {
+	if a == b {
+		return 1.0
+	}
+	aRunes := []rune(a)
+	bRunes := []rune(b)
+	lenA := len(aRunes)
+	lenB := len(bRunes)
+	if lenA == 0 || lenB == 0 {
+		return 0.0
+	}
+	// 用较短的串作为基准，计算共同字符比例（类似 LCS 的简化版本）
+	// 使用双指针法计算最长公共子序列长度
+	// 为了性能，当文本超过 500 字时截取前 500 字比较
+	if lenA > 500 {
+		aRunes = aRunes[:500]
+		lenA = 500
+	}
+	if lenB > 500 {
+		bRunes = bRunes[:500]
+		lenB = 500
+	}
+	// 使用简化的 LCS 计算（滚动数组优化空间）
+	prev := make([]int, lenB+1)
+	for i := 1; i <= lenA; i++ {
+		curr := make([]int, lenB+1)
+		for j := 1; j <= lenB; j++ {
+			if aRunes[i-1] == bRunes[j-1] {
+				curr[j] = prev[j-1] + 1
+			} else {
+				if prev[j] > curr[j-1] {
+					curr[j] = prev[j]
+				} else {
+					curr[j] = curr[j-1]
+				}
+			}
+		}
+		prev = curr
+	}
+	lcsLen := prev[lenB]
+	// 相似度 = 2 * LCS_len / (len(a) + len(b))
+	return 2.0 * float64(lcsLen) / float64(lenA+lenB)
 }

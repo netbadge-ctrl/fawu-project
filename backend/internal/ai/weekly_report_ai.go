@@ -94,64 +94,69 @@ type WeeklyReportInput struct {
 
 // ---------- System Prompt（精炼自 docs/weekly_report_system_prompt.md） ----------
 
-const weeklySystemPrompt = `你是资深项目管理专家 + 部门周报主笔。基于结构化 JSON 输入，产出逻辑严谨、事实准确、信息密度高的中文周报段落。
+const weeklySystemPrompt = `你是资深项目管理专家 + 部门周报主笔。基于结构化 JSON 输入，产出逻辑严谨、事实准确、信息密度高的中文周报纯文本段落。
 
 【核心规则，必须严格遵守】
 1. 按输入 okrs[].order 升序组织；同一 O 下按 key_results[].order 升序。一个 O 下所有 KR 写完再进入下一个 O。
 2. 同一 KR 下多个项目先按 system 归属系统分组（同系统项目写在一起），再按 status 排序（进行中 > 规划中 > 暂停 > 已上线 > 已取消），组内按 priority 高→低、再按 name 字母序。
-3. 每个项目叙述必须融合 4 维：status 定性阶段 / weekly_update 主线 / schedule_text 是否有延期风险 / last_week_update 对比。
+3. 每个项目叙述必须融合 4 维：status 定性阶段 / weekly_update 主线 / schedule_text 是否有延期风险 / last_week_update 对比。weekly_update 是纯文本，直接引用其语义即可，禁止输出任何 HTML 标签或 CSS 样式代码。
 4. 若 is_driving_only=true（项目进行中，推进型项目，不需开发），忽略 schedule_text，只总结本周推进情况与阻塞。
-5. 对比 weekly_update 与 last_week_update：若文本实质相同（去标点空白后相似度 ≥85% 或关键里程碑未更新），在该项目末尾必须加一句：⚠️ 本周进展与上周基本一致，推进节奏停滞，建议同步具体阻塞。
-6. member_alerts 非空时，在该项目末尾原样追加一行 ⚠️ 提示。
-7. 每个项目 2–4 句，不分点不表格。项目名必须与输入 name 完全一致，不缩写不翻译。禁止寒暄、禁止编造未出现的数字/日期/人名。
-8. member_alerts 可能包含三类 ⚠️ 提示（排期缺失 / 排期调整 / 延期风险），必须全部在该项目末尾原样追加，禁止合并、改写、省略或翻译；保持与输入完全一致的文案、标点与 emoji。告警行不计入主叙述 2-4 句限制。
+5. 每个项目 2–4 句，不分点不表格。项目名必须与输入 name 完全一致，不缩写不翻译。禁止寒暄、禁止编造未出现的数字/日期/人名。
 
-【输出格式】
-- 直接以 "## {index}. {Objective}" 开始，不要 H1 标题、不要寒暄引导语。
-- 每个 KR 以 "### {index}.{kr_index} {KrDesc}" 开始。
-- 允许使用加粗项目名，不使用代码块、引用块、emoji（⚠️ 除外）。
-- 单个 O 段落总字数 300~800 字。`
+【输出格式 —— 纯文本，禁止 Markdown】
+- 禁止使用任何 Markdown 标记（## ### ** __ - 等），输出纯文本。
+- 每个 Objective 段落开头格式："{index}. {Objective}"，独占一行。
+- 每个 KR 开头格式："{index}.{kr_index} {KrDesc}"，独占一行。
+- 项目名用【】包裹，如【项目A】。不使用代码块、引用块、emoji。
+- 段落之间用空行分隔，单个 O 段落总字数 300~800 字。`
 
 // ---------- 对外主函数 ----------
 
 // GenerateWeeklySummary 按 OKR 分批调用 LLM 生成周报全文。
 // 任意 OKR 调用失败不会中断整体，会在对应段落写占位文本。
 func GenerateWeeklySummary(in WeeklyReportInput) (string, error) {
+	log.Printf("[WeeklyAI] GenerateWeeklySummary start, year=%d week=%d okrs=%d urgent=%d idle=%d",
+		in.WeekRange.Year, in.WeekRange.WeekNumber, len(in.Okrs), len(in.UrgentProjects), len(in.IdleMembers))
 	var out strings.Builder
-	out.WriteString(fmt.Sprintf("# 第 %d 周周报（%s ~ %s）\n\n", in.WeekRange.WeekNumber, in.WeekRange.Start, in.WeekRange.End))
+	out.WriteString(fmt.Sprintf("第 %d 周周报（%s ~ %s）\n\n", in.WeekRange.WeekNumber, in.WeekRange.Start, in.WeekRange.End))
 
 	// 规则 1：按 Order 升序逐个 OKR 调 LLM
 	for i, okr := range in.Okrs {
 		userPrompt := buildOkrUserPrompt(i+1, okr, in.WeekRange)
-		part, err := callGLM(weeklySystemPrompt, userPrompt, 0.4, 2000)
+		part, err := callGLM(weeklySystemPrompt, userPrompt, 0.4, 32000)
 		if err != nil {
 			log.Printf("[WeeklyAI] OKR %d (%s) failed: %v", i+1, okr.Objective, err)
-			out.WriteString(fmt.Sprintf("## %d. %s\n\n（本节 AI 生成失败，请手动编辑补充。）\n\n", i+1, okr.Objective))
+			out.WriteString(fmt.Sprintf("%d. %s\n\n（本节 AI 生成失败，请手动编辑补充。）\n\n", i+1, okr.Objective))
 			continue
 		}
-		out.WriteString(strings.TrimSpace(part))
+		trimmed := strings.TrimSpace(part)
+		log.Printf("[WeeklyAI] OKR %d (%s) ok, content len=%d", i+1, okr.Objective, len(trimmed))
+		if trimmed == "" {
+			log.Printf("[WeeklyAI] OKR %d (%s) returned empty content, using placeholder", i+1, okr.Objective)
+			out.WriteString(fmt.Sprintf("%d. %s\n\n（本节 AI 返回为空，请手动编辑补充。）\n\n", i+1, okr.Objective))
+			continue
+		}
+		out.WriteString(trimmed)
 		out.WriteString("\n\n")
 	}
 
 	// 临时重要需求板块（未关联 KR）
 	if len(in.UrgentProjects) > 0 {
 		userPrompt := buildUrgentUserPrompt(in.UrgentProjects, in.WeekRange)
-		part, err := callGLM(weeklySystemPrompt, userPrompt, 0.4, 1200)
+		part, err := callGLM(weeklySystemPrompt, userPrompt, 0.4, 16000)
 		if err != nil {
 			log.Printf("[WeeklyAI] urgent projects failed: %v", err)
-			out.WriteString("## 临时重要需求 / 其他推进事项\n\n（本节 AI 生成失败，请手动编辑补充。）\n\n")
+			out.WriteString("临时重要需求 / 其他推进事项\n\n（本节 AI 生成失败，请手动编辑补充。）\n\n")
 		} else {
 			out.WriteString(strings.TrimSpace(part))
 			out.WriteString("\n\n")
 		}
 	}
 
-	// 规则 7：末尾排期空闲人员板块（确定性列表，不过 LLM）
+	// 末尾排期空闲人员板块（确定性列表，不过 LLM）
 	out.WriteString(buildIdleSection(in.IdleMembers))
 
-	// v4.4.1 后处理兜底：扫描每个项目段落，确保 member_alerts 都已出现，没出现的硬追加。
-	final := ensureAlertsAppended(out.String(), in.Okrs, in.UrgentProjects)
-	return final, nil
+	return out.String(), nil
 }
 
 // ensureAlertsAppended 后处理兜底：扫描每个项目段落，检查 MemberAlerts 是否已在段落里出现；
@@ -210,7 +215,7 @@ func buildOkrUserPrompt(index int, okr OkrInput, wr WeekRange) string {
 		"week_range":   wr,
 		"section_no":   index,
 		"okr":          okr,
-		"instructions": fmt.Sprintf("请严格按规则输出第 %d 个 OKR 对应段落，从 '## %d. %s' 开始。", index, index, okr.Objective),
+		"instructions": fmt.Sprintf("请严格按规则输出第 %d 个 OKR 对应段落，从 '%d. %s' 开始，纯文本格式，禁止使用 Markdown。", index, index, okr.Objective),
 	}
 	raw, _ := json.MarshalIndent(payload, "", "  ")
 	return "以下是当前 OKR 的完整数据（JSON），请按系统提示词中的规则产出对应段落：\n\n```json\n" + string(raw) + "\n```"
@@ -220,7 +225,7 @@ func buildUrgentUserPrompt(projects []ProjectInput, wr WeekRange) string {
 	payload := map[string]interface{}{
 		"week_range":   wr,
 		"projects":     projects,
-		"instructions": "请以 '## 临时重要需求 / 其他推进事项' 作为段落标题，按系统提示词中规则 2（按 system 分组+status 排序）组织，2-4 句话一条项目。",
+		"instructions": "请以 '临时重要需求 / 其他推进事项' 作为段落标题，纯文本格式，禁止使用 Markdown，按规则 2（按 system 分组+status 排序）组织，2-4 句话一条项目。",
 	}
 	raw, _ := json.MarshalIndent(payload, "", "  ")
 	return "以下是本周未关联任何 KR 的临时重要需求项目（JSON），请产出对应段落：\n\n```json\n" + string(raw) + "\n```"
@@ -228,7 +233,7 @@ func buildUrgentUserPrompt(projects []ProjectInput, wr WeekRange) string {
 
 func buildIdleSection(members []IdleMember) string {
 	var sb strings.Builder
-	sb.WriteString("## 本周排期空闲人员\n\n")
+	sb.WriteString("本周排期空闲人员\n\n")
 	if len(members) == 0 {
 		sb.WriteString("本周全员均有排期，无空闲资源。\n")
 		return sb.String()
@@ -249,7 +254,8 @@ func buildIdleSection(members []IdleMember) string {
 
 // ---------- 底层 HTTP 调用 ----------
 
-func callGLM(systemPrompt, userPrompt string, temperature float64, maxTokens int) (string, error) {
+// callGLMOnce 单次调用 GLM API，返回原始 content。
+func callGLMOnce(systemPrompt, userPrompt string, temperature float64, maxTokens int) (string, error) {
 	reqBody := map[string]interface{}{
 		"model": glmModel,
 		"messages": []map[string]string{
@@ -258,6 +264,9 @@ func callGLM(systemPrompt, userPrompt string, temperature float64, maxTokens int
 		},
 		"temperature": temperature,
 		"max_tokens":  maxTokens,
+		// 尝试关闭推理模型的思维链输出，使模型直接输出最终正文。
+		// GLM-5 系列接受 thinking.type=disabled；不支持该参数的网关会忽略，无副作用。
+		"thinking": map[string]string{"type": "disabled"},
 	}
 	body, _ := json.Marshal(reqBody)
 
@@ -280,19 +289,72 @@ func callGLM(systemPrompt, userPrompt string, temperature float64, maxTokens int
 		return "", fmt.Errorf("GLM status=%d body=%s", resp.StatusCode, string(b))
 	}
 
+	rawBody, _ := io.ReadAll(resp.Body)
 	var result struct {
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content          string `json:"content"`
+				ReasoningContent string `json:"reasoning_content"`
 			} `json:"message"`
+			FinishReason string `json:"finish_reason"`
 		} `json:"choices"`
+		Usage struct {
+			PromptTokens     int `json:"prompt_tokens"`
+			CompletionTokens int `json:"completion_tokens"`
+			TotalTokens      int `json:"total_tokens"`
+		} `json:"usage"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(rawBody, &result); err != nil {
 		return "", err
 	}
 	if len(result.Choices) == 0 {
 		return "", fmt.Errorf("GLM no choices")
 	}
-	return strings.TrimSpace(result.Choices[0].Message.Content), nil
+	ch := result.Choices[0]
+	content := strings.TrimSpace(ch.Message.Content)
+	if content == "" {
+		// content 空时，回退使用 reasoning_content（部分模型把正文放在 reasoning 字段）
+		if rc := strings.TrimSpace(ch.Message.ReasoningContent); rc != "" {
+			log.Printf("[WeeklyAI] callGLM content empty, fallback to reasoning_content len=%d, finish=%s, completion_tokens=%d",
+				len(rc), ch.FinishReason, result.Usage.CompletionTokens)
+			return rc, nil
+		}
+		// 仍为空：打印响应前 800 字节便于排查
+		preview := string(rawBody)
+		if len(preview) > 800 {
+			preview = preview[:800]
+		}
+		log.Printf("[WeeklyAI] callGLM 200 OK but content empty, finish=%s, completion_tokens=%d, prompt_len=%d, body_preview=%s",
+			ch.FinishReason, result.Usage.CompletionTokens, len(userPrompt), preview)
+	}
+	return content, nil
+}
+
+// callGLM 调用 GLM API，若返回空内容则自动重试（最多 2 次），每次重试略微提高 temperature 以获得不同结果。
+func callGLM(systemPrompt, userPrompt string, temperature float64, maxTokens int) (string, error) {
+	const maxRetries = 2
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		temp := temperature
+		if attempt > 0 {
+			temp = temperature + float64(attempt)*0.1 // 重试时略微提高 temperature
+			log.Printf("[WeeklyAI] callGLM retry %d/%d with temperature=%.2f", attempt, maxRetries, temp)
+			time.Sleep(time.Duration(attempt*2) * time.Second) // 简单退避
+		}
+		content, err := callGLMOnce(systemPrompt, userPrompt, temp, maxTokens)
+		if err != nil {
+			lastErr = err
+			log.Printf("[WeeklyAI] callGLM attempt %d failed: %v", attempt, err)
+			continue
+		}
+		if content != "" {
+			return content, nil
+		}
+		// content 为空，重试
+		lastErr = fmt.Errorf("GLM returned empty content")
+		log.Printf("[WeeklyAI] callGLM attempt %d returned empty, will retry", attempt)
+	}
+	// 所有重试都失败
+	return "", fmt.Errorf("callGLM failed after %d retries: %v", maxRetries+1, lastErr)
 }
 

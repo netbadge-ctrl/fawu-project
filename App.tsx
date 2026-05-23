@@ -435,11 +435,9 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
        return;
      }
      
-     handleCloseModal();
-     
-     // 对于现有项目，正常调用 handleUpdateProject
+     // 对于现有项目，直接更新，不关闭弹窗（RoleEditModal 保存按钮会调用 onClose 自行关闭）
      await handleUpdateProject(projectId, roleKey, newRole);
-  }, [handleUpdateProject, handleCloseModal, newProjectDraft]);
+  }, [handleUpdateProject, newProjectDraft]);
 
   const handleUpdateCurrentOkrSet = async (updatedOkrs: OKR[]) => {
     if (!currentOkrPeriodId) return;
