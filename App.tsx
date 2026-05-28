@@ -338,7 +338,6 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
   const handleSaveNewProject = useCallback(async (projectToSave: Project) => {
     // 移除新项目的KR关联校验限制
 
-    setIsLoading(true);
     try {
         // 优先使用草稿状态中的数据，确保包含所有用户修改
         const finalProjectData = newProjectDraft || projectToSave;
@@ -357,21 +356,32 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
             isNew: undefined // 移除 isNew 标记
         };
 
-        console.log('🚀 Creating project:', projectWithLog.name);
-        const result = await api.createProject(projectWithLog);
-        console.log('✅ Project created:', result);
-        // 清除项目缓存，确保获取最新数据
-        apiCache.delete('projects');
-        await fetchData();
-        // 清除草稿状态
+        // 先关闭弹窗，立即响应用户操作
         setNewProjectDraft(null);
         setEditingId(null);
         handleCloseModal();
+
+        console.log('🚀 Creating project:', projectWithLog.name);
+        const result = await api.createProject(projectWithLog);
+        console.log('✅ Project created:', result);
+        
+        // 用服务端返回的数据直接更新本地状态（乐观更新）
+        apiCache.delete('projects');
+        if (result && result.id) {
+            // 移除临时草稿项目，加入服务端返回的正式项目
+            setProjects(prev => {
+                const filtered = prev.filter(p => p.id !== projectToSave.id);
+                return [result, ...filtered];
+            });
+        } else {
+            // 如果服务端没返回完整数据，降级为刷新
+            await fetchData();
+        }
     } catch (error) {
         console.error("Failed to save new project", error);
-        // 保存失败不清除状态，允许用户重试
-    } finally {
-        setIsLoading(false);
+        alert('项目创建失败，请重试');
+        // 保存失败恢复草稿状态，允许用户重试
+        setNewProjectDraft(projectToSave);
     }
   }, [fetchData, currentUser, newProjectDraft]);
   
@@ -386,18 +396,24 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
   }, [newProjectDraft]);
 
   const handleDeleteProject = useCallback(async (projectId: string) => {
-    setIsLoading(true);
+    // 乐观更新：先从本地状态移除，再调用API
+    const deletedProject = projects.find(p => p.id === projectId);
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    
     try {
         await api.deleteProject(projectId);
-        // 清除项目缓存，确保获取最新数据
         apiCache.delete('projects');
-        await fetchData();
     } catch(error) {
         console.error("Failed to delete project", error);
-    } finally {
-        setIsLoading(false);
+        alert('项目删除失败，正在恢复数据...');
+        // 删除失败时恢复本地状态
+        if (deletedProject) {
+            setProjects(prev => [...prev, deletedProject]);
+        } else {
+            await fetchData();
+        }
     }
-  }, [fetchData]);
+  }, [fetchData, projects]);
 
   const handleEditProject = useCallback((project: Project) => {
     // 打开编辑模态框或设置编辑状态

@@ -707,7 +707,7 @@ var userIDMapping = map[string]string{
 }
 
 func (h *Handler) GetUsers(c *gin.Context) {
-	rows, err := h.db.Query("SELECT id, name, email, avatar_url, dept_id, dept_name FROM users ORDER BY dept_name, name")
+	rows, err := h.db.Query("SELECT id, name, COALESCE(email, ''), COALESCE(avatar_url, ''), COALESCE(dept_id, 0), COALESCE(dept_name, '') FROM users ORDER BY dept_name, name")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
