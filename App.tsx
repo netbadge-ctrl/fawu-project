@@ -335,8 +335,12 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
     }
   }, [projects, currentUser, fetchData]);
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSaveNewProject = useCallback(async (projectToSave: Project) => {
-    // 移除新项目的KR关联校验限制
+    // 防止重复提交
+    if (isSaving) return;
+    setIsSaving(true);
 
     try {
         // 优先使用草稿状态中的数据，确保包含所有用户修改
@@ -356,34 +360,32 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
             isNew: undefined // 移除 isNew 标记
         };
 
-        // 先关闭弹窗，立即响应用户操作
-        setNewProjectDraft(null);
-        setEditingId(null);
-        handleCloseModal();
-
         console.log('🚀 Creating project:', projectWithLog.name);
         const result = await api.createProject(projectWithLog);
         console.log('✅ Project created:', result);
         
-        // 用服务端返回的数据直接更新本地状态（乐观更新）
+        // 保存成功后才关闭弹窗
         apiCache.delete('projects');
         if (result && result.id) {
-            // 移除临时草稿项目，加入服务端返回的正式项目
             setProjects(prev => {
                 const filtered = prev.filter(p => p.id !== projectToSave.id);
                 return [result, ...filtered];
             });
         } else {
-            // 如果服务端没返回完整数据，降级为刷新
             await fetchData();
         }
+
+        // 成功后关闭弹窗并清除草稿
+        setNewProjectDraft(null);
+        setEditingId(null);
+        handleCloseModal();
     } catch (error) {
         console.error("Failed to save new project", error);
         alert('项目创建失败，请重试');
-        // 保存失败恢复草稿状态，允许用户重试
-        setNewProjectDraft(projectToSave);
+    } finally {
+        setIsSaving(false);
     }
-  }, [fetchData, currentUser, newProjectDraft]);
+  }, [fetchData, currentUser, newProjectDraft, isSaving]);
   
   const handleCancelNewProject = useCallback((projectId: string) => {
     // 清除草稿状态
@@ -778,6 +780,7 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
           activeOkrs={activeOkrs}
           currentUser={currentUser}
           isNewProject={!!newProjectDraft}
+          isSaving={isSaving}
           onSave={newProjectDraft ? handleSaveNewProject : undefined}
           onClose={() => {
             // 如果是新项目草稿，取消时清除草稿（强制关闭）
