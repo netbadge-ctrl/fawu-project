@@ -27,8 +27,8 @@ const getBoolEnvVar = (key: string, defaultValue: boolean = false): boolean => {
 };
 
 // 应用配置
-export const APP_VERSION = '4.4.3';
-export const BUILD_ID = 'b20260525-2100';
+export const APP_VERSION = '4.4.4';
+export const BUILD_ID = 'b20260528-2200';
 
 export const appConfig: AppConfig = {
   env: getEnvVar('VITE_APP_ENV', 'development') as 'development' | 'production',
