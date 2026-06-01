@@ -453,8 +453,9 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
        return;
      }
      
-     // 对于现有项目，直接更新，不关闭弹窗（RoleEditModal 保存按钮会调用 onClose 自行关闭）
+     // 对于现有项目，保存后返回项目编辑弹窗
      await handleUpdateProject(projectId, roleKey, newRole);
+     setModalState({ isOpen: true, type: 'edit', projectId: projectId });
   }, [handleUpdateProject, newProjectDraft]);
 
   const handleUpdateCurrentOkrSet = async (updatedOkrs: OKR[]) => {
