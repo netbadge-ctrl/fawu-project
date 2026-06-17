@@ -169,9 +169,8 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
 
     if (granularity === 'month') {
         const numMonths = 3;
-        // 确保从当前日期所在的月份开始
-        const today = new Date();
-        startDate = getStartOfMonth(today);
+        // 从用户选中的日期所在的月份开始
+        startDate = getStartOfMonth(viewDate);
         endDate = addDays(addMonths(startDate, numMonths), -1);
 
         const monthHeaders: Date[] = [];
@@ -210,9 +209,8 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
         rangeLabel = `${startDate.getFullYear()}年${startDate.getMonth() + 1}月 - ${endMonth.getFullYear()}年${endMonth.getMonth() + 1}月`;
     } else { // week
         const numWeeks = 3;
-        // 确保从当前日期所在的周开始
-        const today = new Date();
-        startDate = getStartOfWeek(today);
+        // 从用户选中的日期所在的周开始
+        startDate = getStartOfWeek(viewDate);
         endDate = addDays(addWeeks(startDate, numWeeks), -1);
 
         const formatDate = (d: Date) => `${d.getMonth()+1}月${d.getDate()}日`;

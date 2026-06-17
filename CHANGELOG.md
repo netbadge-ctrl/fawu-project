@@ -1,6 +1,14 @@
 # 更新日志
 # 更新日志
 
+## [4.4.5] - 2026-06-17 - 看板日期切换修复
+
+### 🐛 修复
+- **看板日期切换不生效**：`KanbanView.tsx` 中 `timeline` useMemo 在计算时间线起始日期时，月视图和周视图均错误使用了 `new Date()`（当前日期）而非用户切换后的 `viewDate`，导致「上一周/下一周」「上一月/下一月」按钮点击后时间线不随日期偏移。已修复为正确基于 `viewDate` 计算起始日期
+
+### 📁 变更文件
+- `components/KanbanView.tsx`：月视图 `getStartOfMonth(viewDate)`、周视图 `getStartOfWeek(viewDate)`
+
 ## [4.4.1] - 2026-05-10 - 周报四条硬规则扩展（状态白名单 / 排期展示 / diff / 延期风险）
 
 ### ✨ 新增
