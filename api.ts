@@ -316,46 +316,38 @@ export const api = {
     });
   },
 
-  // 月会相关API
-  // 获取所有月度工作条目
-  async fetchMonthlyWorkItems() {
-    const endpoint = isDevelopment ? '/dev/monthly-work-items' : '/monthly-work-items';
+  // AI研究任务相关API
+  // 获取所有AI研究任务
+  async fetchAIResearchTasks(): Promise<AIResearchTask[]> {
+    const endpoint = isDevelopment ? '/dev/ai-research-tasks' : '/ai-research-tasks';
     return makeRequest(endpoint);
   },
 
-  // 获取指定年月的工作条目
-  async fetchMonthlyWorkItemsByMonth(year: number, month: number) {
-    const endpoint = isDevelopment 
-      ? `/dev/monthly-work-items/${year}/${month}` 
-      : `/monthly-work-items/${year}/${month}`;
-    return makeRequest(endpoint);
-  },
-
-  // 创建月度工作条目
-  async createMonthlyWorkItem(item: any) {
-    const endpoint = isDevelopment ? '/dev/monthly-work-items' : '/monthly-work-items';
+  // 创建AI研究任务
+  async createAIResearchTask(task: Omit<AIResearchTask, 'id'>): Promise<AIResearchTask> {
+    const endpoint = isDevelopment ? '/dev/ai-research-tasks' : '/ai-research-tasks';
     return makeRequest(endpoint, {
       method: 'POST',
-      body: JSON.stringify(item),
+      body: JSON.stringify(task),
     });
   },
 
-  // 更新月度工作条目
-  async updateMonthlyWorkItem(itemId: string, updates: any) {
-    const endpoint = isDevelopment 
-      ? `/dev/monthly-work-items/${itemId}`
-      : `/monthly-work-items/${itemId}`;
+  // 更新AI研究任务
+  async updateAIResearchTask(taskId: string, updates: Partial<AIResearchTask>): Promise<void> {
+    const endpoint = isDevelopment
+      ? `/dev/ai-research-tasks/${taskId}`
+      : `/ai-research-tasks/${taskId}`;
     return makeRequest(endpoint, {
       method: 'PATCH',
       body: JSON.stringify(updates),
     });
   },
 
-  // 删除月度工作条目
-  async deleteMonthlyWorkItem(itemId: string) {
-    const endpoint = isDevelopment 
-      ? `/dev/monthly-work-items/${itemId}`
-      : `/monthly-work-items/${itemId}`;
+  // 删除AI研究任务
+  async deleteAIResearchTask(taskId: string): Promise<void> {
+    const endpoint = isDevelopment
+      ? `/dev/ai-research-tasks/${taskId}`
+      : `/ai-research-tasks/${taskId}`;
     return makeRequest(endpoint, {
       method: 'DELETE',
     });
