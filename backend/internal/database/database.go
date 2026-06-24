@@ -314,6 +314,40 @@ func runMigrations(db *sql.DB) error {
 		if _, err := db.Exec(createWorkItemIndexes); err != nil {
 			return fmt.Errorf("failed to create indexes for monthly_work_items: %w", err)
 		}
+
+		// 创建AI研究任务表
+		createAIResearchTasksTable := `
+		CREATE TABLE IF NOT EXISTS ai_research_tasks (
+			id VARCHAR(50) PRIMARY KEY,
+			title TEXT NOT NULL,
+			background TEXT,
+			status VARCHAR(50),
+			owner VARCHAR(255),
+			expected_output VARCHAR(50),
+			progress TEXT,
+			blockers TEXT,
+			planned_completion_date DATE,
+			notes TEXT,
+			is_completed BOOLEAN DEFAULT FALSE,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			created_by VARCHAR(50),
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_by VARCHAR(50)
+		);`
+
+		if _, err := db.Exec(createAIResearchTasksTable); err != nil {
+			return fmt.Errorf("failed to create ai_research_tasks table: %w", err)
+		}
+
+		// 创建AI研究任务索引
+		createAIResearchTaskIndexes := `
+		CREATE INDEX IF NOT EXISTS idx_ai_research_tasks_status ON ai_research_tasks(status);
+		CREATE INDEX IF NOT EXISTS idx_ai_research_tasks_owner ON ai_research_tasks(owner);
+		CREATE INDEX IF NOT EXISTS idx_ai_research_tasks_created_at ON ai_research_tasks(created_at);`
+
+		if _, err := db.Exec(createAIResearchTaskIndexes); err != nil {
+			return fmt.Errorf("failed to create indexes for ai_research_tasks: %w", err)
+		}
 	}
 	// SQLite 不需要特殊的迁移，因为表创建时已经包含了所有字段
 

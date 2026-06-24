@@ -58,12 +58,11 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 			public.POST("/dev/reinitialize-okr-data", handler.ReinitializeOkrData)          // 重新初始化OKR数据，修复KR ID重复问题
 			public.POST("/dev/smart-migrate-kr-data", handler.SmartMigrateKrData)           // 智能KR数据迁移，保留现有项目的KR关联
 			public.POST("/dev/add-sample-kr-associations", handler.AddSampleKrAssociations) // 为示例项目添加KR关联
-			// 月会相关端点（开发模式）
-			public.GET("/dev/monthly-work-items", handler.GetDevMonthlyWorkItems)                     // 获取所有月度工作条目
-			public.GET("/dev/monthly-work-items/:year/:month", handler.GetDevMonthlyWorkItemsByMonth) // 获取指定月份工作条目
-			public.POST("/dev/monthly-work-items", handler.CreateDevMonthlyWorkItem)                  // 创建月度工作条目
-			public.PATCH("/dev/monthly-work-items/:itemId", handler.UpdateDevMonthlyWorkItem)         // 更新月度工作条目
-			public.DELETE("/dev/monthly-work-items/:itemId", handler.DeleteDevMonthlyWorkItem)        // 删除月度工作条目
+			// AI研究任务相关端点（开发模式）
+			public.GET("/dev/ai-research-tasks", handler.GetDevAIResearchTasks)               // 获取所有AI研究任务
+			public.POST("/dev/ai-research-tasks", handler.CreateDevAIResearchTask)            // 创建AI研究任务
+			public.PATCH("/dev/ai-research-tasks/:taskId", handler.UpdateDevAIResearchTask)   // 更新AI研究任务
+			public.DELETE("/dev/ai-research-tasks/:taskId", handler.DeleteDevAIResearchTask)  // 删除AI研究任务
 			// 周报相关端点（开发模式）
 			public.GET("/dev/weekly-reports", handler.GetDevWeeklyReports)
 			public.GET("/dev/weekly-reports/:year/:week", handler.GetDevWeeklyReportByWeek)
@@ -102,12 +101,11 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 			// 数据迁移路由（一次性使用，需要认证）
 			protected.POST("/migrate-initial-data", handler.MigrateInitialData)
 
-			// 月会相关路由（需要认证）
-			protected.GET("/monthly-work-items", handler.GetMonthlyWorkItems)
-			protected.GET("/monthly-work-items/:year/:month", handler.GetMonthlyWorkItemsByMonth)
-			protected.POST("/monthly-work-items", handler.CreateMonthlyWorkItem)
-			protected.PATCH("/monthly-work-items/:itemId", handler.UpdateMonthlyWorkItem)
-			protected.DELETE("/monthly-work-items/:itemId", handler.DeleteMonthlyWorkItem)
+			// AI研究任务相关路由（需要认证）
+			protected.GET("/ai-research-tasks", handler.GetAIResearchTasks)
+			protected.POST("/ai-research-tasks", handler.CreateAIResearchTask)
+			protected.PATCH("/ai-research-tasks/:taskId", handler.UpdateAIResearchTask)
+			protected.DELETE("/ai-research-tasks/:taskId", handler.DeleteAIResearchTask)
 
 			// 周报相关路由（需要认证）
 			protected.GET("/weekly-reports", handler.GetWeeklyReports)

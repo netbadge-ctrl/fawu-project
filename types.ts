@@ -123,19 +123,19 @@ export interface Project {
 
 export type ProjectRoleKey = keyof Pick<Project, 'productManagers' | 'backendDevelopers' | 'frontendDevelopers' | 'qaTesters'>;
 
-// 产品月会接口
-export interface MonthlyWorkItem {
+// AI研究任务接口
+export interface AIResearchTask {
   id: string;
-  year: number;
-  month: number;
-  workContent: string;                    // 工作内容
-  businessProblem?: string;               // 解决的业务问题
-  direction?: '业务平台' | '基础平台';        // 方向
-  productOwner?: string;                  // 负责产品
-  expectedCompletionWeek?: '第一周' | '第二周' | '第三周' | '第四周';  // 预计需求完成时间
-  currentProgress?: string;               // 当前产品进展
+  title: string;                          // 研究主题 / 任务名称
+  background?: string;                    // 研究背景与目标
+  status?: '调研中' | '实验中' | '验证中' | '已完成' | '已暂停';  // 当前状态
+  owner?: string;                         // 负责人
+  expectedOutput?: '调研报告' | 'Prompt 模板' | '原型' | '上线方案' | '其他';  // 预期产出
+  progress?: string;                      // 当前进展 / 关键结论
+  blockers?: string;                      // 阻塞项 / 依赖
+  plannedCompletionDate?: string;         // 计划完成时间
+  notes?: string;                         // 备注
   isCompleted: boolean;                   // 是否完成
-  progressNotes?: string;                 // 进展说明
   createdAt?: string;
   createdBy?: string;
   updatedAt?: string;
