@@ -54,10 +54,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, currentUser }) 
           <div className="relative">
             <IconG className="w-8 h-8"/>
             <button
-              onClick={() => setView('monthly')}
+              onClick={() => setView('aiResearch')}
               className="absolute -top-1 -right-1 p-1 rounded-full bg-[#6C63FF] text-white hover:bg-[#5a52d5] transition-colors shadow-lg"
-              aria-label="产品月会"
-              title="产品月会"
+              aria-label="AI 研究任务追踪"
+              title="AI 研究任务追踪"
             >
               <IconCalendar className="w-3 h-3" />
             </button>

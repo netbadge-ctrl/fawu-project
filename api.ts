@@ -1,3 +1,5 @@
+import { AIResearchTask } from './types';
+
 // API 配置和接口封装
 // 使用环境变量 VITE_API_BASE_URL，未设置时回落到本地默认
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:9000/api';
