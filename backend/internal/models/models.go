@@ -106,6 +106,25 @@ type MonthlyWorkItem struct {
 	UpdatedBy              *string `json:"updatedBy" db:"updated_by"`
 }
 
+// AIResearchTask AI研究任务模型
+type AIResearchTask struct {
+	ID                    string  `json:"id" db:"id"`
+	Title                 string  `json:"title" db:"title"`
+	Background            *string `json:"background" db:"background"`
+	Status                *string `json:"status" db:"status"`
+	Owner                 *string `json:"owner" db:"owner"`
+	ExpectedOutput        *string `json:"expectedOutput" db:"expected_output"`
+	Progress              *string `json:"progress" db:"progress"`
+	Blockers              *string `json:"blockers" db:"blockers"`
+	PlannedCompletionDate *string `json:"plannedCompletionDate" db:"planned_completion_date"`
+	Notes                 *string `json:"notes" db:"notes"`
+	IsCompleted           bool    `json:"isCompleted" db:"is_completed"`
+	CreatedAt             string  `json:"createdAt" db:"created_at"`
+	CreatedBy             *string `json:"createdBy" db:"created_by"`
+	UpdatedAt             string  `json:"updatedAt" db:"updated_at"`
+	UpdatedBy             *string `json:"updatedBy" db:"updated_by"`
+}
+
 // Project 项目模型
 type Project struct {
 	ID                 string           `json:"id" db:"id"`
