@@ -152,16 +152,13 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
       name: '',
       priority: Priority.LowPriority,
       status: ProjectStatus.NotStarted,
-      businessProblem: '',
+      businessBackground: '',
       keyResultIds: [],
       weeklyUpdate: '',
       lastWeekUpdate: '',
-      productManagers: [],
-      backendDevelopers: [],
-      frontendDevelopers: [],
-      qaTesters: [],
+      owners: [],
       proposedDate: todayStr, // 默认设置为当前日期
-      launchDate: null,
+      completionDate: null,
       followers: [],
       comments: [],
       changeLog: [],
@@ -179,10 +176,10 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
     const projectToUpdate = (projects || []).find(p => p.id === projectId);
     if (!projectToUpdate) return;
     
-    // 当状态选择“本周已上线”或“已完成”时，验证上线时间
+    // 当状态选择“本周已上线”或“已完成”时，验证完成日期
     if (field === 'status' && (value === ProjectStatus.LaunchedThisWeek || value === ProjectStatus.Completed)) {
-      if (!projectToUpdate.launchDate) {
-        alert('选择“本周已上线”或“已完成”状态时，必须填写上线时间！');
+      if (!projectToUpdate.completionDate) {
+        alert('选择“本周已上线”或“已完成”状态时，必须填写完成日期！');
         return;
       }
     }
@@ -234,11 +231,8 @@ const App: React.FC<AppProps> = ({ currentUser }) => {
         priority: '优先级',
         status: '状态',
         weeklyUpdate: '本周进展/问题',
-        productManagers: '产品经理',
-        backendDevelopers: '后端研发',
-        frontendDevelopers: '前端研发',
-        qaTesters: '测试',
-        launchDate: '上线时间',
+        owners: '负责人',
+        completionDate: '完成日期',
     };
 
     const labelForLog = loggableFieldLabels[field];

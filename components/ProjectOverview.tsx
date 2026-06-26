@@ -7,9 +7,8 @@ import { ProjectTable } from './ProjectTable';
 import { debounce } from '../utils';
 import { MultiSortConfig, SortRule } from './MultiSortConfig';
 import * as XLSX from 'xlsx';
-import { SYSTEM_OPTIONS } from '../constants';
 
-type SortField = 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'launchDate';
+type SortField = 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'completionDate';
 type SortDirection = 'asc' | 'desc';
 
 interface SortConfig {
@@ -78,10 +77,6 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   // 本地状态处理函数
   const setSelectedStatuses = (value: string[]) => updateProjectOverviewFilters({ selectedStatuses: value });
   const setSelectedPriorities = (value: string[]) => updateProjectOverviewFilters({ selectedPriorities: value });
-  const setSelectedSystems = (value: string[]) => {
-    // Update selected systems
-    updateProjectOverviewFilters({ selectedSystems: value });
-  };
   const setSelectedParticipants = (value: string[]) => updateProjectOverviewFilters({ selectedParticipants: value });
   const setSelectedKrs = (value: string[]) => updateProjectOverviewFilters({ selectedKrs: value });
 
@@ -89,7 +84,6 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   const searchTerm = filters.searchTerm;
   const selectedStatuses = filters.selectedStatuses || [];
   const selectedPriorities = filters.selectedPriorities || [];
-  const selectedSystems = filters.selectedSystems || [];
   const selectedParticipants = filters.selectedParticipants || [];
   const selectedKrs = filters.selectedKrs || [];
   
@@ -133,50 +127,38 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     // 预计算所有筛选集合,使用Set进行O(1)查找
     const statusSet = new Set(selectedStatuses);
     const prioritySet = new Set(selectedPriorities);
-    const systemSet = new Set(selectedSystems);
     const participantSet = new Set(selectedParticipants);
     const krSet = new Set(selectedKrs);
     const lowerSearchTerm = searchTerm.toLowerCase();
-    
+
     // 调试日志
     // System filter active check
-    
+
     // 首先筛选项目
     const filtered = uniqueProjects.filter(project => {
       // 新建的项目(草稿模式在弹窗中处理，不显示在列表中)
       if (project.isNew) {
         return false;
       }
-      
 
-      
+
+
       // 状态筛选 - 使用Set快速查找
       if (statusSet.size > 0 && !statusSet.has(project.status)) {
         return false;
       }
-      
+
       // 优先级筛选 - 使用Set快速查找
       if (prioritySet.size > 0 && !prioritySet.has(project.priority)) {
         return false;
       }
-      
-      // 系统筛选 - 使用Set快速查找
-      if (systemSet.size > 0) {
-        const hasSystem = project.system && systemSet.has(project.system);
-        if (!hasSystem) {
-          return false;
-        }
-      }
-      
+
       // 参与人筛选 - 使用Set快速查找
       if (participantSet.size > 0) {
         const projectParticipants = new Set([
-          ...(project.productManagers || []).map(m => m.userId),
-          ...(project.backendDevelopers || []).map(m => m.userId),
-          ...(project.frontendDevelopers || []).map(m => m.userId),
-          ...(project.qaTesters || []).map(m => m.userId),
+          ...(project.owners || []).map(m => m.userId),
         ]);
-        
+
         // 检查是否有交集
         let hasParticipant = false;
         for (const participantId of participantSet) {
@@ -242,37 +224,13 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
               const bKrCount = (b.keyResultIds || []).length;
               comparison = aKrCount - bKrCount;
               break;
-            case 'productManagers':
-              // 按产品经理姓名排序（取第一个产品经理）
-              const aPm = (a.productManagers || [])[0];
-              const bPm = (b.productManagers || [])[0];
-              const aPmName = aPm ? (allUsers.find(u => u.id === aPm.userId)?.name || '') : '';
-              const bPmName = bPm ? (allUsers.find(u => u.id === bPm.userId)?.name || '') : '';
-              comparison = aPmName.localeCompare(bPmName, 'zh-CN');
-              break;
-            case 'backendDevelopers':
-              // 按后端研发姓名排序（取第一个后端研发）
-              const aBe = (a.backendDevelopers || [])[0];
-              const bBe = (b.backendDevelopers || [])[0];
-              const aBeName = aBe ? (allUsers.find(u => u.id === aBe.userId)?.name || '') : '';
-              const bBeName = bBe ? (allUsers.find(u => u.id === bBe.userId)?.name || '') : '';
-              comparison = aBeName.localeCompare(bBeName, 'zh-CN');
-              break;
-            case 'frontendDevelopers':
-              // 按前端研发姓名排序（取第一个前端研发）
-              const aFe = (a.frontendDevelopers || [])[0];
-              const bFe = (b.frontendDevelopers || [])[0];
-              const aFeName = aFe ? (allUsers.find(u => u.id === aFe.userId)?.name || '') : '';
-              const bFeName = bFe ? (allUsers.find(u => u.id === bFe.userId)?.name || '') : '';
-              comparison = aFeName.localeCompare(bFeName, 'zh-CN');
-              break;
-            case 'qaTesters':
-              // 按测试姓名排序（取第一个测试）
-              const aQa = (a.qaTesters || [])[0];
-              const bQa = (b.qaTesters || [])[0];
-              const aQaName = aQa ? (allUsers.find(u => u.id === aQa.userId)?.name || '') : '';
-              const bQaName = bQa ? (allUsers.find(u => u.id === bQa.userId)?.name || '') : '';
-              comparison = aQaName.localeCompare(bQaName, 'zh-CN');
+            case 'owners':
+              // 按负责人姓名排序（取第一个负责人）
+              const aOwner = (a.owners || [])[0];
+              const bOwner = (b.owners || [])[0];
+              const aOwnerName = aOwner ? (allUsers.find(u => u.id === aOwner.userId)?.name || '') : '';
+              const bOwnerName = bOwner ? (allUsers.find(u => u.id === bOwner.userId)?.name || '') : '';
+              comparison = aOwnerName.localeCompare(bOwnerName, 'zh-CN');
               break;
             case 'createdAt':
               const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -332,11 +290,11 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           const bProposedTime = b.proposedDate ? new Date(b.proposedDate).getTime() : 0;
           comparison = bProposedTime - aProposedTime; // 默认倒序（最新的在前）
           break;
-        case 'launchDate':
-          // 按上线时间排序
-          const aLaunchTime = a.launchDate ? new Date(a.launchDate).getTime() : 0;
-          const bLaunchTime = b.launchDate ? new Date(b.launchDate).getTime() : 0;
-          comparison = bLaunchTime - aLaunchTime; // 默认倒序（最新的在前）
+        case 'completionDate':
+          // 按完成日期排序
+          const aCompletionTime = a.completionDate ? new Date(a.completionDate).getTime() : 0;
+          const bCompletionTime = b.completionDate ? new Date(b.completionDate).getTime() : 0;
+          comparison = bCompletionTime - aCompletionTime; // 默认倒序（最新的在前）
           break;
         case 'createdAt':
         default:
@@ -355,7 +313,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       
       return sortConfig.direction === 'asc' ? -comparison : comparison;
     });
-  }, [projects, searchTerm, selectedStatuses, selectedPriorities, selectedSystems, selectedParticipants, selectedKrs, sortConfig, filters.useMultiSort, filters.multiSortRules, allUsers]);
+  }, [projects, searchTerm, selectedStatuses, selectedPriorities, selectedParticipants, selectedKrs, sortConfig, filters.useMultiSort, filters.multiSortRules, allUsers]);
 
   // 导出Excel功能
   const handleExportExcel = useCallback(() => {
@@ -425,17 +383,14 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
           return {
             '项目名称': truncateText(project.name, 255),
-            '系统': project.system || '',
+            '业务方向': project.businessDirection || '',
             '优先级': project.priority || '',
             '状态': project.status || '',
-            '解决的业务问题': truncateText(project.businessProblem, 1000),
+            '业务背景': truncateText(project.businessBackground, 1000),
             '关联的KR': truncateText(getKRs(project.keyResultIds), 2000),
-            '产品经理': truncateText(getNames(project.productManagers), 500),
-            '后端研发': truncateText(getNames(project.backendDevelopers), 500),
-            '前端研发': truncateText(getNames(project.frontendDevelopers), 500),
-            '测试': truncateText(getNames(project.qaTesters), 500),
+            '负责人': truncateText(getNames(project.owners), 500),
             '提出时间': formatDate(project.proposedDate),
-            '上线时间': formatDate(project.launchDate),
+            '完成日期': formatDate(project.completionDate),
             '本周进展/问题': truncateText(project.weeklyUpdate, 10000),
             '上周进展/问题': truncateText(project.lastWeekUpdate, 10000)
           };
@@ -451,17 +406,14 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       // 设置列宽
       const colWidths = [
         { wch: 30 }, // 项目名称
-        { wch: 20 }, // 系统
+        { wch: 20 }, // 业务方向
         { wch: 10 }, // 优先级
         { wch: 12 }, // 状态
-        { wch: 40 }, // 解决的业务问题
+        { wch: 40 }, // 业务背景
         { wch: 50 }, // 关联的KR
-        { wch: 15 }, // 产品经理
-        { wch: 15 }, // 后端研发
-        { wch: 15 }, // 前端研发
-        { wch: 15 }, // 测试
+        { wch: 15 }, // 负责人
         { wch: 12 }, // 提出时间
-        { wch: 12 }, // 上线时间
+        { wch: 12 }, // 完成日期
         { wch: 40 }, // 本周进展/问题
         { wch: 40 }, // 上周进展/问题
       ];
@@ -493,11 +445,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     { value: '', label: '未设置' },
     ...Object.values(Priority).map(priority => ({ value: priority, label: priority }))
   ];
-  const systemOptions = [
-    { value: '', label: '未设置' },
-    ...SYSTEM_OPTIONS.map(system => ({ value: system, label: system }))
-  ];
-  
+
   // 按部门分组参与人选项
   const participantGroupedOptions = useMemo(() => {
     const departmentMap = new Map<string, any[]>();
@@ -552,12 +500,6 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                 selectedValues={selectedPriorities}
                 onSelectionChange={setSelectedPriorities}
                 placeholder="优先级"
-              />
-              <MultiSelectDropdown
-                options={systemOptions}
-                selectedValues={selectedSystems}
-                onSelectionChange={setSelectedSystems}
-                placeholder="系统"
               />
               <MultiSelectDropdown
                 groupedOptions={participantGroupedOptions}

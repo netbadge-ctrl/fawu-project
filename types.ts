@@ -100,19 +100,16 @@ export interface Document {
 export interface Project {
   id: string;
   name: string;
-  system?: string; // 系统属性
+  businessDirection?: string;
   priority: Priority;
-  businessProblem: string;
+  businessBackground: string;
   keyResultIds: string[];
   weeklyUpdate: string;
   lastWeekUpdate: string;
   status: ProjectStatus;
-  productManagers: Role;
-  backendDevelopers: Role;
-  frontendDevelopers: Role;
-  qaTesters: Role;
+  owners: Role[];
   proposedDate: string | null;
-  launchDate: string | null;
+  completionDate: string | null;
   createdAt: string; // 项目创建时间
   followers: string[];
   comments: Comment[];
@@ -121,7 +118,7 @@ export interface Project {
   isNew?: boolean;
 }
 
-export type ProjectRoleKey = keyof Pick<Project, 'productManagers' | 'backendDevelopers' | 'frontendDevelopers' | 'qaTesters'>;
+export type ProjectRoleKey = 'owners';
 
 // AI研究任务接口
 export interface AIResearchTask {

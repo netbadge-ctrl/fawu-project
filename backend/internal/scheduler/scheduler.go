@@ -262,9 +262,9 @@ func generateWeeklyReport(db *sql.DB) error {
 	// 查询本周有进展的项目
 	// v4.4.1：仅纳入白名单 11 个状态（排除 "已完成"/"暂停"）
 	projectQuery := `
-		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update,
-		       last_week_update, status, proposal_date, launch_date, created_at, followers,
-		       product_managers, backend_developers, frontend_developers, qa_testers
+		SELECT id, name, business_direction, priority, business_background, key_result_ids, weekly_update,
+		       last_week_update, status, proposal_date, completion_date, created_at, followers,
+		       owner
 		FROM projects
 		WHERE weekly_update IS NOT NULL AND weekly_update != ''
 		  AND status IN (
@@ -284,13 +284,13 @@ func generateWeeklyReport(db *sql.DB) error {
 	for rows.Next() {
 		var p models.Project
 		var keyResultIdsStr, followersStr sql.NullString
-		var productManagers, backendDevelopers, frontendDevelopers, qaTesters []byte
+		var owner []byte
 
 		err := rows.Scan(
-			&p.ID, &p.Name, &p.System, &p.Priority, &p.BusinessProblem, &keyResultIdsStr,
+			&p.ID, &p.Name, &p.BusinessDirection, &p.Priority, &p.BusinessBackground, &keyResultIdsStr,
 			&p.WeeklyUpdate, &p.LastWeekUpdate, &p.Status,
-			&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followersStr,
-			&productManagers, &backendDevelopers, &frontendDevelopers, &qaTesters,
+			&p.ProposalDate, &p.CompletionDate, &p.CreatedAt, &followersStr,
+			&owner,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to scan project: %w", err)
@@ -316,10 +316,7 @@ func generateWeeklyReport(db *sql.DB) error {
 			}
 		}
 
-		json.Unmarshal(productManagers, &p.ProductManagers)
-		json.Unmarshal(backendDevelopers, &p.BackendDevelopers)
-		json.Unmarshal(frontendDevelopers, &p.FrontendDevelopers)
-		json.Unmarshal(qaTesters, &p.QaTesters)
+		json.Unmarshal(owner, &p.Owner)
 		projects = append(projects, p)
 	}
 
@@ -545,15 +542,15 @@ func buildProjSummaries(projects []models.Project, userNames map[string]string, 
 		return *s
 	}
 	for _, p := range projects {
-		pmNames := []string{}
-		for _, pm := range p.ProductManagers {
-			if pm.UserID == "" {
+		ownerNames := []string{}
+		for _, o := range p.Owner {
+			if o.UserID == "" {
 				continue
 			}
-			if name, ok := userNames[pm.UserID]; ok && name != "" {
-				pmNames = append(pmNames, name)
+			if name, ok := userNames[o.UserID]; ok && name != "" {
+				ownerNames = append(ownerNames, name)
 			} else {
-				pmNames = append(pmNames, pm.UserID)
+				ownerNames = append(ownerNames, o.UserID)
 			}
 		}
 		isDriving := schedIsDrivingOnly(p.Status)
@@ -570,21 +567,21 @@ func buildProjSummaries(projects []models.Project, userNames map[string]string, 
 		}
 
 		summaries = append(summaries, models.ProjectWeeklySummary{
-			ProjectID:       p.ID,
-			ProjectName:     p.Name,
-			WeeklyUpdate:    stripHtmlTags(deref(p.WeeklyUpdate)),
-			Status:          p.Status,
-			Priority:        p.Priority,
-			ProductManagers: pmNames,
-			System:          deref(p.System),
-			BusinessProblem: stripHtmlTags(deref(p.BusinessProblem)),
-			LastWeekUpdate:  stripHtmlTags(deref(p.LastWeekUpdate)),
-			LaunchDate:      deref(p.LaunchDate),
-			ScheduleText:    scheduleText,
-			MemberAlerts:    alerts,
-			IsDrivingOnly:   isDriving,
-			ScheduleChanges: changes,
-			DelayRisks:      risks,
+			ProjectID:         p.ID,
+			ProjectName:       p.Name,
+			WeeklyUpdate:      stripHtmlTags(deref(p.WeeklyUpdate)),
+			Status:            p.Status,
+			Priority:          p.Priority,
+			Owners:            ownerNames,
+			BusinessDirection: deref(p.BusinessDirection),
+			BusinessBackground: stripHtmlTags(deref(p.BusinessBackground)),
+			LastWeekUpdate:    stripHtmlTags(deref(p.LastWeekUpdate)),
+			CompletionDate:    deref(p.CompletionDate),
+			ScheduleText:      scheduleText,
+			MemberAlerts:      alerts,
+			IsDrivingOnly:     isDriving,
+			ScheduleChanges:   changes,
+			DelayRisks:        risks,
 		})
 	}
 	_ = weekStart
@@ -671,9 +668,7 @@ func schedBuildProjectScheduleText(p models.Project, userNames map[string]string
 			parts = append(parts, label+": "+strings.Join(segs, ", "))
 		}
 	}
-	appendRole("后端", p.BackendDevelopers)
-	appendRole("前端", p.FrontendDevelopers)
-	appendRole("测试", p.QaTesters)
+	appendRole("负责人", p.Owner)
 	return strings.Join(parts, "; ")
 }
 
@@ -711,9 +706,7 @@ func schedBuildProjectMemberAlerts(p models.Project, weekEnd time.Time, userName
 		return alerts
 	}
 	out := []string{}
-	out = append(out, chk("后端", p.BackendDevelopers)...)
-	out = append(out, chk("前端", p.FrontendDevelopers)...)
-	out = append(out, chk("测试", p.QaTesters)...)
+	out = append(out, chk("负责人", p.Owner)...)
 	return out
 }
 
@@ -757,17 +750,17 @@ func schedSummaryToAIProject(p models.ProjectWeeklySummary) ai.ProjectInput {
 	merged = append(merged, p.DelayRisks...)
 	return ai.ProjectInput{
 		ID:              p.ProjectID,
-		Name:            p.ProjectName,
-		System:          p.System,
-		Status:          p.Status,
-		Priority:        p.Priority,
-		BusinessProblem: p.BusinessProblem,
-		WeeklyUpdate:    p.WeeklyUpdate,
-		LastWeekUpdate:  p.LastWeekUpdate,
-		LaunchDate:      p.LaunchDate,
-		ScheduleText:    p.ScheduleText,
-		MemberAlerts:    merged,
-		IsDrivingOnly:   p.IsDrivingOnly,
+		Name:              p.ProjectName,
+		BusinessDirection: p.BusinessDirection,
+		Status:            p.Status,
+		Priority:          p.Priority,
+		BusinessBackground: p.BusinessBackground,
+		WeeklyUpdate:      p.WeeklyUpdate,
+		LastWeekUpdate:    p.LastWeekUpdate,
+		CompletionDate:    p.CompletionDate,
+		ScheduleText:      p.ScheduleText,
+		MemberAlerts:      merged,
+		IsDrivingOnly:     p.IsDrivingOnly,
 	}
 }
 
@@ -851,9 +844,7 @@ func schedFlattenProjectSchedules(projects []models.Project, userNames map[strin
 				})
 			}
 		}
-		appendRole("backend", p.BackendDevelopers)
-		appendRole("frontend", p.FrontendDevelopers)
-		appendRole("qa", p.QaTesters)
+		appendRole("owner", p.Owner)
 	}
 	return rows
 }
@@ -1043,16 +1034,8 @@ func schedComputeDelayRisks(p models.Project, weekEnd time.Time, userNames map[s
 		}
 		return als
 	}
-	if preCheck {
-		out = append(out, chkRole("backend", p.BackendDevelopers)...)
-		out = append(out, chkRole("frontend", p.FrontendDevelopers)...)
-	}
-	if devCheck {
-		out = append(out, chkRole("backend", p.BackendDevelopers)...)
-		out = append(out, chkRole("frontend", p.FrontendDevelopers)...)
-	}
-	if qaCheck {
-		out = append(out, chkRole("qa", p.QaTesters)...)
+	if preCheck || devCheck || qaCheck {
+		out = append(out, chkRole("owner", p.Owner)...)
 	}
 	return out
 }

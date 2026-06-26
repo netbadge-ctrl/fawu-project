@@ -36,19 +36,16 @@ COMMENT ON COLUMN okr_sets.okrs IS 'OKR数据（JSONB格式）';
 CREATE TABLE IF NOT EXISTS projects (
     id VARCHAR(255) PRIMARY KEY,
     name TEXT NOT NULL,
-    system VARCHAR(255),
+    business_direction VARCHAR(255),
     priority VARCHAR(50) NOT NULL DEFAULT '日常需求',
-    business_problem TEXT,
+    business_background TEXT,
     key_result_ids TEXT[],
     weekly_update TEXT,
     last_week_update TEXT,
     status VARCHAR(50) NOT NULL DEFAULT '未开始',
-    product_managers JSONB DEFAULT '[]'::jsonb,
-    backend_developers JSONB DEFAULT '[]'::jsonb,
-    frontend_developers JSONB DEFAULT '[]'::jsonb,
-    qa_testers JSONB DEFAULT '[]'::jsonb,
+    owner JSONB DEFAULT '[]'::jsonb,
     proposal_date DATE,
-    launch_date DATE,
+    completion_date DATE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     followers TEXT[],
     comments JSONB DEFAULT '[]'::jsonb,
@@ -59,19 +56,16 @@ CREATE TABLE IF NOT EXISTS projects (
 COMMENT ON TABLE projects IS '项目表，存储项目基本信息';
 COMMENT ON COLUMN projects.id IS '项目唯一标识符（格式：p + 时间戳）';
 COMMENT ON COLUMN projects.name IS '项目名称';
-COMMENT ON COLUMN projects.system IS '所属系统';
+COMMENT ON COLUMN projects.business_direction IS '业务方向';
 COMMENT ON COLUMN projects.priority IS '优先级（P0需求/P1需求/部门OKR/日常需求）';
-COMMENT ON COLUMN projects.business_problem IS '业务问题描述';
+COMMENT ON COLUMN projects.business_background IS '业务背景';
 COMMENT ON COLUMN projects.key_result_ids IS '关联的KR ID数组';
 COMMENT ON COLUMN projects.weekly_update IS '本周进展';
 COMMENT ON COLUMN projects.last_week_update IS '上周进展';
 COMMENT ON COLUMN projects.status IS '项目状态（未开始/进行中/已上线/已暂停）';
-COMMENT ON COLUMN projects.product_managers IS '产品经理（JSONB数组）';
-COMMENT ON COLUMN projects.backend_developers IS '后端开发（JSONB数组）';
-COMMENT ON COLUMN projects.frontend_developers IS '前端开发（JSONB数组）';
-COMMENT ON COLUMN projects.qa_testers IS '测试人员（JSONB数组）';
+COMMENT ON COLUMN projects.owner IS '负责人（JSONB数组）';
 COMMENT ON COLUMN projects.proposal_date IS '提出日期';
-COMMENT ON COLUMN projects.launch_date IS '上线日期';
+COMMENT ON COLUMN projects.completion_date IS '完成日期';
 COMMENT ON COLUMN projects.created_at IS '创建时间';
 COMMENT ON COLUMN projects.followers IS '关注者ID数组';
 COMMENT ON COLUMN projects.comments IS '评论列表（JSONB）';

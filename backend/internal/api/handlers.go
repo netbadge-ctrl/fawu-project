@@ -31,9 +31,9 @@ func NewHandler(db *sql.DB) *Handler {
 func (h *Handler) GetProjects(c *gin.Context) {
 	// 查询项目列表，只包含必要字段（优化性能）
 	query := `
-		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update, 
-		       last_week_update, status, proposal_date, launch_date, created_at, followers,
-		       product_managers, backend_developers, frontend_developers, qa_testers,
+		SELECT id, name, business_direction, priority, business_background, key_result_ids, weekly_update,
+		       last_week_update, status, proposal_date, completion_date, created_at, followers,
+		       owner,
 		       documents
 		FROM projects
 		ORDER BY created_at DESC
@@ -52,14 +52,14 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		var p models.Project
 		var keyResultIds pq.StringArray
 		var followers pq.StringArray
-		var productManagers, backendDevelopers, frontendDevelopers, qaTesters []byte
+		var owner []byte
 		var documents []byte
 
 		err := rows.Scan(
-			&p.ID, &p.Name, &p.System, &p.Priority, &p.BusinessProblem, &keyResultIds,
+			&p.ID, &p.Name, &p.BusinessDirection, &p.Priority, &p.BusinessBackground, &keyResultIds,
 			&p.WeeklyUpdate, &p.LastWeekUpdate, &p.Status,
-			&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followers,
-			&productManagers, &backendDevelopers, &frontendDevelopers, &qaTesters,
+			&p.ProposalDate, &p.CompletionDate, &p.CreatedAt, &followers,
+			&owner,
 			&documents,
 		)
 		if err != nil {
@@ -72,24 +72,12 @@ func (h *Handler) GetProjects(c *gin.Context) {
 		p.Followers = []string(followers)
 
 		// 解析JSONB字段
-		json.Unmarshal(productManagers, &p.ProductManagers)
-		json.Unmarshal(backendDevelopers, &p.BackendDevelopers)
-		json.Unmarshal(frontendDevelopers, &p.FrontendDevelopers)
-		json.Unmarshal(qaTesters, &p.QaTesters)
+		json.Unmarshal(owner, &p.Owner)
 		json.Unmarshal(documents, &p.Documents)
 
 		// 初始化空数组（避免前端null检查）
-		if p.ProductManagers == nil {
-			p.ProductManagers = []models.TeamMember{}
-		}
-		if p.BackendDevelopers == nil {
-			p.BackendDevelopers = []models.TeamMember{}
-		}
-		if p.FrontendDevelopers == nil {
-			p.FrontendDevelopers = []models.TeamMember{}
-		}
-		if p.QaTesters == nil {
-			p.QaTesters = []models.TeamMember{}
+		if p.Owner == nil {
+			p.Owner = []models.TeamMember{}
 		}
 		p.Comments = []models.Comment{}
 		p.ChangeLog = []models.ChangeLogEntry{}
@@ -108,9 +96,9 @@ func (h *Handler) GetProjectDetail(c *gin.Context) {
 	projectID := c.Param("projectId")
 
 	query := `
-		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update, 
-		       last_week_update, status, product_managers, backend_developers, 
-		       frontend_developers, qa_testers, proposal_date, launch_date, 
+		SELECT id, name, business_direction, priority, business_background, key_result_ids, weekly_update,
+		       last_week_update, status, owner,
+		       proposal_date, completion_date,
 		       created_at, followers, comments, change_log, documents
 		FROM projects
 		WHERE id = $1
@@ -119,14 +107,13 @@ func (h *Handler) GetProjectDetail(c *gin.Context) {
 	var p models.Project
 	var keyResultIds pq.StringArray
 	var followers pq.StringArray
-	var productManagers, backendDevelopers, frontendDevelopers, qaTesters []byte
+	var owner []byte
 	var comments, changeLog, documents []byte
 
 	err := h.db.QueryRow(query, projectID).Scan(
-		&p.ID, &p.Name, &p.System, &p.Priority, &p.BusinessProblem, &keyResultIds,
-		&p.WeeklyUpdate, &p.LastWeekUpdate, &p.Status, &productManagers,
-		&backendDevelopers, &frontendDevelopers, &qaTesters,
-		&p.ProposalDate, &p.LaunchDate, &p.CreatedAt, &followers, &comments, &changeLog, &documents,
+		&p.ID, &p.Name, &p.BusinessDirection, &p.Priority, &p.BusinessBackground, &keyResultIds,
+		&p.WeeklyUpdate, &p.LastWeekUpdate, &p.Status, &owner,
+		&p.ProposalDate, &p.CompletionDate, &p.CreatedAt, &followers, &comments, &changeLog, &documents,
 	)
 
 	if err == sql.ErrNoRows {
@@ -143,10 +130,7 @@ func (h *Handler) GetProjectDetail(c *gin.Context) {
 	p.Followers = []string(followers)
 
 	// 解析JSONB字段
-	json.Unmarshal(productManagers, &p.ProductManagers)
-	json.Unmarshal(backendDevelopers, &p.BackendDevelopers)
-	json.Unmarshal(frontendDevelopers, &p.FrontendDevelopers)
-	json.Unmarshal(qaTesters, &p.QaTesters)
+	json.Unmarshal(owner, &p.Owner)
 	json.Unmarshal(comments, &p.Comments)
 	json.Unmarshal(changeLog, &p.ChangeLog)
 	json.Unmarshal(documents, &p.Documents)
@@ -210,10 +194,7 @@ func (h *Handler) loadTimeSlots(project *models.Project) error {
 	}
 
 	// 将时段数据分配给对应的团队成员
-	h.assignTimeSlotsToMembers(project.ProductManagers, timeSlotMap["productManagers"])
-	h.assignTimeSlotsToMembers(project.BackendDevelopers, timeSlotMap["backendDevelopers"])
-	h.assignTimeSlotsToMembers(project.FrontendDevelopers, timeSlotMap["frontendDevelopers"])
-	h.assignTimeSlotsToMembers(project.QaTesters, timeSlotMap["qaTesters"])
+	h.assignTimeSlotsToMembers(project.Owner, timeSlotMap["owners"])
 
 	return nil
 }
@@ -232,17 +213,8 @@ func (h *Handler) assignTimeSlotsToMembers(members []models.TeamMember, userTime
 
 // initializeEmptyTimeSlots 初始化空的时段数据
 func (h *Handler) initializeEmptyTimeSlots(project *models.Project) {
-	for i := range project.ProductManagers {
-		project.ProductManagers[i].TimeSlots = []models.TimeSlot{}
-	}
-	for i := range project.BackendDevelopers {
-		project.BackendDevelopers[i].TimeSlots = []models.TimeSlot{}
-	}
-	for i := range project.FrontendDevelopers {
-		project.FrontendDevelopers[i].TimeSlots = []models.TimeSlot{}
-	}
-	for i := range project.QaTesters {
-		project.QaTesters[i].TimeSlots = []models.TimeSlot{}
+	for i := range project.Owner {
+		project.Owner[i].TimeSlots = []models.TimeSlot{}
 	}
 }
 
@@ -316,10 +288,7 @@ func (h *Handler) loadAllTimeSlots(projects []models.Project, projectIDs []strin
 	for projectID, timeSlotMap := range projectTimeSlots {
 		if projectIndex, exists := projectIndexMap[projectID]; exists {
 			project := &projects[projectIndex]
-			h.assignTimeSlotsToMembers(project.ProductManagers, timeSlotMap["productManagers"])
-			h.assignTimeSlotsToMembers(project.BackendDevelopers, timeSlotMap["backendDevelopers"])
-			h.assignTimeSlotsToMembers(project.FrontendDevelopers, timeSlotMap["frontendDevelopers"])
-			h.assignTimeSlotsToMembers(project.QaTesters, timeSlotMap["qaTesters"])
+			h.assignTimeSlotsToMembers(project.Owner, timeSlotMap["owners"])
 		}
 	}
 
@@ -354,8 +323,8 @@ func (h *Handler) CreateProject(c *gin.Context) {
 	if project.ProposalDate != nil && *project.ProposalDate == "" {
 		project.ProposalDate = nil
 	}
-	if project.LaunchDate != nil && *project.LaunchDate == "" {
-		project.LaunchDate = nil
+	if project.CompletionDate != nil && *project.CompletionDate == "" {
+		project.CompletionDate = nil
 	}
 
 	// 初始化数组字段
@@ -365,17 +334,8 @@ func (h *Handler) CreateProject(c *gin.Context) {
 	if project.Followers == nil {
 		project.Followers = []string{}
 	}
-	if project.ProductManagers == nil {
-		project.ProductManagers = []models.TeamMember{}
-	}
-	if project.BackendDevelopers == nil {
-		project.BackendDevelopers = []models.TeamMember{}
-	}
-	if project.FrontendDevelopers == nil {
-		project.FrontendDevelopers = []models.TeamMember{}
-	}
-	if project.QaTesters == nil {
-		project.QaTesters = []models.TeamMember{}
+	if project.Owner == nil {
+		project.Owner = []models.TeamMember{}
 	}
 	if project.Comments == nil {
 		project.Comments = []models.Comment{}
@@ -393,10 +353,7 @@ func (h *Handler) CreateProject(c *gin.Context) {
 	defer tx.Rollback()
 
 	// 序列化JSONB字段
-	productManagersJSON, _ := json.Marshal(project.ProductManagers)
-	backendDevelopersJSON, _ := json.Marshal(project.BackendDevelopers)
-	frontendDevelopersJSON, _ := json.Marshal(project.FrontendDevelopers)
-	qaTestersJSON, _ := json.Marshal(project.QaTesters)
+	ownerJSON, _ := json.Marshal(project.Owner)
 	commentsJSON, _ := json.Marshal(project.Comments)
 	changeLogJSON, _ := json.Marshal(project.ChangeLog)
 	documentsJSON, _ := json.Marshal(project.Documents)
@@ -404,17 +361,16 @@ func (h *Handler) CreateProject(c *gin.Context) {
 	// 插入项目基本信息
 	query := `
 		INSERT INTO projects (
-			id, name, system, priority, business_problem, key_result_ids, weekly_update, 
-			last_week_update, status, product_managers, backend_developers, 
-			frontend_developers, qa_testers, proposal_date, launch_date, 
+			id, name, business_direction, priority, business_background, key_result_ids, weekly_update,
+			last_week_update, status, owner,
+			proposal_date, completion_date,
 			created_at, followers, comments, change_log, documents
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
 
 	_, err = tx.Exec(query,
-		project.ID, project.Name, project.System, project.Priority, project.BusinessProblem,
+		project.ID, project.Name, project.BusinessDirection, project.Priority, project.BusinessBackground,
 		pq.Array(project.KeyResultIds), project.WeeklyUpdate, project.LastWeekUpdate,
-		project.Status, productManagersJSON, backendDevelopersJSON,
-		frontendDevelopersJSON, qaTestersJSON, project.ProposalDate, project.LaunchDate,
+		project.Status, ownerJSON, project.ProposalDate, project.CompletionDate,
 		project.CreatedAt, pq.Array(project.Followers), commentsJSON, changeLogJSON, documentsJSON)
 
 	if err != nil {
@@ -429,10 +385,7 @@ func (h *Handler) CreateProject(c *gin.Context) {
 
 	// 处理各个角色的多时段数据
 	roleMap := map[string][]models.TeamMember{
-		"productManagers":    project.ProductManagers,
-		"backendDevelopers":  project.BackendDevelopers,
-		"frontendDevelopers": project.FrontendDevelopers,
-		"qaTesters":          project.QaTesters,
+		"owners": project.Owner,
 	}
 
 	for roleKey, members := range roleMap {
@@ -482,23 +435,22 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	// 首先获取现有项目
 	var existing models.Project
 	query := `
-		SELECT id, name, system, priority, business_problem, key_result_ids, weekly_update, 
-		       last_week_update, status, product_managers, backend_developers, 
-		       frontend_developers, qa_testers, proposal_date, launch_date, 
+		SELECT id, name, business_direction, priority, business_background, key_result_ids, weekly_update,
+		       last_week_update, status, owner,
+		       proposal_date, completion_date,
 		       created_at, followers, comments, change_log, documents
 		FROM projects WHERE id = $1
 	`
 
 	var keyResultIds pq.StringArray
 	var followers pq.StringArray
-	var productManagers, backendDevelopers, frontendDevelopers, qaTesters []byte
+	var owner []byte
 	var comments, changeLog, documents []byte
 
 	err := h.db.QueryRow(query, projectID).Scan(
-		&existing.ID, &existing.Name, &existing.System, &existing.Priority, &existing.BusinessProblem, &keyResultIds,
-		&existing.WeeklyUpdate, &existing.LastWeekUpdate, &existing.Status, &productManagers,
-		&backendDevelopers, &frontendDevelopers, &qaTesters,
-		&existing.ProposalDate, &existing.LaunchDate, &existing.CreatedAt, &followers, &comments, &changeLog, &documents,
+		&existing.ID, &existing.Name, &existing.BusinessDirection, &existing.Priority, &existing.BusinessBackground, &keyResultIds,
+		&existing.WeeklyUpdate, &existing.LastWeekUpdate, &existing.Status, &owner,
+		&existing.ProposalDate, &existing.CompletionDate, &existing.CreatedAt, &followers, &comments, &changeLog, &documents,
 	)
 
 	if err != nil {
@@ -513,10 +465,7 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	// 转换现有数据
 	existing.KeyResultIds = []string(keyResultIds)
 	existing.Followers = []string(followers)
-	json.Unmarshal(productManagers, &existing.ProductManagers)
-	json.Unmarshal(backendDevelopers, &existing.BackendDevelopers)
-	json.Unmarshal(frontendDevelopers, &existing.FrontendDevelopers)
-	json.Unmarshal(qaTesters, &existing.QaTesters)
+	json.Unmarshal(owner, &existing.Owner)
 	json.Unmarshal(comments, &existing.Comments)
 	json.Unmarshal(changeLog, &existing.ChangeLog)
 	json.Unmarshal(documents, &existing.Documents)
@@ -525,8 +474,8 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	if updates.Name != "" {
 		existing.Name = updates.Name
 	}
-	if updates.System != nil {
-		existing.System = updates.System
+	if updates.BusinessDirection != nil {
+		existing.BusinessDirection = updates.BusinessDirection
 	}
 	if updates.Priority != "" {
 		existing.Priority = updates.Priority
@@ -534,8 +483,8 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	if updates.Status != "" {
 		existing.Status = updates.Status
 	}
-	if updates.BusinessProblem != nil {
-		existing.BusinessProblem = updates.BusinessProblem
+	if updates.BusinessBackground != nil {
+		existing.BusinessBackground = updates.BusinessBackground
 	}
 	if updates.WeeklyUpdate != nil {
 		existing.WeeklyUpdate = updates.WeeklyUpdate
@@ -546,8 +495,8 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	if updates.ProposalDate != nil {
 		existing.ProposalDate = updates.ProposalDate
 	}
-	if updates.LaunchDate != nil {
-		existing.LaunchDate = updates.LaunchDate
+	if updates.CompletionDate != nil {
+		existing.CompletionDate = updates.CompletionDate
 	}
 	if updates.KeyResultIds != nil {
 		existing.KeyResultIds = updates.KeyResultIds
@@ -555,17 +504,8 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	if updates.Followers != nil {
 		existing.Followers = updates.Followers
 	}
-	if updates.ProductManagers != nil {
-		existing.ProductManagers = updates.ProductManagers
-	}
-	if updates.BackendDevelopers != nil {
-		existing.BackendDevelopers = updates.BackendDevelopers
-	}
-	if updates.FrontendDevelopers != nil {
-		existing.FrontendDevelopers = updates.FrontendDevelopers
-	}
-	if updates.QaTesters != nil {
-		existing.QaTesters = updates.QaTesters
+	if updates.Owner != nil {
+		existing.Owner = updates.Owner
 	}
 	if updates.Comments != nil {
 		existing.Comments = updates.Comments
@@ -589,31 +529,26 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	defer tx.Rollback()
 
 	// 序列化JSONB字段
-	productManagersJSON, _ := json.Marshal(existing.ProductManagers)
-	backendDevelopersJSON, _ := json.Marshal(existing.BackendDevelopers)
-	frontendDevelopersJSON, _ := json.Marshal(existing.FrontendDevelopers)
-	qaTestersJSON, _ := json.Marshal(existing.QaTesters)
+	ownerJSON, _ := json.Marshal(existing.Owner)
 	commentsJSON, _ := json.Marshal(existing.Comments)
 	changeLogJSON, _ := json.Marshal(existing.ChangeLog)
 	documentsJSON, _ := json.Marshal(existing.Documents)
 
 	// 更新项目基本信息
 	updateQuery := `
-		UPDATE projects SET 
-			name = $2, system = $3, priority = $4, business_problem = $5, key_result_ids = $6, 
-			weekly_update = $7, last_week_update = $8, status = $9, 
-			product_managers = $10, backend_developers = $11, 
-			frontend_developers = $12, qa_testers = $13, 
-			proposal_date = $14, launch_date = $15, followers = $16, 
-			comments = $17, change_log = $18, created_at = $19, documents = $20
+		UPDATE projects SET
+			name = $2, business_direction = $3, priority = $4, business_background = $5, key_result_ids = $6,
+			weekly_update = $7, last_week_update = $8, status = $9,
+			owner = $10,
+			proposal_date = $11, completion_date = $12, followers = $13,
+			comments = $14, change_log = $15, created_at = $16, documents = $17
 		WHERE id = $1
 	`
 
 	_, err = tx.Exec(updateQuery,
-		projectID, existing.Name, existing.System, existing.Priority, existing.BusinessProblem,
+		projectID, existing.Name, existing.BusinessDirection, existing.Priority, existing.BusinessBackground,
 		pq.Array(existing.KeyResultIds), existing.WeeklyUpdate, existing.LastWeekUpdate,
-		existing.Status, productManagersJSON, backendDevelopersJSON,
-		frontendDevelopersJSON, qaTestersJSON, existing.ProposalDate, existing.LaunchDate,
+		existing.Status, ownerJSON, existing.ProposalDate, existing.CompletionDate,
 		pq.Array(existing.Followers), commentsJSON, changeLogJSON, existing.CreatedAt, documentsJSON)
 
 	if err != nil {
@@ -622,8 +557,7 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	}
 
 	// 检查是否有团队成员更新，如果有则更新时段数据
-	hasTeamUpdates := updates.ProductManagers != nil || updates.BackendDevelopers != nil ||
-		updates.FrontendDevelopers != nil || updates.QaTesters != nil
+	hasTeamUpdates := updates.Owner != nil
 
 	if hasTeamUpdates {
 		// 删除现有的时段数据
@@ -639,10 +573,7 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 			VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
 		roleMap := map[string][]models.TeamMember{
-			"productManagers":    existing.ProductManagers,
-			"backendDevelopers":  existing.BackendDevelopers,
-			"frontendDevelopers": existing.FrontendDevelopers,
-			"qaTesters":          existing.QaTesters,
+			"owners": existing.Owner,
 		}
 
 		for roleKey, members := range roleMap {

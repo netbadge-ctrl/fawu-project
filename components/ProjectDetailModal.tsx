@@ -5,13 +5,12 @@ import { RichTextInput } from './RichTextInput';
 import { AutoResizeInput } from './AutoResizeInput';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
 import { DatePicker } from './DatePicker';
-import { SYSTEM_OPTIONS } from '../constants';
 import KRSelectionModal from './KRSelectionModal';
 import { extractUrl, safeHref } from '../utils';
 import { countTimeSlotsWorkingDays, countWorkingDaysInRange } from '../utils/holidays';
 
 // 本周进展默认模板标题 - 这四个标题加粗展示，且不允许用户删除
-const WEEKLY_UPDATE_HEADERS = ['产品进展:', '后端进展:', '前端进展:', '测试进展:'];
+const WEEKLY_UPDATE_HEADERS = ['本周进展:', '风险提示:', '下周计划:', '其他:'];
 
 const PriorityBadge: React.FC<{ priority: Priority }> = ({ priority }) => {
     const priorityStyles: Record<Priority, string> = {
@@ -161,49 +160,18 @@ const EditableStatusSelect: React.FC<{
     );
 };
 
-const EditableSystemSelect: React.FC<{ 
-    system: string | undefined; 
-    onSystemChange: (system: string) => void;
-}> = ({ system, onSystemChange }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
-    const handleSystemSelect = (newSystem: string) => {
-        onSystemChange(newSystem);
-        setIsOpen(false);
-    };
-
+const EditableBusinessDirectionInput: React.FC<{
+    businessDirection: string | undefined;
+    onBusinessDirectionChange: (value: string) => void;
+}> = ({ businessDirection, onBusinessDirectionChange }) => {
     return (
-        <div className="relative">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-[#4a4a4a] bg-white dark:bg-[#2a2a2a] hover:bg-gray-50 dark:hover:bg-[#2d2d2d] transition-colors group"
-            >
-                <span className="text-gray-700 dark:text-gray-300">
-                    {system || '选择系统'}
-                </span>
-                <IconChevronDown className="w-3 h-3 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
-            </button>
-            
-            {isOpen && (
-                <>
-                    <div 
-                        className="fixed inset-0 z-10" 
-                        onClick={() => setIsOpen(false)}
-                    />
-                    <div className="absolute top-full left-0 mt-1 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#4a4a4a] rounded-lg shadow-lg z-20 min-w-[180px] max-h-60 overflow-y-auto">
-                        {SYSTEM_OPTIONS.map((systemOption) => (
-                            <button
-                                key={systemOption}
-                                onClick={() => handleSystemSelect(systemOption)}
-                                className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors text-sm text-gray-700 dark:text-gray-300"
-                            >
-                                {systemOption}
-                            </button>
-                        ))}
-                    </div>
-                </>
-            )}
-        </div>
+        <input
+            type="text"
+            value={businessDirection || ''}
+            onChange={(e) => onBusinessDirectionChange(e.target.value)}
+            placeholder="请输入业务方向"
+            className="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-[#4a4a4a] bg-white dark:bg-[#2a2a2a] hover:bg-gray-50 dark:hover:bg-[#2d2d2d] transition-colors text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6C63FF]"
+        />
     );
 };
 
@@ -337,10 +305,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
         console.log('复制排期按钮被点击');
         
         const roleInfo: { key: ProjectRoleKey, name: string }[] = [
-            { key: 'productManagers', name: '产品经理' },
-            { key: 'backendDevelopers', name: '后端研发' },
-            { key: 'frontendDevelopers', name: '前端研发' },
-            { key: 'qaTesters', name: '测试' },
+            { key: 'owners', name: '负责人' },
         ];
 
         let scheduleText = `${project.name} - 团队排期\n\n`;
@@ -480,28 +445,24 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
         }
     };
 
-    const handleSystemChange = (newSystem: string) => {
-        if (!newSystem || !newSystem.trim()) {
-            alert('归属系统为必填项，不允许清空');
-            return;
-        }
-        onUpdateProject(project.id, 'system', newSystem);
+    const handleBusinessDirectionChange = (newBusinessDirection: string) => {
+        onUpdateProject(project.id, 'businessDirection', newBusinessDirection);
     };
 
-    const handleBusinessProblemSave = (newBusinessProblem: string) => {
-        // 编辑场景下阻止清空：解决的业务问题为必填项
-        if (!newBusinessProblem.trim()) {
-            alert('解决的业务问题为必填项，不允许清空');
+    const handleBusinessBackgroundSave = (newBusinessBackground: string) => {
+        // 编辑场景下阻止清空：业务背景为必填项
+        if (!newBusinessBackground.trim()) {
+            alert('业务背景为必填项，不允许清空');
             return;
         }
-        if (newBusinessProblem.trim() !== (project.businessProblem || '').trim()) {
-            onUpdateProject(project.id, 'businessProblem', newBusinessProblem.trim());
+        if (newBusinessBackground.trim() !== (project.businessBackground || '').trim()) {
+            onUpdateProject(project.id, 'businessBackground', newBusinessBackground.trim());
         }
     };
 
-    const handleLaunchDateSave = (newLaunchDate: string) => {
-        if (newLaunchDate !== (project.launchDate || '')) {
-            onUpdateProject(project.id, 'launchDate', newLaunchDate || null);
+    const handleCompletionDateSave = (newCompletionDate: string) => {
+        if (newCompletionDate !== (project.completionDate || '')) {
+            onUpdateProject(project.id, 'completionDate', newCompletionDate || null);
         }
     };
 
@@ -546,12 +507,8 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
             alert('请输入项目名称');
             return;
         }
-        if (!project.businessProblem || !project.businessProblem.trim()) {
-            alert('请填写解决的业务问题');
-            return;
-        }
-        if (!project.system || !project.system.trim()) {
-            alert('请选择归属系统');
+        if (!project.businessBackground || !project.businessBackground.trim()) {
+            alert('请填写业务背景');
             return;
         }
         if (onSave) {
@@ -560,10 +517,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
     };
 
     const roleInfo: { key: ProjectRoleKey, name: string }[] = [
-        { key: 'productManagers', name: '产品经理' },
-        { key: 'backendDevelopers', name: '后端研发' },
-        { key: 'frontendDevelopers', name: '前端研发' },
-        { key: 'qaTesters', name: '测试' },
+        { key: 'owners', name: '负责人' },
     ];
     
     const projectOkrs = (activeOkrs || []).filter(okr =>
@@ -587,15 +541,10 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                             />
                         </div>
                         <div className="flex-shrink-0">
-                            <EditableSystemSelect 
-                                system={project.system}
-                                onSystemChange={handleSystemChange}
+                            <EditableBusinessDirectionInput
+                                businessDirection={project.businessDirection}
+                                onBusinessDirectionChange={handleBusinessDirectionChange}
                             />
-                            {(!project.system || !project.system.trim()) && (
-                                <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
-                                    <span aria-hidden>⚠</span>归属系统为必填项
-                                </p>
-                            )}
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -620,16 +569,16 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                 <div className="flex-grow p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8">
                     {/* Left Column (Info) */}
                     <div className="space-y-6">
-                        <InfoBlock label="解决的业务问题">
+                        <InfoBlock label="业务背景">
                             <EditableText
-                                value={project.businessProblem || ''}
-                                onSave={handleBusinessProblemSave}
-                                placeholder="输入项目要解决的业务问题..."
+                                value={project.businessBackground || ''}
+                                onSave={handleBusinessBackgroundSave}
+                                placeholder="输入项目的业务背景..."
                                 multiline
                             />
-                            {(!project.businessProblem || !project.businessProblem.trim()) && (
+                            {(!project.businessBackground || !project.businessBackground.trim()) && (
                                 <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
-                                    <span aria-hidden>⚠</span>解决的业务问题为必填项
+                                    <span aria-hidden>⚠</span>业务背景为必填项
                                 </p>
                             )}
                         </InfoBlock>
@@ -691,11 +640,11 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                                     onStatusChange={handleStatusChange}
                                 />
                             </InfoBlock>
-                            <InfoBlock label="上线时间">
-                                <DatePicker 
-                                    selectedDate={project.launchDate || undefined}
-                                    onSelectDate={handleLaunchDateSave}
-                                    placeholder="选择上线时间"
+                            <InfoBlock label="完成日期">
+                                <DatePicker
+                                    selectedDate={project.completionDate || undefined}
+                                    onSelectDate={handleCompletionDateSave}
+                                    placeholder="选择完成日期"
                                 />
                             </InfoBlock>
                         </div>

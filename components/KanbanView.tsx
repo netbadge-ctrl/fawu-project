@@ -295,7 +295,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     if (selectedProjectIds.length > 0 || selectedKrIds.length > 0) {
         const assignedUserIds = new Set<string>();
         relevantProjects.forEach(p => {
-            const roles: (keyof Project)[] = ['productManagers', 'backendDevelopers', 'frontendDevelopers', 'qaTesters'];
+            const roles: (keyof Project)[] = ['owners'];
             roles.forEach(roleKey => {
                 const team = (p[roleKey] as { userId: string }[]) || [];
                 team.forEach(member => assignedUserIds.add(member.userId));
@@ -332,8 +332,8 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     return sortedUsers.map(user => {
       const assignedProjects: { project: Project, role: string, startDate: string, endDate: string, description?: string }[] = [];
       relevantProjects.forEach(p => {
-        const roles: (keyof Project)[] = ['productManagers', 'backendDevelopers', 'frontendDevelopers', 'qaTesters'];
-        const roleNames: Record<string, string> = { productManagers: '产品', backendDevelopers: '后端', frontendDevelopers: '前端', qaTesters: '测试' };
+        const roles: (keyof Project)[] = ['owners'];
+        const roleNames: Record<string, string> = { owners: '负责人' };
         roles.forEach(roleKey => {
             const team = (p[roleKey] as any[]) || [];
             const member = team.find(m => m.userId === user.id);

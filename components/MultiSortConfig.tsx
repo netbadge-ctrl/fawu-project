@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
 
 // 可用的排序字段
-export type SortField = 
-  | 'name' 
-  | 'status' 
-  | 'priority' 
-  | 'keyResults' 
-  | 'productManagers' 
-  | 'backendDevelopers' 
-  | 'frontendDevelopers' 
-  | 'qaTesters'
+export type SortField =
+  | 'name'
+  | 'status'
+  | 'priority'
+  | 'keyResults'
+  | 'owners'
   | 'createdAt';
 
 export type SortDirection = 'asc' | 'desc';
@@ -32,10 +29,7 @@ const fieldLabels: Record<SortField, string> = {
   status: '开发状态',
   priority: '优先级',
   keyResults: '对应OKR',
-  productManagers: '产品经理',
-  backendDevelopers: '后端研发',
-  frontendDevelopers: '前端研发',
-  qaTesters: '测试',
+  owners: '负责人',
   createdAt: '创建时间',
 };
 

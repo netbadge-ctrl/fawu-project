@@ -9,7 +9,7 @@ interface ProjectWeeklySummary {
   weeklyUpdate: string;
   status: string;
   priority: string;
-  productManagers: string[];
+  owners: string[];
   memberAlerts?: string[];
   scheduleChanges?: string[];
   delayRisks?: string[];
@@ -780,13 +780,13 @@ const WeeklyReportView: React.FC = () => {
                                           )}
                                         </p>
 
-                                        {proj.productManagers && proj.productManagers.filter(Boolean).length > 0 && (
+                                        {proj.owners && proj.owners.filter(Boolean).length > 0 && (
                                           <div className="mt-2.5 flex items-center gap-2 text-[11px]">
                                             <span className="font-semibold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
-                                              PM
+                                              负责人
                                             </span>
                                             <span className="text-zinc-600 dark:text-zinc-300">
-                                              {proj.productManagers.filter(Boolean).join(' · ')}
+                                              {proj.owners.filter(Boolean).join(' · ')}
                                             </span>
                                           </div>
                                         )}

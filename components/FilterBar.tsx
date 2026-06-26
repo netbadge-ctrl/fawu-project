@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { User, ProjectStatus, Priority, OKR } from '../types';
 import { IconSearch } from './Icons';
 import { MultiSelectDropdown } from './MultiSelectDropdown';
-import { SYSTEM_OPTIONS } from '../constants';
 
 interface FilterBarProps {
     allUsers: User[];
@@ -13,16 +12,8 @@ interface FilterBarProps {
     setSelectedStatuses: (statuses: string[]) => void;
     selectedPriorities: string[];
     setSelectedPriorities: (priorities: string[]) => void;
-    selectedSystems: string[];
-    setSelectedSystems: (systems: string[]) => void;
-    selectedPMs: string[];
-    setSelectedPMs: (pmIds: string[]) => void;
-    selectedBEs: string[];
-    setSelectedBEs: (beIds: string[]) => void;
-    selectedFEs: string[];
-    setSelectedFEs: (feIds: string[]) => void;
-    selectedQAs: string[];
-    setSelectedQAs: (qaIds: string[]) => void;
+    selectedOwners: string[];
+    setSelectedOwners: (ownerIds: string[]) => void;
     selectedKrs: string[];
     setSelectedKrs: (krIds: string[]) => void;
 }
@@ -36,16 +27,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     setSelectedStatuses,
     selectedPriorities,
     setSelectedPriorities,
-    selectedSystems,
-    setSelectedSystems,
-    selectedPMs,
-    setSelectedPMs,
-    selectedBEs,
-    setSelectedBEs,
-    selectedFEs,
-    setSelectedFEs,
-    selectedQAs,
-    setSelectedQAs,
+    selectedOwners,
+    setSelectedOwners,
     selectedKrs,
     setSelectedKrs,
 }) => {
@@ -69,11 +52,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         { value: '', label: '未设置' },
         ...Object.values(Priority).map(p => ({ value: p, label: p }))
     ];
-    const systemOptions = [
-        { value: '', label: '未设置' },
-        ...SYSTEM_OPTIONS.map(s => ({ value: s, label: s }))
-    ];
-    
+
     // 按部门分组用户选项
     const userGroupedOptions = useMemo(() => {
         const departmentMap = new Map<string, User[]>();
@@ -144,42 +123,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     </div>
                     <div className="relative">
                         <MultiSelectDropdown
-                            options={systemOptions}
-                            selectedValues={selectedSystems}
-                            onSelectionChange={setSelectedSystems}
-                            placeholder="系统"
-                        />
-                    </div>
-                    <div className="relative">
-                        <MultiSelectDropdown
                             groupedOptions={userGroupedOptions}
-                            selectedValues={selectedPMs}
-                            onSelectionChange={setSelectedPMs}
-                            placeholder="产品经理"
-                        />
-                    </div>
-                    <div className="relative">
-                        <MultiSelectDropdown
-                            groupedOptions={userGroupedOptions}
-                            selectedValues={selectedBEs}
-                            onSelectionChange={setSelectedBEs}
-                            placeholder="后端研发"
-                        />
-                    </div>
-                    <div className="relative">
-                        <MultiSelectDropdown
-                            groupedOptions={userGroupedOptions}
-                            selectedValues={selectedFEs}
-                            onSelectionChange={setSelectedFEs}
-                            placeholder="前端研发"
-                        />
-                    </div>
-                    <div className="relative">
-                        <MultiSelectDropdown
-                            groupedOptions={userGroupedOptions}
-                            selectedValues={selectedQAs}
-                            onSelectionChange={setSelectedQAs}
-                            placeholder="测试"
+                            selectedValues={selectedOwners}
+                            onSelectionChange={setSelectedOwners}
+                            placeholder="负责人"
                         />
                     </div>
                     <div className="relative">
@@ -191,20 +138,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                         />
                     </div>
                 </div>
-                
+
                 {/* 清除按钮 */}
-                {(selectedStatuses.length > 0 || selectedPriorities.length > 0 || selectedSystems.length > 0 || selectedPMs.length > 0 || selectedBEs.length > 0 || 
-                  selectedFEs.length > 0 || selectedQAs.length > 0 || selectedKrs.length > 0 || searchTerm.trim()) && (
+                {(selectedStatuses.length > 0 || selectedPriorities.length > 0 || selectedOwners.length > 0 ||
+                  selectedKrs.length > 0 || searchTerm.trim()) && (
                     <button
                         onClick={() => {
                             setSearchTerm('');
                             setSelectedStatuses([]);
                             setSelectedPriorities([]);
-                            setSelectedSystems([]);
-                            setSelectedPMs([]);
-                            setSelectedBEs([]);
-                            setSelectedFEs([]);
-                            setSelectedQAs([]);
+                            setSelectedOwners([]);
                             setSelectedKrs([]);
                         }}
                         className="flex-shrink-0 px-3 py-2 text-xs text-gray-500 dark:text-gray-400 hover:text-[#6C63FF] dark:hover:text-[#A29DFF] hover:bg-gray-50 dark:hover:bg-[#3a3a3a] rounded-lg transition-all border border-gray-200 dark:border-[#4a4a4a]"

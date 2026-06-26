@@ -25,35 +25,32 @@ export const AnnualStats: React.FC<AnnualStatsProps> = ({ projects, activeOkrs, 
     const stats = useMemo(() => {
         const currentYear = new Date().getFullYear();
         
-        const myProjects = (projects || []).filter(p => 
-            (p.productManagers || []).some(m => m?.userId === currentUser.id) ||
-            (p.backendDevelopers || []).some(m => m?.userId === currentUser.id) ||
-            (p.frontendDevelopers || []).some(m => m?.userId === currentUser.id) ||
-            (p.qaTesters || []).some(m => m?.userId === currentUser.id)
+        const myProjects = (projects || []).filter(p =>
+            (p.owners || []).some(m => m?.userId === currentUser.id)
         );
 
-        const annualProjects = myProjects.filter(p => 
+        const annualProjects = myProjects.filter(p =>
             p.proposedDate && new Date(p.proposedDate).getFullYear() === currentYear
         );
 
-        // 年度上线项目：状态为"已完成"、"本周已上线"且上线时间在当前年度的项目
+        // 年度完成项目：状态为"已完成"、"本周已上线"且完成日期在当前年度的项目
         const launchedProjects = myProjects.filter(p =>
-            (p.status === ProjectStatus.Completed || p.status === ProjectStatus.LaunchedThisWeek) && 
-            p.launchDate && new Date(p.launchDate).getFullYear() === currentYear
+            (p.status === ProjectStatus.Completed || p.status === ProjectStatus.LaunchedThisWeek) &&
+            p.completionDate && new Date(p.completionDate).getFullYear() === currentYear
         );
 
         // 我参与的正在进行的项目：只排除"暂停"和"已完成"状态的项目
-        const ongoingOkrProjects = myProjects.filter(p => 
-            p.status !== ProjectStatus.Paused && 
+        const ongoingOkrProjects = myProjects.filter(p =>
+            p.status !== ProjectStatus.Paused &&
             p.status !== ProjectStatus.Completed
         );
 
-        // 年度已上线的OKR项目：项目优先级为"部门OKR"且项目状态为"已完成"、"本周已上线"且上线时间在本年的日期范围
+        // 年度已完成的OKR项目：项目优先级为"部门OKR"且项目状态为"已完成"、"本周已上线"且完成日期在本年的日期范围
         const launchedOkrProjects = myProjects.filter(p =>
             p.priority === '部门OKR' &&
-            (p.status === ProjectStatus.Completed || p.status === ProjectStatus.LaunchedThisWeek) && 
-            p.launchDate && 
-            new Date(p.launchDate).getFullYear() === currentYear
+            (p.status === ProjectStatus.Completed || p.status === ProjectStatus.LaunchedThisWeek) &&
+            p.completionDate &&
+            new Date(p.completionDate).getFullYear() === currentYear
         );
 
         const krToOkrMap = new Map<string, string>();

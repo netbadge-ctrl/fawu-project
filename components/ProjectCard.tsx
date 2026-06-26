@@ -172,27 +172,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = React.memo(({ project, al
 
       <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-1.5">
         <div className="flex justify-between">
-          <span>产品经理:</span>
+          <span>负责人:</span>
           <span className="font-medium text-gray-700 dark:text-gray-300">
-            {formatMembersWithSchedule(project.productManagers, allUsers)}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span>后端研发:</span>
-          <span className="font-medium text-gray-700 dark:text-gray-300">
-            {formatMembersWithSchedule(project.backendDevelopers, allUsers)}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span>前端研发:</span>
-          <span className="font-medium text-gray-700 dark:text-gray-300">
-            {formatMembersWithSchedule(project.frontendDevelopers, allUsers)}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span>测试:</span>
-          <span className="font-medium text-gray-700 dark:text-gray-300">
-            {formatMembersWithSchedule(project.qaTesters, allUsers)}
+            {formatMembersWithSchedule(project.owners, allUsers)}
           </span>
         </div>
       </div>
@@ -205,10 +187,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = React.memo(({ project, al
     prevProps.project.name === nextProps.project.name &&
     prevProps.project.status === nextProps.project.status &&
     prevProps.project.priority === nextProps.project.priority &&
-    JSON.stringify(prevProps.project.productManagers) === JSON.stringify(nextProps.project.productManagers) &&
-    JSON.stringify(prevProps.project.backendDevelopers) === JSON.stringify(nextProps.project.backendDevelopers) &&
-    JSON.stringify(prevProps.project.frontendDevelopers) === JSON.stringify(nextProps.project.frontendDevelopers) &&
-    JSON.stringify(prevProps.project.qaTesters) === JSON.stringify(nextProps.project.qaTesters)
+    JSON.stringify(prevProps.project.owners) === JSON.stringify(nextProps.project.owners)
   );
 });
 ProjectCard.displayName = 'ProjectCard';

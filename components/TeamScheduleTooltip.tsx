@@ -150,10 +150,7 @@ const RoleSection: React.FC<{ role: Role; roleName: string; allUsers: User[] }> 
 
 export const TeamScheduleTooltip: React.FC<TeamScheduleTooltipProps> = ({ project, allUsers }) => {
   const roles = [
-    { data: project.productManagers || [], name: '产品经理' },
-    { data: project.backendDevelopers || [], name: '后端研发' },
-    { data: project.frontendDevelopers || [], name: '前端研发' },
-    { data: project.qaTesters || [], name: '测试' },
+    { data: project.owners || [], name: '负责人' },
   ];
 
   const hasAnyMembers = roles.some(r => (r.data || []).length > 0);

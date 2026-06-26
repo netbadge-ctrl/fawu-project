@@ -116,95 +116,73 @@ func (h *Handler) migrateOkrSets() error {
 
 func (h *Handler) migrateProjects() error {
 	// 预定义字符串变量
-	businessProblem1 := "新用户注册率增长放缓，需要提升品牌曝光度和转化率。"
+	businessBackground1 := "新用户注册率增长放缓，需要提升品牌曝光度和转化率。"
 	weeklyUpdate1 := "市场活动已启动，网红合作细节敲定中。"
 	lastWeekUpdate1 := "<div>确定了市场推广的核心主题和预算。</div>"
 	proposalDate1 := "2024-05-01"
-	launchDate1 := "2024-09-01"
+	completionDate1 := "2024-09-01"
 
-	businessProblem2 := "移动端应用启动时间过长，用户体验不佳。"
+	businessBackground2 := "移动端应用启动时间过长，用户体验不佳。"
 	weeklyUpdate2 := "完成了首屏加载优化，正在进行内存管理优化。"
 	lastWeekUpdate2 := "分析了性能瓶颈，制定了优化方案。"
 	proposalDate2 := "2024-06-01"
-	launchDate2 := "2024-08-30"
+	completionDate2 := "2024-08-30"
 
 	projects := []models.Project{
 		{
-			ID:              "p1",
-			Name:            "Q3 用户增长计划",
-			Priority:        "部门OKR相关",
-			BusinessProblem: &businessProblem1,
-			KeyResultIds:    []string{"kr1_1", "kr1_2"},
-			WeeklyUpdate:    &weeklyUpdate1,
-			LastWeekUpdate:  &lastWeekUpdate1,
-			Status:          "开发中",
-			ProductManagers: []models.TeamMember{
+			ID:                 "p1",
+			Name:               "Q3 用户增长计划",
+			Priority:           "部门OKR相关",
+			BusinessBackground:  &businessBackground1,
+			KeyResultIds:       []string{"kr1_1", "kr1_2"},
+			WeeklyUpdate:       &weeklyUpdate1,
+			LastWeekUpdate:     &lastWeekUpdate1,
+			Status:             "开发中",
+			Owner: []models.TeamMember{
 				{UserID: "20416", StartDate: stringPtr("2024-06-01"), EndDate: stringPtr("2024-09-01")},
 			},
-			BackendDevelopers: []models.TeamMember{
-				{UserID: "21614", StartDate: stringPtr("2024-07-01"), EndDate: stringPtr("2024-08-15")},
-			},
-			FrontendDevelopers: []models.TeamMember{
-				{UserID: "25408", StartDate: stringPtr("2024-07-01"), EndDate: stringPtr("2024-08-20")},
-			},
-			QaTesters: []models.TeamMember{
-				{UserID: "24533", StartDate: stringPtr("2024-08-01"), EndDate: stringPtr("2024-09-01")},
-			},
-			ProposalDate: &proposalDate1,
-			LaunchDate:   &launchDate1,
-			Followers:    []string{"14670", "22231"},
-			Comments:     []models.Comment{},
-			ChangeLog:    []models.ChangeLogEntry{},
+			ProposalDate:   &proposalDate1,
+			CompletionDate: &completionDate1,
+			Followers:      []string{"14670", "22231"},
+			Comments:       []models.Comment{},
+			ChangeLog:      []models.ChangeLogEntry{},
 		},
 		{
-			ID:              "p2",
-			Name:            "移动端性能优化",
-			Priority:        "部门OKR相关",
-			BusinessProblem: &businessProblem2,
-			KeyResultIds:    []string{"kr2_1", "kr2_2"},
-			WeeklyUpdate:    &weeklyUpdate2,
-			LastWeekUpdate:  &lastWeekUpdate2,
-			Status:          "开发中",
-			ProductManagers: []models.TeamMember{
+			ID:                 "p2",
+			Name:               "移动端性能优化",
+			Priority:           "部门OKR相关",
+			BusinessBackground:  &businessBackground2,
+			KeyResultIds:       []string{"kr2_1", "kr2_2"},
+			WeeklyUpdate:       &weeklyUpdate2,
+			LastWeekUpdate:     &lastWeekUpdate2,
+			Status:             "开发中",
+			Owner: []models.TeamMember{
 				{UserID: "20416", StartDate: stringPtr("2024-06-15"), EndDate: stringPtr("2024-08-30")},
 			},
-			BackendDevelopers: []models.TeamMember{
-				{UserID: "21614", StartDate: stringPtr("2024-07-01"), EndDate: stringPtr("2024-08-15")},
-			},
-			FrontendDevelopers: []models.TeamMember{
-				{UserID: "25408", StartDate: stringPtr("2024-07-01"), EndDate: stringPtr("2024-08-30")},
-			},
-			QaTesters: []models.TeamMember{
-				{UserID: "24533", StartDate: stringPtr("2024-08-01"), EndDate: stringPtr("2024-08-30")},
-			},
-			ProposalDate: &proposalDate2,
-			LaunchDate:   &launchDate2,
-			Followers:    []string{"22231"},
-			Comments:     []models.Comment{},
-			ChangeLog:    []models.ChangeLogEntry{},
+			ProposalDate:   &proposalDate2,
+			CompletionDate: &completionDate2,
+			Followers:      []string{"22231"},
+			Comments:       []models.Comment{},
+			ChangeLog:      []models.ChangeLogEntry{},
 		},
 	}
 
 	for _, project := range projects {
 		// 序列化JSONB字段
-		productManagersJSON, _ := json.Marshal(project.ProductManagers)
-		backendDevelopersJSON, _ := json.Marshal(project.BackendDevelopers)
-		frontendDevelopersJSON, _ := json.Marshal(project.FrontendDevelopers)
-		qaTestersJSON, _ := json.Marshal(project.QaTesters)
+		ownerJSON, _ := json.Marshal(project.Owner)
 		commentsJSON, _ := json.Marshal(project.Comments)
 		changeLogJSON, _ := json.Marshal(project.ChangeLog)
 
 		_, err := h.db.Exec(`
 			INSERT INTO projects (
-				id, name, priority, business_problem, key_result_ids, weekly_update, 
-				last_week_update, status, product_managers, backend_developers, 
-				frontend_developers, qa_testers, proposal_date, launch_date, 
+				id, name, priority, business_background, key_result_ids, weekly_update,
+				last_week_update, status, owner,
+				proposal_date, completion_date,
 				followers, comments, change_log
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-			project.ID, project.Name, project.Priority, project.BusinessProblem,
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+			project.ID, project.Name, project.Priority, project.BusinessBackground,
 			pq.Array(project.KeyResultIds), project.WeeklyUpdate, project.LastWeekUpdate,
-			project.Status, productManagersJSON, backendDevelopersJSON,
-			frontendDevelopersJSON, qaTestersJSON, project.ProposalDate, project.LaunchDate,
+			project.Status, ownerJSON, project.ProposalDate, project.CompletionDate,
 			pq.Array(project.Followers), commentsJSON, changeLogJSON)
 
 		if err != nil {

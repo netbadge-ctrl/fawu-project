@@ -177,10 +177,7 @@ const StatusBadge: React.FC<{ status: ProjectStatus; project: Project; allUsers:
   };
   
   const roleInfo: { key: ProjectRoleKey, name: string }[] = [
-    { key: 'productManagers', name: '产品' },
-    { key: 'backendDevelopers', name: '后端' },
-    { key: 'frontendDevelopers', name: '前端' },
-    { key: 'qaTesters', name: '测试' },
+    { key: 'owners', name: '负责人' },
   ];
   
   return (
@@ -489,11 +486,11 @@ const EditableUpdateDisplay: React.FC<{
     );
 };
 
-const BusinessProblemDisplay: React.FC<{businessProblem: string, projectId: string}> = ({businessProblem, projectId}) => {
+const BusinessBackgroundDisplay: React.FC<{businessBackground: string, projectId: string}> = ({businessBackground, projectId}) => {
     const [showTooltip, setShowTooltip] = useState(false);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const tooltipId = React.useRef(`business-${projectId}-${Date.now()}-${Math.random()}`);
-    const content = businessProblem || '无';
+    const content = businessBackground || '无';
     
     const closeTooltip = React.useCallback(() => {
         setShowTooltip(false);
@@ -565,19 +562,19 @@ export const WeeklyMeetingProjectCard: React.FC<WeeklyMeetingProjectCardProps> =
         okr.keyResults.some(kr => (project.keyResultIds || []).includes(kr.id))
     );
 
-    // 获取产品经理姓名
-    const getProductManagerNames = () => {
-        if (!project.productManagers || project.productManagers.length === 0) {
+    // 获取负责人姓名
+    const getOwnerNames = () => {
+        if (!project.owners || project.owners.length === 0) {
             return '无';
         }
-        
-        const names = project.productManagers
+
+        const names = project.owners
             .map(member => {
                 const user = allUsers.find(u => u.id === member.userId);
                 return user ? user.name : '未知';
             })
             .filter(name => name !== '未知');
-            
+
         return names.length > 0 ? names.join('、') : '无';
     };
 
@@ -590,7 +587,7 @@ export const WeeklyMeetingProjectCard: React.FC<WeeklyMeetingProjectCardProps> =
                     <PriorityBadge priority={project.priority} projectOkrs={projectOkrs} project={project} />
                     <StatusBadge status={project.status} project={project} allUsers={allUsers} />
                     <span className="text-xs font-medium text-gray-600 dark:text-gray-400 ml-1 py-0.5 inline-block">
-                        产品：{getProductManagerNames()}
+                        负责人：{getOwnerNames()}
                     </span>
                 </div>
             </div>
@@ -599,7 +596,7 @@ export const WeeklyMeetingProjectCard: React.FC<WeeklyMeetingProjectCardProps> =
             <div className="p-4 space-y-3 flex-grow flex flex-col overflow-visible">
                 {/* Business Problem Section */}
                 <div className="flex-shrink-0">
-                    <BusinessProblemDisplay businessProblem={project.businessProblem} projectId={project.id} />
+                    <BusinessBackgroundDisplay businessBackground={project.businessBackground} projectId={project.id} />
                 </div>
 
                 {/* Updates Section - 改为上下布局，本周在上 */}
@@ -626,14 +623,14 @@ export const WeeklyMeetingProjectCard: React.FC<WeeklyMeetingProjectCardProps> =
 
             {/* Card Footer */}
             <div className="p-3 border-t border-gray-200 dark:border-[#363636] bg-gray-50 dark:bg-[#2a2a2a]/50 rounded-b-xl flex justify-between items-center">
-                {/* 系统标签 */}
+                {/* 业务方向标签 */}
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {project.system ? (
+                    {project.businessDirection ? (
                         <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-700/50">
-                            {project.system}
+                            {project.businessDirection}
                         </span>
                     ) : (
-                        <span className="text-gray-400 dark:text-gray-500 italic text-xs">未设置系统</span>
+                        <span className="text-gray-400 dark:text-gray-500 italic text-xs">未设置业务方向</span>
                     )}
                 </div>
                 

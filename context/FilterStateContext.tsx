@@ -33,7 +33,6 @@ export interface FilterState {
     selectedStatuses: string[];
     selectedOwners: string[];
     selectedPriorities: string[];
-    selectedSystems: string[];
     selectedKrIds: string[];
     selectedParticipantIds: string[];
     showCompleted: boolean;
@@ -44,15 +43,14 @@ export interface FilterState {
     searchTerm: string;
     selectedStatuses: string[];
     selectedPriorities: string[];
-    selectedSystems: string[];
     selectedParticipants: string[];
     selectedKrs: string[];
-    sortField: 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'launchDate';
+    sortField: 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'completionDate';
     sortDirection: 'asc' | 'desc';
     // 多字段排序规则
     multiSortRules: Array<{
       id: string;
-      field: 'name' | 'status' | 'priority' | 'keyResults' | 'productManagers' | 'backendDevelopers' | 'frontendDevelopers' | 'qaTesters' | 'createdAt';
+      field: 'name' | 'status' | 'priority' | 'keyResults' | 'owners' | 'createdAt';
       direction: 'asc' | 'desc';
     }>;
     useMultiSort: boolean; // 是否启用多字段排序
@@ -93,7 +91,6 @@ const defaultFilterState: FilterState = {
     selectedStatuses: [],
     selectedOwners: [],
     selectedPriorities: [],
-    selectedSystems: [],
     selectedKrIds: [],
     selectedParticipantIds: [],
     showCompleted: false,
@@ -102,7 +99,6 @@ const defaultFilterState: FilterState = {
     searchTerm: '',
     selectedStatuses: [],
     selectedPriorities: [],
-    selectedSystems: [],
     selectedParticipants: [],
     selectedKrs: [],
     sortField: 'createdAt',

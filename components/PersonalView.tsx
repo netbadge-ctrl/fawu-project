@@ -73,10 +73,7 @@ export const PersonalView: React.FC<PersonalViewProps> = ({
     // 优化：一次遍历完成所有分类
     projects.forEach(p => {
       const isParticipant = (
-        (p.productManagers || []).some(m => m?.userId === userId) ||
-        (p.backendDevelopers || []).some(m => m?.userId === userId) ||
-        (p.frontendDevelopers || []).some(m => m?.userId === userId) ||
-        (p.qaTesters || []).some(m => m?.userId === userId)
+        (p.owners || []).some(m => m?.userId === userId)
       );
 
       // 显示我参与的除了"暂停"和"已完成"状态之外的所有项目

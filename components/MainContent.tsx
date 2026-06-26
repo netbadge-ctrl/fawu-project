@@ -32,7 +32,7 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
     {
       id: '1',
       name: 'OMS网络类移动端设计',
-      businessProblem: '1.预约设备上线，支持预约功能模块，引导客户自助分配配置',
+      businessBackground: '1.预约设备上线，支持预约功能模块，引导客户自助分配配置',
       status: '进行中' as ProjectStatus,
       priority: '高' as Priority,
       weeklyUpdate: 'N/A',
@@ -54,20 +54,14 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
   const setSearchTerm = (value: string) => updateProjectListFilters({ searchTerm: value });
   const setSelectedStatuses = (value: string[]) => updateProjectListFilters({ selectedStatuses: value });
   const setSelectedPriorities = (value: string[]) => updateProjectListFilters({ selectedPriorities: value });
-  const setSelectedPMs = (value: string[]) => updateProjectListFilters({ selectedOwners: value });
-  const setSelectedBEs = (value: string[]) => updateProjectListFilters({ selectedOwners: value });
-  const setSelectedFEs = (value: string[]) => updateProjectListFilters({ selectedOwners: value });
-  const setSelectedQAs = (value: string[]) => updateProjectListFilters({ selectedOwners: value });
+  const setSelectedOwners = (value: string[]) => updateProjectListFilters({ selectedOwners: value });
   const setSelectedKrs = (value: string[]) => updateProjectListFilters({ selectedKrs: value });
 
-  // 从状态中获取当前值 - 暂时都使用selectedOwners，后续可以分离
+  // 从状态中获取当前值
   const searchTerm = filters.searchTerm;
   const selectedStatuses = filters.selectedStatuses;
   const selectedPriorities = filters.selectedPriorities;
-  const selectedPMs = filters.selectedOwners;
-  const selectedBEs = filters.selectedOwners;
-  const selectedFEs = filters.selectedOwners;
-  const selectedQAs = filters.selectedOwners;
+  const selectedOwners = filters.selectedOwners;
   const selectedKrs = filters.selectedKrs;
 
   const keyResultToOkrMap = useMemo(() => {
@@ -96,49 +90,25 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
         if (searchTerm && searchTerm.trim() && !fuzzySearch(searchTerm.trim(), project.name)) {
             return false;
         }
-        
+
         // Status
         if (selectedStatuses.length > 0 && !selectedStatuses.includes(project.status)) {
             return false;
         }
-        
+
         // Priority
         if (selectedPriorities.length > 0 && !selectedPriorities.includes(project.priority)) {
             return false;
         }
-        
-        // PMs - 确保数组存在且不为空
-        if (selectedPMs.length > 0) {
-            const productManagers = project.productManagers || [];
-            if (!productManagers.some(m => m && m.userId && selectedPMs.includes(m.userId))) {
+
+        // Owners - 确保数组存在且不为空
+        if (selectedOwners.length > 0) {
+            const owners = project.owners || [];
+            if (!owners.some(m => m && m.userId && selectedOwners.includes(m.userId))) {
                 return false;
             }
         }
-        
-        // BEs - 确保数组存在且不为空
-        if (selectedBEs.length > 0) {
-            const backendDevelopers = project.backendDevelopers || [];
-            if (!backendDevelopers.some(m => m && m.userId && selectedBEs.includes(m.userId))) {
-                return false;
-            }
-        }
-        
-        // FEs - 确保数组存在且不为空
-        if (selectedFEs.length > 0) {
-            const frontendDevelopers = project.frontendDevelopers || [];
-            if (!frontendDevelopers.some(m => m && m.userId && selectedFEs.includes(m.userId))) {
-                return false;
-            }
-        }
-        
-        // QAs - 确保数组存在且不为空
-        if (selectedQAs.length > 0) {
-            const qaTesters = project.qaTesters || [];
-            if (!qaTesters.some(m => m && m.userId && selectedQAs.includes(m.userId))) {
-                return false;
-            }
-        }
-        
+
         // KRs - 确保数组存在且不为空
         if (selectedKrs.length > 0) {
             const keyResultIds = project.keyResultIds || [];
@@ -147,7 +117,7 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
                 return false;
             }
         }
-        
+
         return true;
     });
 
@@ -205,8 +175,8 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
         return statusA - statusB;
     });
 
-  }, [projects, searchTerm, selectedStatuses, selectedPriorities, selectedPMs, selectedBEs, selectedFEs, selectedQAs, selectedKrs, keyResultToOkrMap]);
-  
+  }, [projects, searchTerm, selectedStatuses, selectedPriorities, selectedOwners, selectedKrs, keyResultToOkrMap]);
+
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto flex flex-col gap-6">
@@ -219,14 +189,8 @@ export const MainContent: React.FC<MainContentProps> = (props) => {
           setSelectedStatuses={setSelectedStatuses}
           selectedPriorities={selectedPriorities}
           setSelectedPriorities={setSelectedPriorities}
-          selectedPMs={selectedPMs}
-          setSelectedPMs={setSelectedPMs}
-          selectedBEs={selectedBEs}
-          setSelectedBEs={setSelectedBEs}
-          selectedFEs={selectedFEs}
-          setSelectedFEs={setSelectedFEs}
-          selectedQAs={selectedQAs}
-          setSelectedQAs={setSelectedQAs}
+          selectedOwners={selectedOwners}
+          setSelectedOwners={setSelectedOwners}
           selectedKrs={selectedKrs}
           setSelectedKrs={setSelectedKrs}
 

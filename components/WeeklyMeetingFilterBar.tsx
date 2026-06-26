@@ -2,24 +2,20 @@ import React from 'react';
 import { User, ProjectStatus, OKR, Priority } from '../types';
 import { MultiSelectDropdown } from './MultiSelectDropdown';
 import { KRFilterButton } from './KRFilterButton';
-import { SYSTEM_OPTIONS } from '../constants';
 
 interface WeeklyMeetingFilterBarProps {
     allUsers: User[];
     activeOkrs: OKR[];
-    
+
     selectedPriorities: string[];
     setSelectedPriorities: (values: string[]) => void;
-    
-    selectedSystems: string[];
-    setSelectedSystems: (values: string[]) => void;
-    
+
     selectedKrIds: string[];
     setSelectedKrIds: (values: string[]) => void;
 
     selectedParticipantIds: string[];
     setSelectedParticipantIds: (values: string[]) => void;
-    
+
     selectedStatuses: string[];
     setSelectedStatuses: (values: string[]) => void;
 }
@@ -29,8 +25,6 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
     activeOkrs,
     selectedPriorities,
     setSelectedPriorities,
-    selectedSystems,
-    setSelectedSystems,
     selectedKrIds,
     setSelectedKrIds,
     selectedParticipantIds,
@@ -38,20 +32,16 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
     selectedStatuses,
     setSelectedStatuses
 }) => {
-    
+
     const priorityOptions = [
         { value: '', label: '未设置' },
         ...Object.values(Priority).map(p => ({ value: p, label: p }))
     ];
-    const systemOptions = [
-        { value: '', label: '未设置' },
-        ...SYSTEM_OPTIONS.map(s => ({ value: s, label: s }))
-    ];
-    
+
     // 按部门分组参与人选项
     const participantGroupedOptions = React.useMemo(() => {
         const departmentMap = new Map<string, User[]>();
-        
+
         // 按部门分组
         allUsers.forEach(user => {
             const deptName = user.deptName || '未分配部门';
@@ -60,7 +50,7 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
             }
             departmentMap.get(deptName)!.push(user);
         });
-        
+
         // 转换为 groupedOptions 格式并排序
         return Array.from(departmentMap.entries())
             .map(([deptName, users]) => ({
@@ -71,7 +61,7 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
             }))
             .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
     }, [allUsers]);
-    
+
     const statusOptions = [
         { value: '', label: '未设置' },
         ProjectStatus.NotStarted,
@@ -88,7 +78,7 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
         ProjectStatus.Completed,
         ProjectStatus.Paused,
     ].map(s => typeof s === 'string' ? { value: s, label: s } : s);
-    
+
     return (
         <div className="bg-white dark:bg-[#232323] border border-gray-200 dark:border-[#363636] rounded-xl p-4 flex flex-wrap items-center gap-4 mb-6">
             <MultiSelectDropdown
@@ -96,12 +86,6 @@ export const WeeklyMeetingFilterBar: React.FC<WeeklyMeetingFilterBarProps> = ({
                 selectedValues={selectedPriorities}
                 onSelectionChange={setSelectedPriorities}
                 placeholder="优先级"
-            />
-            <MultiSelectDropdown
-                options={systemOptions}
-                selectedValues={selectedSystems}
-                onSelectionChange={setSelectedSystems}
-                placeholder="系统"
             />
             <KRFilterButton
                 activeOkrs={activeOkrs}

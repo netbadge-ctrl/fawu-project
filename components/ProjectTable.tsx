@@ -15,9 +15,7 @@ import { TeamScheduleTooltip } from './TeamScheduleTooltip';
 import { useDropdownPosition } from '../hooks/useDropdownPosition';
 import KRSelectionModal from './KRSelectionModal';
 import { formatDateOnly, debounce } from '../utils';
-import { SYSTEM_OPTIONS } from '../constants';
-
-type SortField = 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'launchDate';
+type SortField = 'name' | 'status' | 'priority' | 'createdAt' | 'proposedDate' | 'completionDate';
 type SortDirection = 'asc' | 'desc';
 
 interface SortConfig {
@@ -43,19 +41,16 @@ interface ProjectTableProps {
 
 const tableHeaders = [
     { key: 'name', label: '项目名称', width: '200px' },
-    { key: 'system', label: '系统', width: '150px' },
-    { key: 'businessProblem', label: '解决的业务问题', width: '300px' },
+    { key: 'businessDirection', label: '业务方向', width: '150px' },
+    { key: 'businessBackground', label: '业务背景', width: '300px' },
     { key: 'status', label: '状态', width: '120px' },
     { key: 'priority', label: '优先级', width: '150px' },
     { key: 'keyResults', label: '关联的KR', width: '100px' },
     { key: 'weeklyUpdate', label: '本周进展/问题', width: '300px' },
     { key: 'lastWeekUpdate', label: '上周进展/问题', width: '300px' },
-    { key: 'productManagers', label: '产品经理', width: '150px' },
-    { key: 'backendDevelopers', label: '后端研发', width: '150px' },
-    { key: 'frontendDevelopers', label: '前端研发', width: '150px' },
-    { key: 'qaTesters', label: '测试', width: '150px' },
+    { key: 'owners', label: '负责人', width: '150px' },
     { key: 'proposedDate', label: '提出时间', width: '150px' },
-    { key: 'launchDate', label: '上线时间', width: '150px' },
+    { key: 'completionDate', label: '完成日期', width: '150px' },
     { key: 'actions', label: '操作', width: '100px' }
 ];
 
@@ -619,10 +614,7 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
 
   // 使用 useMemo 缓存静态数据
   const roleInfo = useMemo(() => [
-      { key: 'productManagers' as ProjectRoleKey, name: '产品经理' },
-      { key: 'backendDevelopers' as ProjectRoleKey, name: '后端研发' },
-      { key: 'frontendDevelopers' as ProjectRoleKey, name: '前端研发' },
-      { key: 'qaTesters' as ProjectRoleKey, name: '测试' },
+      { key: 'owners' as ProjectRoleKey, name: '负责人' },
   ], []);
 
   const handleOpenRoleModal = useCallback((roleKey: ProjectRoleKey, roleName: string) => {
@@ -667,10 +659,10 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
           <TruncatedText text={project.name} maxLines={2} className="font-medium text-gray-900 dark:text-gray-100" />
         </td>
         <td style={getTdStyle(1)} className={getTdClassName(1)}>
-          <span className="text-sm text-gray-700 dark:text-gray-300">{project.system || '-'}</span>
+          <span className="text-sm text-gray-700 dark:text-gray-300">{project.businessDirection || '-'}</span>
         </td>
         <td style={getTdStyle(2)} className={getTdClassName(2)} onMouseEnter={(e) => onCellMouseEnter(e, project)} onMouseLeave={onCellMouseLeave}>
-          <TruncatedText text={project.businessProblem || '-'} maxLines={3} className="text-gray-600 dark:text-gray-400" />
+          <TruncatedText text={project.businessBackground || '-'} maxLines={3} className="text-gray-600 dark:text-gray-400" />
         </td>
         <td style={getTdStyle(3)} className={getTdClassName(3)}>
           <StatusBadge status={project.status} />
@@ -726,7 +718,7 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
           <span className="text-sm text-gray-600 dark:text-gray-400">{project.proposedDate ? project.proposedDate.split('T')[0] : '-'}</span>
         </td>
         <td style={getTdStyle(13)} className={getTdClassName(13)}>
-          <span className="text-sm text-gray-600 dark:text-gray-400">{project.launchDate ? project.launchDate.split('T')[0] : '-'}</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">{project.completionDate ? project.completionDate.split('T')[0] : '-'}</span>
         </td>
         <td style={getTdStyle(14)} className={getTdClassName(14)} onClick={(e) => e.stopPropagation()}>
           <div>
@@ -746,20 +738,17 @@ const ProjectRow: React.FC<ProjectRowProps> = React.memo(({ project, allUsers, a
   return (
     prevProps.project.id === nextProps.project.id &&
     prevProps.project.name === nextProps.project.name &&
-    prevProps.project.system === nextProps.project.system &&
+    prevProps.project.businessDirection === nextProps.project.businessDirection &&
     prevProps.project.status === nextProps.project.status &&
     prevProps.project.priority === nextProps.project.priority &&
-    prevProps.project.businessProblem === nextProps.project.businessProblem &&
+    prevProps.project.businessBackground === nextProps.project.businessBackground &&
     prevProps.project.weeklyUpdate === nextProps.project.weeklyUpdate &&
     prevProps.project.lastWeekUpdate === nextProps.project.lastWeekUpdate &&
     prevProps.project.proposedDate === nextProps.project.proposedDate &&
-    prevProps.project.launchDate === nextProps.project.launchDate &&
+    prevProps.project.completionDate === nextProps.project.completionDate &&
     prevProps.project.isNew === nextProps.project.isNew &&
     JSON.stringify(prevProps.project.keyResultIds) === JSON.stringify(nextProps.project.keyResultIds) &&
-    JSON.stringify(prevProps.project.productManagers) === JSON.stringify(nextProps.project.productManagers) &&
-    JSON.stringify(prevProps.project.backendDevelopers) === JSON.stringify(nextProps.project.backendDevelopers) &&
-    JSON.stringify(prevProps.project.frontendDevelopers) === JSON.stringify(nextProps.project.frontendDevelopers) &&
-    JSON.stringify(prevProps.project.qaTesters) === JSON.stringify(nextProps.project.qaTesters) &&
+    JSON.stringify(prevProps.project.owners) === JSON.stringify(nextProps.project.owners) &&
     prevProps.currentUser?.id === nextProps.currentUser?.id &&
     prevProps.allUsers.length === nextProps.allUsers.length &&
     prevProps.activeOkrs.length === nextProps.activeOkrs.length
@@ -1003,7 +992,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({ projects, allUsers, 
           <thead className="sticky top-0 z-20">
             <tr>
               {tableHeaders.map((header, index) => {
-                const isSortable = ['name', 'status', 'priority', 'proposedDate', 'launchDate'].includes(header.key);
+                const isSortable = ['name', 'status', 'priority', 'proposedDate', 'completionDate'].includes(header.key);
                 const isActive = sortConfig?.field === header.key;
                 const sortDirection = isActive ? sortConfig.direction : null;
                 

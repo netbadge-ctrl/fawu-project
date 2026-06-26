@@ -89,18 +89,16 @@ CREATE TABLE IF NOT EXISTS okr_sets (
 CREATE TABLE IF NOT EXISTS projects (
     id VARCHAR(255) PRIMARY KEY,
     name TEXT NOT NULL,
+    business_direction VARCHAR(255),
     priority VARCHAR(50) NOT NULL,
-    business_problem TEXT,
+    business_background TEXT,
     key_result_ids TEXT[],
     weekly_update TEXT,
     last_week_update TEXT,
     status VARCHAR(50) NOT NULL,
-    product_managers JSONB,
-    backend_developers JSONB,
-    frontend_developers JSONB,
-    qa_testers JSONB,
+    owner JSONB,
     proposal_date DATE NULL,
-    launch_date DATE NULL,
+    completion_date DATE NULL,
     followers TEXT[],
     comments JSONB,
     change_log JSONB
@@ -114,8 +112,9 @@ CREATE TABLE IF NOT EXISTS projects (
 |--------|----------|------|------|
 | id | VARCHAR(255) | PRIMARY KEY | 项目唯一标识符 |
 | name | TEXT | NOT NULL | 项目名称 |
+| business_direction | VARCHAR(255) | - | 业务方向 |
 | priority | VARCHAR(50) | NOT NULL | 项目优先级 |
-| business_problem | TEXT | - | 解决的业务问题描述 |
+| business_background | TEXT | - | 业务背景 |
 | status | VARCHAR(50) | NOT NULL | 项目状态 |
 
 #### 优先级枚举值
@@ -151,16 +150,13 @@ enum ProjectStatus {
 | weekly_update | TEXT | - | 本周进展/问题 |
 | last_week_update | TEXT | - | 上周进展/问题 |
 | proposal_date | DATE | NULL | 项目提出日期 |
-| launch_date | DATE | NULL | 项目上线日期 |
+| completion_date | DATE | NULL | 项目完成日期 |
 | followers | TEXT[] | - | 关注者用户ID数组 |
 
 #### 团队角色字段 (JSONB格式)
 | 字段名 | 数据类型 | 说明 |
 |--------|----------|------|
-| product_managers | JSONB | 产品经理团队 |
-| backend_developers | JSONB | 后端开发团队 |
-| frontend_developers | JSONB | 前端开发团队 |
-| qa_testers | JSONB | 测试团队 |
+| owner | JSONB | 项目负责人团队 |
 
 ##### 团队成员JSONB结构
 ```json
@@ -254,8 +250,8 @@ CREATE INDEX idx_projects_status ON projects(status);
 -- 项目优先级索引（用于优先级筛选）
 CREATE INDEX idx_projects_priority ON projects(priority);
 
--- 项目上线日期索引（用于时间范围查询）
-CREATE INDEX idx_projects_launch_date ON projects(launch_date);
+-- 项目完成日期索引（用于时间范围查询）
+CREATE INDEX idx_projects_completion_date ON projects(completion_date);
 
 -- 用户邮箱索引（用于用户查找）
 CREATE INDEX idx_users_email ON users(email);

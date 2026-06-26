@@ -129,19 +129,16 @@ type AIResearchTask struct {
 type Project struct {
 	ID                 string           `json:"id" db:"id"`
 	Name               string           `json:"name" db:"name"`
-	System             *string          `json:"system" db:"system"`
+	BusinessDirection  *string          `json:"businessDirection" db:"business_direction"`
 	Priority           string           `json:"priority" db:"priority"`
-	BusinessProblem    *string          `json:"businessProblem" db:"business_problem"`
+	BusinessBackground *string          `json:"businessBackground" db:"business_background"`
 	KeyResultIds       []string         `json:"keyResultIds" db:"key_result_ids"`
 	WeeklyUpdate       *string          `json:"weeklyUpdate" db:"weekly_update"`
 	LastWeekUpdate     *string          `json:"lastWeekUpdate" db:"last_week_update"`
 	Status             string           `json:"status" db:"status"`
-	ProductManagers    Role             `json:"productManagers" db:"product_managers"`
-	BackendDevelopers  Role             `json:"backendDevelopers" db:"backend_developers"`
-	FrontendDevelopers Role             `json:"frontendDevelopers" db:"frontend_developers"`
-	QaTesters          Role             `json:"qaTesters" db:"qa_testers"`
+	Owner              Role             `json:"owners" db:"owner"`
 	ProposalDate       *string          `json:"proposedDate" db:"proposal_date"`
-	LaunchDate         *string          `json:"launchDate" db:"launch_date"`
+	CompletionDate     *string          `json:"completionDate" db:"completion_date"`
 	CreatedAt          string           `json:"createdAt" db:"created_at"`
 	Followers          []string         `json:"followers" db:"followers"`
 	Comments           []Comment        `json:"comments" db:"comments"`
@@ -170,20 +167,20 @@ type KrWeeklySummary struct {
 
 // ProjectWeeklySummary 单个项目的周报总结条目
 type ProjectWeeklySummary struct {
-	ProjectID       string   `json:"projectId"`
-	ProjectName     string   `json:"projectName"`
-	WeeklyUpdate    string   `json:"weeklyUpdate"`
-	Status          string   `json:"status"`
-	Priority        string   `json:"priority"`
-	ProductManagers []string `json:"productManagers"`
+	ProjectID         string   `json:"projectId"`
+	ProjectName       string   `json:"projectName"`
+	WeeklyUpdate      string   `json:"weeklyUpdate"`
+	Status            string   `json:"status"`
+	Priority          string   `json:"priority"`
+	Owners            []string `json:"owners"`
 	// —— v4.3 新增：供 AI 周报生成使用的原始数据字段（向后兼容）——
-	System          string   `json:"system,omitempty"`
-	BusinessProblem string   `json:"businessProblem,omitempty"`
-	LastWeekUpdate  string   `json:"lastWeekUpdate,omitempty"`
-	LaunchDate      string   `json:"launchDate,omitempty"`
-	ScheduleText    string   `json:"scheduleText,omitempty"` // 排期摘要；推进型项目为空
-	MemberAlerts    []string `json:"memberAlerts,omitempty"` // 成员>14天无排期提示
-	IsDrivingOnly   bool     `json:"isDrivingOnly,omitempty"` // true=项目进行中(推进型，无需开发)
+	BusinessDirection string   `json:"businessDirection,omitempty"`
+	BusinessBackground string  `json:"businessBackground,omitempty"`
+	LastWeekUpdate    string   `json:"lastWeekUpdate,omitempty"`
+	CompletionDate    string   `json:"completionDate,omitempty"`
+	ScheduleText      string   `json:"scheduleText,omitempty"` // 排期摘要；推进型项目为空
+	MemberAlerts      []string `json:"memberAlerts,omitempty"` // 成员>14天无排期提示
+	IsDrivingOnly     bool     `json:"isDrivingOnly,omitempty"` // true=项目进行中(推进型，无需开发)
 	// —— v4.4.1 新增：排期调整 diff 与延期风险告警，omitempty 保证向前兼容 ——
 	ScheduleChanges []string `json:"scheduleChanges,omitempty"` // 排期较上周调整提示（new/changed/removed）
 	DelayRisks      []string `json:"delayRisks,omitempty"`      // 状态-排期一致性告警（延期风险）
