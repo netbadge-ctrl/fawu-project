@@ -203,6 +203,23 @@ func createTables(db *sql.DB) error {
 		ON project_schedule_snapshots(iso_year, week_number);
 	`
 
+	// 项目成员多时段配置表（PG + SQLite 通用）
+	timeSlotsTable := `
+	CREATE TABLE IF NOT EXISTS time_slots (
+		id VARCHAR(50) PRIMARY KEY,
+		project_id VARCHAR(50) NOT NULL,
+		user_id VARCHAR(50) NOT NULL,
+		role_key VARCHAR(50) NOT NULL,
+		start_date DATE,
+		end_date DATE,
+		description TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE INDEX IF NOT EXISTS idx_time_slots_project ON time_slots(project_id);
+	CREATE INDEX IF NOT EXISTS idx_time_slots_user ON time_slots(user_id);
+	`
+
 	tables := []string{usersTable, okrSetsTable, projectsTable}
 
 	for _, table := range tables {
@@ -220,6 +237,9 @@ func createTables(db *sql.DB) error {
 	}
 	if _, err := db.Exec(projectScheduleSnapshotsTable); err != nil {
 		return fmt.Errorf("failed to create project_schedule_snapshots table: %w", err)
+	}
+	if _, err := db.Exec(timeSlotsTable); err != nil {
+		return fmt.Errorf("failed to create time_slots table: %w", err)
 	}
 
 	return nil
