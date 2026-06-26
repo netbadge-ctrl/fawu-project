@@ -39,7 +39,7 @@ export PORT="8080"
 go run main.go
 ```
 
-服务将在 `http://120.92.36.175:8080` 启动。
+服务将在 `http://120.92.44.21:8080` 启动。
 
 ## API 端点
 
@@ -117,7 +117,7 @@ CREATE TABLE projects (
 首次部署后，可以调用以下 API 导入初始数据：
 
 ```bash
-curl -X POST http://120.92.36.175:8080/api/migrate-initial-data
+curl -X POST http://120.92.44.21:8080/api/migrate-initial-data
 ```
 
 这将导入用户、OKR 和项目的初始数据。

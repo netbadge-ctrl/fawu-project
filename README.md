@@ -20,7 +20,7 @@ npm install
 npm run dev
 
 # 访问: http://localhost:5173/
-# 自动使用模拟用户"陈楠"登录，无需OIDC配置
+# 自动使用模拟用户"刘媛"登录，无需OIDC配置
 ```
 
 ### 线上环境模式（用于生产部署）
@@ -32,7 +32,7 @@ node switch-env.cjs production
 npm run build
 npm run preview
 
-# 访问: http://120.92.36.175:5173/
+# 访问: http://120.92.44.21:5173/
 # 使用完整OIDC认证流程
 ```
 

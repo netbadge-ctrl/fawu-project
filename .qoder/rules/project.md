@@ -7,7 +7,7 @@ trigger: always_on
 ## 服务器登录配置
 
 ### 线上服务器
-- **服务器地址**: 120.92.36.175
+- **服务器地址**: 120.92.44.21
 - **SSH连接**: 使用 `ssh -o BatchMode=yes -o ConnectTimeout=10` 确保命令可靠
 - **文件传输**: 使用 `scp -r` 上传文件
 - **系统日期基准**: 2026年5月3日
@@ -43,14 +43,14 @@ trigger: always_on
 ## 线上前端部署纪律（强制）
 
 ### 双 dist 漂移陷阱（已发生事故，必须规避）
-线上服务器 `120.92.36.175` 历史上**同时存在两套前端入口**，构建时间会漂移导致用户访问到旧版本：
+线上服务器 `120.92.44.21` 历史上**同时存在两套前端入口**，构建时间会漂移导致用户访问到旧版本：
 
 | 入口 URL | 提供方 | dist 路径 | 工作目录 |
 |---|---|---|---|
-| `http://120.92.36.175` (:80) | Nginx (`/etc/nginx/conf.d/project-management.conf`) | `/opt/project-management/dist` | — |
-| `http://120.92.36.175:5173` | `vite preview` 后台进程 | `/opt/codebuddy/dist` | `/opt/codebuddy` |
+| `http://120.92.44.21` (:80) | Nginx (`/etc/nginx/conf.d/project-management.conf`) | `/opt/project-management/dist` | — |
+| `http://120.92.44.21:5173` | `vite preview` 后台进程 | `/opt/codebuddy/dist` | `/opt/codebuddy` |
 
-**用户实际访问入口**：`.env.production` 中 `VITE_FRONTEND_URL=http://120.92.36.175:5173`，即 **:5173 才是用户入口**，:80 仅作为备份/Nginx 通道。**两边 dist 必须保持一致**，否则会出现「OKR 不加粗、风险提示不显示」等"代码改了线上看不到"的现象。
+**用户实际访问入口**：`.env.production` 中 `VITE_FRONTEND_URL=http://120.92.44.21:5173`，即 **:5173 才是用户入口**，:80 仅作为备份/Nginx 通道。**两边 dist 必须保持一致**，否则会出现「OKR 不加粗、风险提示不显示」等"代码改了线上看不到"的现象。
 
 ### 部署 SOP（任何前端发版都必须遵守）
 1. **构建产物只构建一次**，禁止在两个目录分别 `npm run build`，避免 hash 不一致与漂移。
@@ -58,19 +58,19 @@ trigger: always_on
    ```bash
    # 把构建好的 dist 同步到两个入口目录（保留 timestamp 备份）
    TS=$(date +%Y%m%d_%H%M%S)
-   ssh root@120.92.36.175 "mv /opt/codebuddy/dist /opt/codebuddy/dist.bak.$TS && cp -r /opt/project-management/dist /opt/codebuddy/dist"
+   ssh root@120.92.44.21 "mv /opt/codebuddy/dist /opt/codebuddy/dist.bak.$TS && cp -r /opt/project-management/dist /opt/codebuddy/dist"
    ```
 3. **重启 :5173 vite preview 进程**（vite preview 是静态服务，文件名带 hash 时浏览器强刷即可生效，但保险做法是重启）：
    ```bash
-   ssh root@120.92.36.175 "pkill -f 'vite preview --host 0.0.0.0 --port 5173' || true; \
+   ssh root@120.92.44.21 "pkill -f 'vite preview --host 0.0.0.0 --port 5173' || true; \
      setsid bash -c 'cd /opt/codebuddy && nohup npm exec -- vite preview --host 0.0.0.0 --port 5173 >/tmp/vite-preview.log 2>&1 < /dev/null &'"
    ```
    **必须用 `setsid + nohup + </dev/null`**，否则 SSH 断连会把 vite 进程一起带走（已踩坑）。
 4. **校验关键特征字（grep 法）**：minify 后变量名会丢失，但字符串字面量保留，必须验证下列关键字在线上 JS 中存在：
    ```bash
-   JS=$(curl -s http://120.92.36.175:5173/ | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1)
+   JS=$(curl -s http://120.92.44.21:5173/ | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1)
    for kw in scheduleChanges delayRisks memberAlerts 本周排期空闲人员 font-bold; do
-     echo "$kw -> $(curl -s http://120.92.36.175:5173/assets/$JS | grep -c "$kw")"
+     echo "$kw -> $(curl -s http://120.92.44.21:5173/assets/$JS | grep -c "$kw")"
    done
    ```
    全部 `>=1` 才算部署成功；任意一项为 0 表示线上跑的是旧 dist。

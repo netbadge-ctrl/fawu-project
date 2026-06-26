@@ -86,8 +86,8 @@ npm install
 
 # 设置生产环境变量
 export VITE_APP_ENV=production
-export VITE_API_BASE_URL=http://120.92.36.175:9000/api
-export VITE_FRONTEND_URL=http://120.92.36.175:5173
+export VITE_API_BASE_URL=http://120.92.44.21:9000/api
+export VITE_FRONTEND_URL=http://120.92.44.21:5173
 export VITE_ENABLE_OIDC=true
 export VITE_MOCK_USER_ID=
 source /root/.bash_profile
