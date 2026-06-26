@@ -19,7 +19,7 @@ func SetupRouter(db *sql.DB) *gin.Engine {
 	config.AllowOrigins = []string{
 		"http://localhost:5173",
 		"http://127.0.0.1:5173",
-		"http://120.92.36.175:5173",
+		"http://120.92.44.21:5173",
 	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"}
