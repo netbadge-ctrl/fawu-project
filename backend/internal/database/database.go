@@ -87,6 +87,7 @@ func createTables(db *sql.DB) error {
 		CREATE TABLE IF NOT EXISTS projects (
 			id VARCHAR(255) PRIMARY KEY,
 			name TEXT NOT NULL,
+			system VARCHAR(255),
 			priority VARCHAR(50) NOT NULL,
 			business_problem TEXT,
 			key_result_ids TEXT[],
