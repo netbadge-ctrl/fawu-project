@@ -35,7 +35,7 @@ export const appConfig: AppConfig = {
   apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'http://localhost:9000/api'),
   frontendUrl: getEnvVar('VITE_FRONTEND_URL', 'http://localhost:5173'),
   enableOIDC: getBoolEnvVar('VITE_ENABLE_OIDC', false),
-  mockUserId: getEnvVar('VITE_MOCK_USER_ID', '22231'),
+  mockUserId: getEnvVar('VITE_MOCK_USER_ID', '52688'),
   oidc: {
     clientId: 'codebuddy',
     clientSecret: 'e11cda4fdd2f6d24cce9b97feeadd4b4',

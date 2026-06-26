@@ -27,7 +27,7 @@ node check-env.cjs
 | 变量名 | 开发模式 | 生产模式 |
 |--------|----------|----------|
 | VITE_ENABLE_OIDC | false | true |
-| VITE_MOCK_USER_ID | 22231 | (空) |
+| VITE_MOCK_USER_ID | 52688 | (空) |
 | VITE_API_BASE_URL | localhost:9000/api | 120.92.36.175:9000/api |
 
 ## 常用命令

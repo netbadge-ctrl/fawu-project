@@ -9,7 +9,7 @@ const envConfigs = {
     VITE_API_BASE_URL: 'http://localhost:9000/api',
     VITE_FRONTEND_URL: 'http://localhost:5173',
     VITE_ENABLE_OIDC: 'false',
-    VITE_MOCK_USER_ID: '22231'
+    VITE_MOCK_USER_ID: '52688'
   },
   production: {
     VITE_APP_ENV: 'production',

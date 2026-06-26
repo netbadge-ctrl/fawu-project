@@ -77,12 +77,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     } else {
                         // 如果 API 调用失败，使用本地模拟数据
                         const mockUser: User = {
-                            id: appConfig.mockUserId || '22231',
-                            name: '陈楠',
-                            email: 'chennan1@kingsoft.com',
-                            avatarUrl: `https://picsum.photos/seed/22231/40/40`,
-                            deptId: 28508729,
-                            deptName: '前端开发部'
+                            id: appConfig.mockUserId || '52688',
+                            name: '刘媛',
+                            email: 'liuyuan7@kingsoft.com',
+                            avatarUrl: `https://picsum.photos/seed/52688/40/40`,
+                            deptId: undefined,
+                            deptName: '法务合规与资本市场中心/法务部/产品BP组'
                         };
                         setUser(mockUser);
                         setIsAuthenticated(true);
@@ -92,12 +92,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     console.error('🔧 Failed to load mock user from API, using local fallback:', error);
                     // API 调用失败时的备选方案
                     const mockUser: User = {
-                        id: appConfig.mockUserId || '22231',
-                        name: '陈楠',
-                        email: 'chennan1@kingsoft.com',
-                        avatarUrl: `https://picsum.photos/seed/22231/40/40`,
-                        deptId: 28508729,
-                        deptName: '前端开发部'
+                        id: appConfig.mockUserId || '52688',
+                        name: '刘媛',
+                        email: 'liuyuan7@kingsoft.com',
+                        avatarUrl: `https://picsum.photos/seed/52688/40/40`,
+                        deptId: undefined,
+                        deptName: '法务合规与资本市场中心/法务部/产品BP组'
                     };
                     setUser(mockUser);
                     setIsAuthenticated(true);

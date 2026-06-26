@@ -1332,14 +1332,14 @@ func (h *Handler) JWTLogin(c *gin.Context) {
 
 // GetMockUser 开发模式专用：获取模拟用户（仅用于本地开发）
 func (h *Handler) GetMockUser(c *gin.Context) {
-	// 模拟用户陈楠的信息
+	// 模拟用户刘媛的信息
 	mockUser := map[string]interface{}{
-		"id":        "22231",
-		"name":      "陈楠",
-		"email":     "chennan1@kingsoft.com",
-		"avatarUrl": "https://picsum.photos/seed/22231/40/40",
-		"deptId":    28508729,
-		"deptName":  "前端开发部",
+		"id":        "52688",
+		"name":      "刘媛",
+		"email":     "liuyuan7@kingsoft.com",
+		"avatarUrl": "https://picsum.photos/seed/52688/40/40",
+		"deptId":    nil,
+		"deptName":  "法务合规与资本市场中心/法务部/产品BP组",
 	}
 
 	c.JSON(http.StatusOK, mockUser)

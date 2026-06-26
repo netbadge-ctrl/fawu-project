@@ -16,7 +16,7 @@ trigger: always_on
 - **数据库地址**: `postgresql://admin:Kingsoft0531@120.92.122.77:59971/project_codebuddy?sslmode=disable`
 - **白名单**: PG有IP白名单，本机公网IP需联系DBA加入白名单后才能连通
 - **OIDC认证配置**:
-  - **本地联调**: 禁用OIDC (`VITE_ENABLE_OIDC=false`)，使用模拟用户ID (`VITE_MOCK_USER_ID=22231`)
+  - **本地联调**: 禁用OIDC (`VITE_ENABLE_OIDC=false`)，使用模拟用户ID (`VITE_MOCK_USER_ID=52688`)
   - **线上生产**: 必须启用OIDC认证 (`VITE_ENABLE_OIDC=true`)
 - **启动命令**:
   ```bash
