@@ -91,7 +91,7 @@ Expected: 无报错
 - [ ] **Step 4: 本地启动后端，确认表创建成功**
 
 ```bash
-export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.44.85:51022/project_codebuddy?sslmode=disable"
+export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.122.77:59971/project_codebuddy?sslmode=disable"
 export DISABLE_SCHEDULER="true"
 bash ../restart-backend.sh
 ```
@@ -1086,7 +1086,7 @@ git commit -m "feat(weekly-report): add WEEKLY_REPORT_RULES_V441 kill switch"
 
 ```bash
 cd /Users/chennan/Qoder/project-qoder_重构
-export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.44.85:51022/project_codebuddy?sslmode=disable"
+export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.122.77:59971/project_codebuddy?sslmode=disable"
 export DISABLE_SCHEDULER="true"
 bash restart-backend.sh
 ```

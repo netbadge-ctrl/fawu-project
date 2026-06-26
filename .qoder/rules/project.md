@@ -13,18 +13,18 @@ trigger: always_on
 - **系统日期基准**: 2026年5月3日
 
 ### 本地联调配置（直连线上PostgreSQL）
-- **数据库地址**: `postgresql://admin:Kingsoft0531@120.92.44.85:51022/project_codebuddy?sslmode=disable`
+- **数据库地址**: `postgresql://admin:Kingsoft0531@120.92.122.77:59971/project_codebuddy?sslmode=disable`
 - **白名单**: PG有IP白名单，本机公网IP需联系DBA加入白名单后才能连通
 - **OIDC认证配置**:
   - **本地联调**: 禁用OIDC (`VITE_ENABLE_OIDC=false`)，使用模拟用户ID (`VITE_MOCK_USER_ID=22231`)
   - **线上生产**: 必须启用OIDC认证 (`VITE_ENABLE_OIDC=true`)
 - **启动命令**:
   ```bash
-  export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.44.85:51022/project_codebuddy?sslmode=disable"
+  export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.122.77:59971/project_codebuddy?sslmode=disable"
   export DISABLE_SCHEDULER="true"   # 必须，避免和线上正式backend重复触发定时任务
   bash restart-backend.sh
   ```
-- **验证连通**: `nc -zv -w 5 120.92.44.85 51022`
+- **验证连通**: `nc -zv -w 5 120.92.122.77 59971`
 - **建表规范**: PostgreSQL不支持DATETIME，必须使用TIMESTAMP
 
 ## GitHub同步配置

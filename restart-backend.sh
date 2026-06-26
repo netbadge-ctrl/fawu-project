@@ -14,7 +14,7 @@ cd backend
 # 本地联调连线上 PostgreSQL：
 # - DATABASE_URL 指向线上库，项目/OKR/周报统一读写线上数据
 # - DISABLE_SCHEDULER=true 禁用本地定时任务，避免和线上正式 backend 重复触发
-export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.44.85:51022/project_codebuddy?sslmode=disable"
+export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.122.77:59971/project_codebuddy?sslmode=disable"
 export DISABLE_SCHEDULER="true"
 export PORT="9000"
 

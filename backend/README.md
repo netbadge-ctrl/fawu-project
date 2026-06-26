@@ -29,7 +29,7 @@ go mod tidy
 ### 2. 配置环境变量（可选）
 
 ```bash
-export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.44.85:51022/project_codebuddy"
+export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.122.77:59971/project_codebuddy"
 export PORT="8080"
 ```
 

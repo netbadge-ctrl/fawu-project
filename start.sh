@@ -44,7 +44,7 @@ sleep 3
 # 启动后端服务
 echo "启动后端服务..."
 cd backend
-export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.44.85:51022/project_codebuddy?sslmode=disable"
+export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.122.77:59971/project_codebuddy?sslmode=disable"
 export PORT="9000"
 source /root/.bash_profile
 

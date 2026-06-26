@@ -23,7 +23,7 @@ echo "🗄️  初始化数据库..."
 echo "正在连接数据库并创建表结构..."
 
 # 设置环境变量（如果需要）
-export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.44.85:51022/project_codebuddy?sslmode=disable"
+export DATABASE_URL="postgresql://admin:Kingsoft0531@120.92.122.77:59971/project_codebuddy?sslmode=disable"
 export PORT="9000"
 
 echo "🌱 启动服务..."
